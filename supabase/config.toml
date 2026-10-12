@@ -1,0 +1,4 @@
+[functions.cheongla-push]
+# This endpoint verifies user JWTs with auth.getUser and dispatcher calls with
+# a private, randomly generated webhook secret. No anonymous dispatch/setup.
+verify_jwt = false
