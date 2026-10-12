@@ -13,7 +13,7 @@
 textarea{width:100%;min-height:180px;padding:14px;border:1px solid #cbd5d3;border-radius:10px;font:inherit;resize:vertical;line-height:1.7}textarea:focus-visible{outline:3px solid #6db3a2;outline-offset:3px}.notice{border-top:1px solid #e8ece8;padding:20px 0;overflow-wrap:anywhere}.notice h3{font-size:19px;margin:10px 0}.notice-body{white-space:pre-wrap;margin:12px 0}.notice-meta{font-size:13px;color:#68797c}.check{display:flex;gap:10px;align-items:center}.check input{width:20px;height:20px}.notice-form{background:#f7f9f6;padding:18px;border-radius:14px;margin:18px 0}.notice-form .row{margin-top:18px}#noticeStatus{white-space:pre-wrap}
 </style>
 <style>.qa-item{border:1px solid #dce6df;border-radius:14px;padding:18px;margin:12px 0}.qa-item summary{cursor:pointer;font-weight:700;line-height:1.6;overflow-wrap:anywhere}.qa-body{white-space:pre-wrap;overflow-wrap:anywhere}.qa-answer{background:#edf5f0;border-radius:12px;padding:16px;margin:18px 0}.qa-reply{margin-top:18px}.qa-reply button{margin-top:12px}#qaStatus{white-space:pre-wrap}</style>
-<style>.qa-photo{display:block;max-width:100%;height:auto;border-radius:10px;margin:12px 0}.qa-photos{display:grid;gap:16px;margin:18px 0}.qa-photo-form{margin:18px 0}.qa-conversation{border-top:1px solid #dae4dd;margin-top:24px;padding-top:16px}.qa-message{padding:14px;border-radius:12px;margin:12px 0}.student-message{background:#f7f4ee}.teacher-message{background:#edf5f0}.qa-conversation button{margin-top:12px}</style><style>.exam-roster{width:100%;border-collapse:collapse;font-size:14px}.exam-roster th,.exam-roster td{text-align:left;padding:12px 8px;border-bottom:1px solid #dce6df;overflow-wrap:anywhere}.exam-roster th{white-space:nowrap}.exam-roster th:last-child{min-width:145px}</style></head>
+<style>.qa-photo{display:block;max-width:100%;height:auto;border-radius:10px;margin:12px 0}.qa-photos{display:grid;gap:16px;margin:18px 0}.qa-photo-form{margin:18px 0}.qa-conversation{border-top:1px solid #dae4dd;margin-top:24px;padding-top:16px}.qa-message{padding:14px;border-radius:12px;margin:12px 0}.student-message{background:#f7f4ee}.teacher-message{background:#edf5f0}.qa-conversation button{margin-top:12px}</style><style>.exam-roster{width:100%;border-collapse:collapse;font-size:14px}.exam-roster th,.exam-roster td{text-align:left;padding:12px 8px;border-bottom:1px solid #dce6df;overflow-wrap:anywhere}.exam-roster th{white-space:nowrap}.exam-roster th:last-child{min-width:145px}</style><style>.staff-workspace{margin-top:24px;padding:20px;background:#edf4ee;border:1px solid #d7e4d9;border-radius:14px}.staff-workspace h3{margin:0}.staff-workspace p{margin:8px 0 16px}.staff-shortcuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.staff-shortcuts button{min-height:58px;line-height:1.5;padding:12px}.staff-shortcuts button:nth-child(even){background:#32756a}#accountPanel section{scroll-margin-top:20px}@media(max-width:420px){.staff-workspace{padding:14px}.staff-shortcuts button{font-size:14px}}</style></head>
 <body><main>
 <header class="brand"><img class="brand-image" src="assets/cheongla-brand.png" alt="청라 CL 심벌 · CHEONGLA · 독학재수학원 청라" width="1440" height="1721" fetchpriority="high" decoding="async"><div><small>CHEONGLA</small><h1>청라 학습코칭</h1><p>The Better Tomorrow, Together!</p></div></header>
 <section id="authPanel" class="panel auth">
@@ -34,6 +34,7 @@ textarea{width:100%;min-height:180px;padding:14px;border:1px solid #cbd5d3;borde
 <div class="row"><h2 id="welcome">내 계정</h2><button id="logout" class="secondary" type="button">로그아웃</button></div>
 <span id="accountBadge" class="badge"></span><p id="accountDescription"></p>
 <button id="reloadProfile" class="secondary" type="button">승인 상태 새로 확인</button>
+<nav id="staffWorkspace" class="staff-workspace" aria-labelledby="staffWorkspaceTitle" hidden><h3 id="staffWorkspaceTitle">실장 업무 바로가기</h3><p class="muted">자주 쓰는 업무를 눌러 바로 이동하세요.</p><div class="staff-shortcuts"><button id="staffGoTuition" type="button">학원비 안내</button><button id="staffGoExamRoster" type="button">모의고사 신청 명단</button><button id="staffGoExamFee" type="button">응시료 안내</button><button id="staffGoNotices" type="button">공지사항 관리</button></div></nav>
 <section id="tuitionPanel" hidden style="margin-top:30px">
 <div class="row"><h2>월별 학원비 납부 안내</h2><button id="reloadTuition" class="secondary" type="button">안내 새로고침</button></div>
 <p id="tuitionDescription" class="muted"></p>
@@ -173,7 +174,7 @@ async function getClient(){
  })().catch(e=>{clientPromise=null;throw e;});}
  return clientPromise;
 }
-function clearAccount(){currentProfile=null;resetExamFees();resetExams();resetTuition();resetQA();noticeRequest++;noticeLimit=20;activeNoticeAudience='all';configureNoticeTabs();resetNoticeForm();$('noticesPanel').hidden=true;$('noticeForm').hidden=true;$('notices').replaceChildren();$('noticeStatus').textContent='';$('moreNotices').hidden=true;$('accountPanel').hidden=true;$('approvalPanel').hidden=true;$('childrenPanel').hidden=true;$('children').replaceChildren();$('members').replaceChildren();$('coachingPanel').hidden=true;$('coachingStudents').replaceChildren();$('authPanel').hidden=false;}
+function clearAccount(){currentProfile=null;configureStaffWorkspace();resetExamFees();resetExams();resetTuition();resetQA();noticeRequest++;noticeLimit=20;activeNoticeAudience='all';configureNoticeTabs();resetNoticeForm();$('noticesPanel').hidden=true;$('noticeForm').hidden=true;$('notices').replaceChildren();$('noticeStatus').textContent='';$('moreNotices').hidden=true;$('accountPanel').hidden=true;$('approvalPanel').hidden=true;$('childrenPanel').hidden=true;$('children').replaceChildren();$('members').replaceChildren();$('coachingPanel').hidden=true;$('coachingStudents').replaceChildren();$('authPanel').hidden=false;}
 async function loadProfile(verifiedUser=null){
  clearAccount();const client=await getClient();let user=verifiedUser;
  if(!user){message('계정 확인 중…');const {data,error}=await client.auth.getUser();if(error)throw error;user=data.user;}
@@ -192,7 +193,7 @@ async function loadProfile(verifiedUser=null){
  configureQA();if(canUseQA())void loadQuestions();
  configureTuition();if(canUseTuition())void loadTuition();
  configureExamFees();configureExams();if(canUseExams())void loadExams();if(currentProfile.role==='parent'&&canUseExamFees())void loadExamFees();
- $('approvalPanel').hidden=!isAppAdmin();$('coachingPanel').hidden=!(canCoachAll()&&!isAppAdmin());
+ configureStaffWorkspace();$('approvalPanel').hidden=!isAppAdmin();$('coachingPanel').hidden=!(canCoachAll()&&!isAppAdmin());
  try{
   if(approved&&currentProfile.role==='parent'){message('로그인 완료 · 자녀 정보 확인 중…');await loadChildren();}
   if(!$('approvalPanel').hidden){message('로그인 완료 · 회원 목록 확인 중…');await loadMembers();}
@@ -560,5 +561,20 @@ $('logout').addEventListener('click',async()=>{
  $('logout').disabled=true;try{const client=await getClient();const {error}=await client.auth.signOut({scope:'local'});if(error)throw error;clearAccount();clearLoginInputs();message('로그아웃했습니다.');}catch(e){message(readable(e));}finally{$('logout').disabled=false;}
 });
 for(const [id,action] of [['reloadProfile',loadProfile],['reloadMembers',loadMembers],['reloadCoachingStudents',loadCoachingStudents]])$(id).addEventListener('click',async()=>{const button=$(id);button.disabled=true;message('확인 중…');try{await action();message('');}catch(e){message(readable(e));}finally{button.disabled=false;}});
+function configureStaffWorkspace(){
+ const staff=canManageTuition();$('staffWorkspace').hidden=!staff;
+ $('staffWorkspaceTitle').textContent=currentProfile?.role==='manager'?'실장 업무 바로가기':'운영 관리 바로가기';
+ const standard=['tuitionPanel','examPanel','examFeePanel','qaPanel','noticesPanel','childrenPanel','coachingPanel','approvalPanel'];
+ const priority=['tuitionPanel','examPanel','examFeePanel','noticesPanel','qaPanel','childrenPanel','coachingPanel','approvalPanel'];
+ for(const id of staff?priority:standard)$('accountPanel').append($(id));
+}
+for(const [id,target] of [['staffGoTuition','tuitionPanel'],['staffGoExamRoster','examRosterManager'],['staffGoExamFee','examFeePanel'],['staffGoNotices','noticesPanel']]){
+ $(id).addEventListener('click',()=>{
+  if(!canManageTuition())return;
+  const section=$(target);if(section.hidden)return;
+  section.setAttribute('tabindex','-1');section.scrollIntoView({behavior:'smooth',block:'start'});section.focus({preventScroll:true});
+ });
+}
+
 (async()=>{try{const client=await getClient();const {data,error}=await client.auth.getSession();if(error)throw error;if(data.session)await loadProfile();}catch(e){message(readable(e));}})();
 </script></body></html>
