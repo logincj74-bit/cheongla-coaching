@@ -34,6 +34,23 @@ textarea{width:100%;min-height:180px;padding:14px;border:1px solid #cbd5d3;borde
 <div class="row"><h2 id="welcome">내 계정</h2><button id="logout" class="secondary" type="button">로그아웃</button></div>
 <span id="accountBadge" class="badge"></span><p id="accountDescription"></p>
 <button id="reloadProfile" class="secondary" type="button">승인 상태 새로 확인</button>
+<section id="tuitionPanel" hidden style="margin-top:30px">
+<div class="row"><h2>월별 학원비 납부 안내</h2><button id="reloadTuition" class="secondary" type="button">안내 새로고침</button></div>
+<p id="tuitionDescription" class="muted"></p>
+<label for="tuitionMonth">청구 월</label><input id="tuitionMonth" type="month" required>
+<div id="tuitionManager" hidden>
+<details class="notice-form"><summary>학생 등록 정보와 납부 안내 관리</summary>
+<label for="tuitionStudent">재원생 선택</label><select id="tuitionStudent"></select>
+<form id="tuitionSettingsForm"><label for="tuitionEnrollment">최초 등록일 (학원 이용 시작일)</label><input id="tuitionEnrollment" type="date" required>
+<label for="tuitionFee">정상 월 학원비 (원)</label><input id="tuitionFee" type="number" min="0" max="10000000" step="1" required>
+<button id="saveTuitionSettings" class="submit secondary" type="submit">등록 정보 저장</button></form>
+<p id="tuitionPreview" class="muted"></p>
+<form id="tuitionDraftForm"><label for="tuitionDue">납부기한</label><input id="tuitionDue" type="date" required>
+<label for="tuitionNote">납부 안내 문구 (선택)</label><textarea id="tuitionNote" maxlength="2000" placeholder="입금 방법이나 안내 사항을 입력하세요."></textarea>
+<button id="saveTuitionDraft" class="submit" type="submit">초안 계산·저장</button></form>
+</details></div>
+<p id="tuitionStatus" class="muted" role="status" aria-live="polite"></p><div id="tuitionList"></div>
+</section>
 <section id="qaPanel" hidden style="margin-top:30px">
 <div class="row"><h2>과목별 질의응답</h2><button id="reloadQuestions" class="secondary" type="button">질문 새로고침</button></div>
 <p id="qaDescription" class="muted"></p>
@@ -124,7 +141,7 @@ async function getClient(){
  })().catch(e=>{clientPromise=null;throw e;});}
  return clientPromise;
 }
-function clearAccount(){currentProfile=null;resetQA();noticeRequest++;noticeLimit=20;activeNoticeAudience='all';configureNoticeTabs();resetNoticeForm();$('noticesPanel').hidden=true;$('noticeForm').hidden=true;$('notices').replaceChildren();$('noticeStatus').textContent='';$('moreNotices').hidden=true;$('accountPanel').hidden=true;$('approvalPanel').hidden=true;$('childrenPanel').hidden=true;$('children').replaceChildren();$('members').replaceChildren();$('coachingPanel').hidden=true;$('coachingStudents').replaceChildren();$('authPanel').hidden=false;}
+function clearAccount(){currentProfile=null;resetTuition();resetQA();noticeRequest++;noticeLimit=20;activeNoticeAudience='all';configureNoticeTabs();resetNoticeForm();$('noticesPanel').hidden=true;$('noticeForm').hidden=true;$('notices').replaceChildren();$('noticeStatus').textContent='';$('moreNotices').hidden=true;$('accountPanel').hidden=true;$('approvalPanel').hidden=true;$('childrenPanel').hidden=true;$('children').replaceChildren();$('members').replaceChildren();$('coachingPanel').hidden=true;$('coachingStudents').replaceChildren();$('authPanel').hidden=false;}
 async function loadProfile(verifiedUser=null){
  clearAccount();const client=await getClient();let user=verifiedUser;
  if(!user){message('계정 확인 중…');const {data,error}=await client.auth.getUser();if(error)throw error;user=data.user;}
@@ -141,6 +158,7 @@ async function loadProfile(verifiedUser=null){
  $('noticesPanel').hidden=!approved;
  configureNoticeTabs();if(approved)void loadNotices();
  configureQA();if(canUseQA())void loadQuestions();
+ configureTuition();if(canUseTuition())void loadTuition();
  $('approvalPanel').hidden=!isAppAdmin();$('coachingPanel').hidden=!(canCoachAll()&&!isAppAdmin());
  try{
   if(approved&&currentProfile.role==='parent'){message('로그인 완료 · 자녀 정보 확인 중…');await loadChildren();}
@@ -413,6 +431,26 @@ $('questionForm').addEventListener('submit',async e=>{
 $('reloadQuestions').addEventListener('click',()=>{void loadQuestions();});
 $('qaFilter').addEventListener('change',()=>{qaLimit=20;void loadQuestions();});
 $('moreQuestions').addEventListener('click',()=>{qaLimit+=20;void loadQuestions();});
+
+let tuitionRequest=0,tuitionRoster=[],tuitionNotices=[],tuitionReady=false,tuitionBusy=false;
+function canManageTuition(){return currentProfile?.approval_status==='approved'&&(isAppAdmin()||currentProfile.role==='manager');}
+function canUseTuition(){return currentProfile?.approval_status==='approved'&&(canManageTuition()||['student','parent'].includes(currentProfile.role));}
+function tuitionMonthNow(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).slice(0,7);}
+function tuitionMoney(value){return Number(value).toLocaleString('ko-KR')+'원';}
+function tuitionText(parent,text,tag='p',className=''){const node=document.createElement(tag);node.textContent=text;if(className)node.className=className;parent.append(node);return node;}
+function resetTuition(){tuitionRequest++;tuitionRoster=[];tuitionNotices=[];tuitionReady=false;tuitionBusy=false;$('tuitionPanel').hidden=true;$('tuitionList').replaceChildren();$('tuitionStudent').replaceChildren();$('tuitionStatus').textContent='';$('tuitionManager').hidden=true;}
+function configureTuition(){$('tuitionPanel').hidden=!canUseTuition();$('tuitionManager').hidden=!canManageTuition();$('tuitionMonth').value=tuitionMonthNow();$('tuitionDescription').textContent=canManageTuition()?'매월 1일~말일 기준입니다. 신규생은 등록일부터 말일까지 일할 계산하고 다음 달부터 정상 월 학원비를 안내합니다.':'해당 월의 학원비와 납부기한을 확인하세요. 게시된 본인 또는 연결된 자녀의 안내만 표시됩니다.';}
+function setTuitionControls(){for(const id of ['tuitionStudent','tuitionEnrollment','tuitionFee','saveTuitionSettings','tuitionDue','tuitionNote','saveTuitionDraft'])$(id).disabled=tuitionBusy||!tuitionReady;$('tuitionMonth').disabled=tuitionBusy;$('reloadTuition').disabled=tuitionBusy;}
+function syncTuitionStudent(){const s=tuitionRoster.find(x=>x.student_id===$('tuitionStudent').value);$('tuitionEnrollment').value=s?.enrolled_on||'';$('tuitionFee').value=s?.monthly_fee??'';const n=tuitionNotices.find(x=>x.student_id===s?.student_id);$('tuitionDue').value=n?.due_on||$('tuitionMonth').value+'-01';$('tuitionNote').value=n?.note||'';renderTuitionPreview();}
+function renderTuitionPreview(){const month=$('tuitionMonth').value,date=$('tuitionEnrollment').value,raw=$('tuitionFee').value;const valid=/^\d{4}-\d{2}$/.test(month)&&/^\d{4}-\d{2}-\d{2}$/.test(date)&&raw!==''&&Number.isInteger(Number(raw))&&Number(raw)>=0&&Number(raw)<=10000000;let text='학생의 등록일과 월 학원비를 입력해 주세요.';if(valid){const [y,m]=month.split('-').map(Number),days=new Date(Date.UTC(y,m,0)).getUTCDate(),end=month+'-'+String(days).padStart(2,'0'),start=date>month+'-01'?date:month+'-01';if(start>end)text='등록일 이전 달은 청구할 수 없습니다.';else{const count=days-Number(start.slice(-2))+1,fee=Number(raw);text='계산 예상: '+tuitionMoney(Math.round(fee*count/days))+' · '+start+'~'+end+' ('+count+'/'+days+'일). 원 단위 반올림. 초안은 저장된 등록 정보로 계산합니다.';}}$('tuitionPreview').textContent=text;}
+function renderTuitionNotices(){const list=$('tuitionList');list.replaceChildren();const manager=canManageTuition();if(!tuitionNotices.length){tuitionText(list,manager?'이 달의 납부 안내가 없습니다. 학생을 선택하고 계산한 초안을 저장해 주세요.':'이 달에 게시된 납부 안내가 없습니다.','p','muted');return;}for(const n of tuitionNotices){const card=document.createElement('article');card.className='qa-item';tuitionText(card,n.student_name+' · '+n.billing_month.slice(0,7)+' 학원비','h3');tuitionText(card,tuitionMoney(n.amount),'strong');tuitionText(card,'납부기한: '+n.due_on);tuitionText(card,'이용 기간: '+n.period_start+' ~ '+n.period_end);tuitionText(card,'월 학원비 '+tuitionMoney(n.monthly_fee)+' × '+n.billable_days+'일 ÷ '+n.month_days+'일'+(n.billable_days<n.month_days?' · 신규 등록 일할 계산':''),'p','muted');if(n.note)tuitionText(card,n.note,'p','notice-body');tuitionText(card,n.status==='published'?'게시됨 · 학생·학부모에게 표시됩니다.':'초안 · 학생·학부모에게 아직 표시되지 않습니다.','p','muted');if(manager){const btn=document.createElement('button');btn.type='button';btn.className=n.status==='published'?'secondary':'';btn.textContent=n.status==='published'?'게시 취소':'학생·학부모에게 게시';btn.disabled=tuitionBusy;btn.addEventListener('click',async()=>{if(tuitionBusy)return;const action=n.status==='published'?'withdraw':'publish';if(!confirm(n.student_name+'님의 '+n.billing_month.slice(0,7)+' 납부 안내를 '+(action==='publish'?'게시하시겠습니까?':'게시 취소하시겠습니까? 학생·학부모 화면에서 숨겨집니다.')))return;await mutateTuition(async client=>{const r=await client.rpc('cheongla_save_tuition_notice',{target_student:n.student_id,target_month:n.billing_month,payment_due:n.due_on,notice_note:n.note,notice_action:action,expected_updated_at:n.updated_at});if(r.error)throw r.error;},action==='publish'?'납부 안내를 게시했습니다.':'게시를 취소했습니다.');});card.append(btn);}list.append(card);}}
+async function loadTuition(){const actor=currentProfile,request=++tuitionRequest;if(!canUseTuition())return;tuitionReady=false;setTuitionControls();$('tuitionStatus').textContent='납부 안내 확인 중…';$('tuitionList').replaceChildren();try{const client=await getClient();const month=$('tuitionMonth').value;if(!/^\d{4}-\d{2}$/.test(month))throw new Error('청구 월을 선택해 주세요.');const [notices,roster]=await Promise.all([client.from('cheongla_tuition_notices').select('*').eq('billing_month',month+'-01').order('student_name').order('id'),canManageTuition()?client.rpc('cheongla_tuition_students'):Promise.resolve({data:[]})]);if(actor!==currentProfile||request!==tuitionRequest)return;if(notices.error)throw notices.error;if(roster.error)throw roster.error;tuitionNotices=notices.data||[];tuitionRoster=roster.data||[];const previous=$('tuitionStudent').value;$('tuitionStudent').replaceChildren();for(const s of tuitionRoster){const option=document.createElement('option');option.value=s.student_id;option.textContent=s.student_name+' · '+s.student_id.slice(0,8)+(s.enrolled_on?'':' · 등록 정보 미설정');$('tuitionStudent').append(option);}if(tuitionRoster.some(x=>x.student_id===previous))$('tuitionStudent').value=previous;tuitionReady=true;syncTuitionStudent();renderTuitionNotices();$('tuitionStatus').textContent=canManageTuition()?'등록 정보 저장 → 초안 계산·저장 → 금액과 납부기한 확인 → 게시 순서로 진행하세요.':'납부 안내를 확인했습니다.';}catch(e){if(actor!==currentProfile||request!==tuitionRequest)return;tuitionReady=false;const missing=['PGRST205','PGRST202','42P01','42883'].includes(e?.code);$('tuitionStatus').textContent=missing?(canManageTuition()?'학원비 안내 기능의 데이터 설정이 아직 완료되지 않았습니다. 008 SQL 실행 후 안내 새로고침을 눌러 주세요.':'학원비 안내 기능을 준비 중입니다.'):readable(e);}finally{if(actor===currentProfile&&request===tuitionRequest)setTuitionControls();}}
+async function mutateTuition(operation,success){if(!canManageTuition()||!tuitionReady||tuitionBusy)return;const actor=currentProfile;tuitionBusy=true;setTuitionControls();renderTuitionNotices();$('tuitionStatus').textContent='저장 중…';try{const client=await getClient();if(actor!==currentProfile)return;await operation(client);if(actor!==currentProfile)return;await loadTuition();if(tuitionReady)$('tuitionStatus').textContent=success;}catch(e){if(actor===currentProfile)$('tuitionStatus').textContent=readable(e);}finally{if(actor===currentProfile){tuitionBusy=false;setTuitionControls();renderTuitionNotices();}}}
+$('tuitionStudent').addEventListener('change',syncTuitionStudent);
+for(const id of ['tuitionEnrollment','tuitionFee'])$(id).addEventListener('input',renderTuitionPreview);
+$('tuitionMonth').addEventListener('change',()=>{void loadTuition();});$('reloadTuition').addEventListener('click',()=>{void loadTuition();});
+$('tuitionSettingsForm').addEventListener('submit',async e=>{e.preventDefault();const s=tuitionRoster.find(x=>x.student_id===$('tuitionStudent').value),date=$('tuitionEnrollment').value,fee=Number($('tuitionFee').value);if(!s||!date||$('tuitionFee').value===''||!Number.isInteger(fee)||fee<0||fee>10000000){$('tuitionStatus').textContent='학생과 등록일, 월 학원비를 확인해 주세요.';return;}await mutateTuition(async client=>{const r=await client.rpc('cheongla_save_tuition_settings',{target_student:s.student_id,enrollment_date:date,fee,expected_updated_at:s.updated_at});if(r.error)throw r.error;},'등록 정보를 저장했습니다. 기존 안내 금액은 유지됩니다. 초안 계산·저장을 눌러 주세요.');});
+$('tuitionDraftForm').addEventListener('submit',async e=>{e.preventDefault();const s=tuitionRoster.find(x=>x.student_id===$('tuitionStudent').value);if(!s?.enrolled_on){$('tuitionStatus').textContent='등록일과 월 학원비를 먼저 저장해 주세요.';return;}if(s.enrolled_on!==$('tuitionEnrollment').value||String(s.monthly_fee)!==$('tuitionFee').value){$('tuitionStatus').textContent='변경한 등록 정보를 먼저 저장해 주세요.';return;}const month=$('tuitionMonth').value+'-01',due=$('tuitionDue').value,note=$('tuitionNote').value.trim(),n=tuitionNotices.find(x=>x.student_id===s.student_id);if(!due)return;if(n?.status==='published'){$('tuitionStatus').textContent='게시된 안내는 먼저 게시 취소한 뒤 수정해 주세요.';return;}await mutateTuition(async client=>{const r=await client.rpc('cheongla_save_tuition_notice',{target_student:s.student_id,target_month:month,payment_due:due,notice_note:note,notice_action:'draft',expected_updated_at:n?.updated_at??null});if(r.error)throw r.error;},'초안을 저장했습니다. 금액과 납부기한을 확인한 뒤 게시해 주세요.');});
 
 $('switchMode').addEventListener('click',()=>{
  mode=mode==='login'?'signup':'login';const signup=mode==='signup';$('nameField').hidden=!signup;$('fullName').required=signup;syncSignupFields();
