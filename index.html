@@ -19,7 +19,8 @@ textarea{width:100%;min-height:180px;padding:14px;border:1px solid #cbd5d3;borde
 <h2 id="authTitle">로그인</h2><p id="authDescription" class="muted">등록한 이메일과 비밀번호로 로그인하세요.</p>
 <form id="authForm" autocomplete="off">
 <div id="nameField" hidden>
-<label for="signupRole">가입 구분</label><select id="signupRole"><option value="student">재원생</option><option value="parent">재원생 학부모</option></select>
+<label for="signupRole">가입 구분</label><select id="signupRole"><option value="student">재원생</option><option value="parent">재원생 학부모</option><option value="staff">교직원</option></select>
+<div id="staffRoleField" hidden><label for="staffRole">신청 직책</label><select id="staffRole"><option value="">직책 선택</option><option value="english_director">영어원장</option><option value="math_director">수학원장</option><option value="korean_teacher">국어선생님</option><option value="manager">실장</option></select><p class="muted">앱 관리자가 재직 여부와 직책을 확인하고 승인한 뒤 이용할 수 있습니다.</p></div>
 <label for="fullName" id="nameLabel">학생 이름</label><input id="fullName" autocomplete="name" maxlength="100">
 <div id="childNameField" hidden><label for="childName">재원 중인 자녀 이름</label><input id="childName" maxlength="100"><p class="muted">관리자가 보호자 관계를 확인한 뒤 자녀를 연결합니다.</p></div>
 </div>
@@ -67,6 +68,7 @@ function clearLoginInputs(){$('email').value='';$('password').value='';}
 clearLoginInputs();
 window.addEventListener('pageshow',()=>{if(!$('authPanel').hidden)clearLoginInputs();});
 const roles={student:'학생',parent:'학부모',owner:'원장',english_director:'영어원장',math_director:'수학원장',korean_teacher:'국어선생님',manager:'실장'};
+const staffRoles=['english_director','math_director','korean_teacher','manager'];
 const statuses={pending:'승인 대기',approved:'승인 완료',rejected:'가입 거절',suspended:'이용 중지'};
 let mode='login',clientPromise=null,currentProfile=null;
 const audiences={all:'전체',student:'학생',parent:'학부모'};
@@ -121,9 +123,10 @@ async function loadProfile(verifiedUser=null){
  if(result.error)throw result.error;if(!result.data)throw new Error('계정 프로필이 없습니다. 원장님께 문의해 주세요.');
  currentProfile=result.data;clearLoginInputs();$('authPanel').hidden=true;$('accountPanel').hidden=false;
  $('welcome').textContent=(currentProfile.full_name||'회원')+'님';
- $('accountBadge').textContent=(roles[currentProfile.role]||'회원')+(isAppAdmin()?' · 앱 관리자':'')+' · '+(statuses[currentProfile.approval_status]||'상태 확인 필요');
+ const staffPending=currentProfile.approval_status==='pending'&&staffRoles.includes(currentProfile.requested_staff_role);
+ $('accountBadge').textContent=(staffPending?'교직원 신청 · '+roles[currentProfile.requested_staff_role]:(roles[currentProfile.role]||'회원'))+(isAppAdmin()?' · 앱 관리자':'')+' · '+(statuses[currentProfile.approval_status]||'상태 확인 필요');
  const approved=currentProfile.approval_status==='approved';
- $('accountDescription').textContent=approved?'학원 이용 승인이 완료되었습니다. 아래에서 학원 공지를 확인해 주세요.':currentProfile.approval_status==='pending'?'가입 신청이 접수되었습니다. 원장님의 승인을 기다려 주세요.':'현재 학원 서비스를 이용할 수 없습니다. 원장님께 문의해 주세요.';
+ $('accountDescription').textContent=approved?'학원 이용 승인이 완료되었습니다. 아래에서 학원 공지를 확인해 주세요.':currentProfile.approval_status==='pending'?(staffPending?'교직원 가입 신청이 접수되었습니다. 앱 관리자의 직책 확인과 승인을 기다려 주세요.':'가입 신청이 접수되었습니다. 원장님의 승인을 기다려 주세요.'):'현재 학원 서비스를 이용할 수 없습니다. 원장님께 문의해 주세요.';
  $('noticesPanel').hidden=!approved;
  configureNoticeTabs();if(approved)void loadNotices();
  $('approvalPanel').hidden=!isAppAdmin();$('coachingPanel').hidden=!(canCoachAll()&&!isAppAdmin());
@@ -160,6 +163,7 @@ async function loadMembers(){
   const title=document.createElement('strong');title.textContent=member.full_name||'이름 미등록';item.append(title);
   const note=document.createElement('p');note.className='muted';note.textContent='계정 ID: '+member.id;item.append(note);
   if(member.role==='parent'&&member.requested_student_name){const request=document.createElement('p');request.className='muted';request.textContent='신청한 자녀 이름: '+member.requested_student_name+' (관리자 확인 필요)';item.append(request);}
+  if(staffRoles.includes(member.requested_staff_role)){const note=document.createElement('p');note.className='muted';note.textContent='교직원 신청 직책: '+roles[member.requested_staff_role]+' · 재직 여부와 직책을 확인한 뒤 역할을 지정해 주세요.';item.append(note);}
   const role=document.createElement('select');role.setAttribute('aria-label',title.textContent+' 역할');
   const status=document.createElement('select');status.setAttribute('aria-label',title.textContent+' 승인 상태');
   for(const [value,label] of Object.entries(roles)){if(value==='owner'&&member.role!=='owner')continue;const o=document.createElement('option');o.value=value;o.textContent=label;role.append(o);}role.value=member.role;
@@ -259,19 +263,20 @@ $('noticeForm').addEventListener('submit',async e=>{
  }catch(error){if(actor===currentProfile)$('noticeStatus').textContent=readable(error);}finally{$('saveNotice').disabled=false;$('cancelNotice').disabled=false;}
 });
 $('switchMode').addEventListener('click',()=>{
- mode=mode==='login'?'signup':'login';const signup=mode==='signup';$('nameField').hidden=!signup;$('fullName').required=signup;$('childName').required=signup&&$('signupRole').value==='parent';
+ mode=mode==='login'?'signup':'login';const signup=mode==='signup';$('nameField').hidden=!signup;$('fullName').required=signup;syncSignupFields();
  $('authTitle').textContent=signup?'가입 신청':'로그인';$('authDescription').textContent=signup?'가입 후 원장님의 승인을 받아 이용할 수 있습니다.':'등록한 이메일과 비밀번호로 로그인하세요.';
  $('submit').textContent=signup?'가입 신청':'로그인';$('switchMode').textContent=signup?'이미 계정이 있나요? 로그인':'처음 이용하시나요? 가입 신청';$('password').autocomplete=signup?'new-password':'current-password';$('password').minLength=signup?8:1;message('');
 });
-$('signupRole').addEventListener('change',()=>{const parent=$('signupRole').value==='parent';$('nameLabel').textContent=parent?'학부모 이름':'학생 이름';$('childNameField').hidden=!parent;$('childName').required=parent&&mode==='signup';});
+function syncSignupFields(){const parent=$('signupRole').value==='parent',staff=$('signupRole').value==='staff';$('nameLabel').textContent=staff?'교직원 이름':parent?'학부모 이름':'학생 이름';$('childNameField').hidden=!parent;$('childName').required=parent&&mode==='signup';$('staffRoleField').hidden=!staff;$('staffRole').required=staff&&mode==='signup';}
+$('signupRole').addEventListener('change',syncSignupFields);
 $('authForm').addEventListener('submit',async e=>{
  e.preventDefault();$('submit').disabled=true;$('switchMode').disabled=true;message(mode==='signup'?'가입 신청 중…':'로그인 확인 중…');
  let stage='로그인 연결 준비';
  try{const client=await getClient();let verifiedUser=null;const credentials={email:$('email').value.trim(),password:$('password').value};
   if(mode==='signup'){
    const name=$('fullName').value.trim();if(!name)throw new Error('이름을 입력해 주세요.');
-   const parent=$('signupRole').value==='parent';const child=$('childName').value.trim();if(parent&&!child)throw new Error('재원 중인 자녀 이름을 입력해 주세요.');
-   stage='가입 신청';const {data,error}=await client.auth.signUp({...credentials,options:{data:{full_name:name,requested_role:parent?'parent':'student',requested_student_name:parent?child:''}}});if(error)throw error;
+   const parent=$('signupRole').value==='parent',staff=$('signupRole').value==='staff';const requestedStaffRole=$('staffRole').value;if(staff&&!staffRoles.includes(requestedStaffRole))throw new Error('신청 직책을 선택해 주세요.');const child=$('childName').value.trim();if(parent&&!child)throw new Error('재원 중인 자녀 이름을 입력해 주세요.');
+   stage='가입 신청';const {data,error}=await client.auth.signUp({...credentials,options:{data:{full_name:name,requested_role:staff?'staff':parent?'parent':'student',requested_student_name:parent?child:'',requested_staff_role:staff?requestedStaffRole:''}}});if(error)throw error;
    if(!data.session){message('계정 신청을 확인해 주세요. 이메일 인증이 켜져 있거나 이미 등록된 이메일일 수 있습니다.');return;}
    verifiedUser=data.user;
   }else{stage='이메일·비밀번호 확인';const {data,error}=await client.auth.signInWithPassword(credentials);if(error)throw error;verifiedUser=data.user;}
