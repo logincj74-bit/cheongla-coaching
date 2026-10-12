@@ -11,13 +11,13 @@
 <header class="brand"><small>CHEONGLA</small><h1>청라 학습코칭</h1><p>The Better Tomorrow, Together!</p></header>
 <section id="authPanel" class="panel auth">
 <h2 id="authTitle">로그인</h2><p id="authDescription" class="muted">등록한 이메일과 비밀번호로 로그인하세요.</p>
-<form id="authForm">
+<form id="authForm" autocomplete="off">
 <div id="nameField" hidden>
 <label for="signupRole">가입 구분</label><select id="signupRole"><option value="student">재원생</option><option value="parent">재원생 학부모</option></select>
 <label for="fullName" id="nameLabel">학생 이름</label><input id="fullName" autocomplete="name" maxlength="100">
 <div id="childNameField" hidden><label for="childName">재원 중인 자녀 이름</label><input id="childName" maxlength="100"><p class="muted">관리자가 보호자 관계를 확인한 뒤 자녀를 연결합니다.</p></div>
 </div>
-<label for="email">이메일</label><input id="email" type="email" autocomplete="username" required>
+<label for="email">이메일</label><input id="email" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" required>
 <label for="password">비밀번호</label><input id="password" type="password" autocomplete="current-password" required>
 <button id="submit" class="submit" type="submit">로그인</button>
 </form><button id="switchMode" class="text-button" type="button">처음 이용하시나요? 가입 신청</button>
@@ -34,6 +34,9 @@
 </main><script src="config.js"></script><script>
 'use strict';
 const $=id=>document.getElementById(id);
+function clearLoginInputs(){$('email').value='';$('password').value='';}
+clearLoginInputs();
+window.addEventListener('pageshow',()=>{if(!$('authPanel').hidden)clearLoginInputs();});
 const roles={student:'학생',parent:'학부모',owner:'원장',english_director:'영어원장',math_director:'수학원장',korean_teacher:'국어선생님',manager:'실장'};
 const statuses={pending:'승인 대기',approved:'승인 완료',rejected:'가입 거절',suspended:'이용 중지'};
 let mode='login',clientPromise=null,currentProfile=null;
@@ -77,7 +80,7 @@ async function loadProfile(verifiedUser=null){
  message('회원 정보 확인 중…');
  const result=await client.from('cheongla_profiles').select('id,full_name,role,approval_status').eq('id',user.id).maybeSingle();
  if(result.error)throw result.error;if(!result.data)throw new Error('계정 프로필이 없습니다. 원장님께 문의해 주세요.');
- currentProfile=result.data;$('password').value='';$('authPanel').hidden=true;$('accountPanel').hidden=false;
+ currentProfile=result.data;clearLoginInputs();$('authPanel').hidden=true;$('accountPanel').hidden=false;
  $('welcome').textContent=(currentProfile.full_name||'회원')+'님';
  $('accountBadge').textContent=(roles[currentProfile.role]||'회원')+' · '+(statuses[currentProfile.approval_status]||'상태 확인 필요');
  const approved=currentProfile.approval_status==='approved';
@@ -159,7 +162,7 @@ $('authForm').addEventListener('submit',async e=>{
  }catch(error){message(stage+' 단계: '+readable(error));}finally{$('submit').disabled=false;$('switchMode').disabled=false;}
 });
 $('logout').addEventListener('click',async()=>{
- $('logout').disabled=true;try{const client=await getClient();const {error}=await client.auth.signOut({scope:'local'});if(error)throw error;clearAccount();message('로그아웃했습니다.');}catch(e){message(readable(e));}finally{$('logout').disabled=false;}
+ $('logout').disabled=true;try{const client=await getClient();const {error}=await client.auth.signOut({scope:'local'});if(error)throw error;clearAccount();clearLoginInputs();message('로그아웃했습니다.');}catch(e){message(readable(e));}finally{$('logout').disabled=false;}
 });
 for(const [id,action] of [['reloadProfile',loadProfile],['reloadMembers',loadMembers]])$(id).addEventListener('click',async()=>{const button=$(id);button.disabled=true;message('확인 중…');try{await action();message('');}catch(e){message(readable(e));}finally{button.disabled=false;}});
 (async()=>{try{const client=await getClient();const {data,error}=await client.auth.getSession();if(error)throw error;if(data.session)await loadProfile();}catch(e){message(readable(e));}})();
