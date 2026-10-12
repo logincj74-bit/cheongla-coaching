@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#183d47"><title>청라 학습코칭</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#233d42;background:#f7f4ee}*{box-sizing:border-box}body{margin:0}main{width:min(100% - 36px,800px);margin:48px auto}.brand{margin-bottom:30px}.brand small{letter-spacing:3px;color:#32756a;font-weight:700}.brand h1{font-size:30px;margin:10px 0}.brand p{color:#637478;margin:0;line-height:1.6}.panel{background:white;border:1px solid #e6e6de;border-radius:22px;padding:28px;box-shadow:0 12px 36px #173d4709}.auth{max-width:460px;margin:auto}h2{font-size:23px;margin:0 0 12px}p{line-height:1.65}label{display:block;font-weight:650;margin:18px 0 8px}input,select,button{font:inherit}input,select{width:100%;padding:14px;border:1px solid #cbd5d3;border-radius:10px;background:#fff;font-size:16px}button{border:0;border-radius:10px;padding:14px 18px;background:#183d47;color:white;cursor:pointer;font-weight:650;min-height:46px}button:disabled{opacity:.55;cursor:wait}.submit{width:100%;margin-top:24px}.secondary{background:#edf3f0;color:#24564d}.text-button{background:none;color:#32756a;padding:12px 0}.row{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}.muted{color:#68797c;font-size:14px}.badge{padding:7px 12px;border-radius:30px;background:#e7f2ed;font-size:13px}#message{min-height:24px;color:#8e4936;font-size:14px;white-space:pre-wrap}footer{text-align:center;color:#73817f;font-size:12px;margin-top:30px}[hidden]{display:none!important}.member{border-top:1px solid #e8ece8;padding:20px 0}.member label{font-size:13px;margin:10px 0 6px}.member .actions{margin-top:12px}.member strong{overflow-wrap:anywhere}.member select{max-width:240px}.empty{padding:20px 0;color:#73817f}a{color:#32756a}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #6db3a2;outline-offset:3px}@media(max-width:500px){main{margin:26px auto}.panel{padding:22px}.brand h1{font-size:26px}}
+</style>
+</head>
+<body><main>
+<header class="brand"><small>CHEONGLA</small><h1>청라 학습코칭</h1><p>The Better Tomorrow, Together!</p></header>
+<section id="authPanel" class="panel auth">
+<h2 id="authTitle">로그인</h2><p id="authDescription" class="muted">등록한 이메일과 비밀번호로 로그인하세요.</p>
+<form id="authForm">
+<div id="nameField" hidden><label for="fullName">학생 이름</label><input id="fullName" autocomplete="name" maxlength="100"></div>
+<label for="email">이메일</label><input id="email" type="email" autocomplete="username" required>
+<label for="password">비밀번호</label><input id="password" type="password" autocomplete="current-password" required>
+<button id="submit" class="submit" type="submit">로그인</button>
+</form><button id="switchMode" class="text-button" type="button">처음 이용하시나요? 가입 신청</button>
+</section>
+<section id="accountPanel" class="panel" hidden>
+<div class="row"><h2 id="welcome">내 계정</h2><button id="logout" class="secondary" type="button">로그아웃</button></div>
+<span id="accountBadge" class="badge"></span><p id="accountDescription"></p>
+<button id="reloadProfile" class="secondary" type="button">승인 상태 새로 확인</button>
+<section id="approvalPanel" hidden style="margin-top:30px"><div class="row"><h2>가입 및 이용 권한 관리</h2><button id="reloadMembers" class="secondary" type="button">목록 새로고침</button></div><p class="muted">가입자를 확인하고 역할과 승인 상태를 지정해 주세요.</p><div id="members"></div></section>
+</section>
+<p id="message" role="status" aria-live="polite"></p>
+<footer>독학재수학원 청라 · 재원생 전용<br>앱은 학원에서 허용한 시간에 이용해 주세요.</footer>
+</main><script src="config.js"></script><script>
+'use strict';
+const $=id=>document.getElementById(id);
+const roles={student:'학생',owner:'원장',english_director:'영어원장',math_director:'수학원장',korean_teacher:'국어선생님',manager:'실장'};
+const statuses={pending:'승인 대기',approved:'승인 완료',rejected:'가입 거절',suspended:'이용 중지'};
+let mode='login',clientPromise=null,currentProfile=null;
+function message(text){$('message').textContent=text;}
+function readable(error){
+ const code=error?.code||'';const text=error?.message||'';
+ if(code==='invalid_credentials'||/Invalid login credentials/i.test(text))return '이메일 또는 비밀번호를 확인해 주세요.';
+ if(code==='email_not_confirmed')return '이메일 인증 설정을 확인해야 합니다. 원장님께 문의해 주세요.';
+ if(code==='user_already_exists')return '이미 등록된 이메일입니다. 로그인해 주세요.';
+ if(code==='weak_password')return '비밀번호를 더 길고 복잡하게 설정해 주세요.';
+ if(/fetch|network|abort|timeout/i.test(text)||error?.name==='AbortError')return '연결 시간이 초과되었거나 인터넷 연결이 끊겼습니다. 잠시 후 다시 시도해 주세요.';
+ if(code==='42501'||code==='PGRST205')return '계정 정보에 접근하지 못했습니다. 학원 데이터베이스 설정을 확인해 주세요.';
+ return '처리하지 못했습니다. '+(text||'잠시 후 다시 시도해 주세요.');
+}
+async function getClient(){
+ if(!clientPromise){clientPromise=(async()=>{
+  const config=window.CHEONGLA_CONFIG;
+  if(!config?.supabaseUrl||!config?.supabasePublishableKey)throw new Error('연결 설정 파일을 불러오지 못했습니다. 페이지를 새로고침해 주세요.');
+  if(!window.supabase){await new Promise((resolve,reject)=>{
+   const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+   const timer=setTimeout(()=>{s.remove();reject(new Error('라이브러리 연결 timeout'));},15000);
+   s.onload=()=>{clearTimeout(timer);resolve();};s.onerror=()=>{clearTimeout(timer);s.remove();reject(new Error('라이브러리 network 오류'));};document.head.appendChild(s);
+  });}
+  if(!window.supabase?.createClient)throw new Error('로그인 라이브러리를 불러오지 못했습니다.');
+  return window.supabase.createClient(config.supabaseUrl,config.supabasePublishableKey,{
+   auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false},
+   global:{fetch:async(input,init={})=>{
+    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),20000);
+    const abort=()=>controller.abort();if(init.signal?.aborted)controller.abort();else init.signal?.addEventListener('abort',abort,{once:true});
+    try{return await fetch(input,{...init,signal:controller.signal});}finally{clearTimeout(timer);init.signal?.removeEventListener('abort',abort);}
+   }}
+  });
+ })().catch(e=>{clientPromise=null;throw e;});}
+ return clientPromise;
+}
+function clearAccount(){currentProfile=null;$('accountPanel').hidden=true;$('approvalPanel').hidden=true;$('members').replaceChildren();$('authPanel').hidden=false;}
+async function loadProfile(){
+ clearAccount();const client=await getClient();const {data,error}=await client.auth.getUser();
+ if(error)throw error;if(!data.user){return;}
+ const result=await client.from('cheongla_profiles').select('id,full_name,role,approval_status').eq('id',data.user.id).maybeSingle();
+ if(result.error)throw result.error;if(!result.data)throw new Error('계정 프로필이 없습니다. 원장님께 문의해 주세요.');
+ currentProfile=result.data;$('password').value='';$('authPanel').hidden=true;$('accountPanel').hidden=false;
+ $('welcome').textContent=(currentProfile.full_name||'회원')+'님';
+ $('accountBadge').textContent=(roles[currentProfile.role]||'회원')+' · '+(statuses[currentProfile.approval_status]||'상태 확인 필요');
+ const approved=currentProfile.approval_status==='approved';
+ $('accountDescription').textContent=approved?'학원 이용 승인이 완료되었습니다. 현재는 가입 및 승인 기능을 먼저 운영합니다.':currentProfile.approval_status==='pending'?'가입 신청이 접수되었습니다. 원장님의 승인을 기다려 주세요.':'현재 학원 서비스를 이용할 수 없습니다. 원장님께 문의해 주세요.';
+ $('approvalPanel').hidden=!(approved&&['owner','english_director','math_director'].includes(currentProfile.role));
+ if(!$('approvalPanel').hidden)await loadMembers();
+}
+async function loadMembers(){
+ $('members').replaceChildren();if($('approvalPanel').hidden)return;
+ const client=await getClient();const {data,error}=await client.from('cheongla_profiles').select('id,full_name,role,approval_status,created_at').order('created_at',{ascending:false});
+ if(error)throw error;
+ if(!data?.length){const p=document.createElement('p');p.className='empty';p.textContent='등록된 회원이 없습니다.';$('members').append(p);return;}
+ for(const member of data){
+  const item=document.createElement('div');item.className='member';
+  const title=document.createElement('strong');title.textContent=member.full_name||'이름 미등록';item.append(title);
+  const note=document.createElement('p');note.className='muted';note.textContent='계정 ID: '+member.id;item.append(note);
+  const role=document.createElement('select');role.setAttribute('aria-label',title.textContent+' 역할');
+  const status=document.createElement('select');status.setAttribute('aria-label',title.textContent+' 승인 상태');
+  for(const [value,label] of Object.entries(roles)){const o=document.createElement('option');o.value=value;o.textContent=label;role.append(o);}role.value=member.role;
+  for(const [value,label] of Object.entries(statuses)){const o=document.createElement('option');o.value=value;o.textContent=label;status.append(o);}status.value=member.approval_status;
+  const actions=document.createElement('div');actions.className='row actions';actions.append(role,status);
+  const save=document.createElement('button');save.type='button';save.textContent='설정 저장';actions.append(save);item.append(actions);$('members').append(item);
+  if(member.id===currentProfile.id){role.disabled=true;status.disabled=true;save.disabled=true;save.textContent='내 계정';continue;}
+  save.addEventListener('click',async()=>{
+   if(['owner','english_director','math_director'].includes(role.value)&&!confirm(title.textContent+'님에게 원장 관리 권한을 부여하시겠습니까?'))return;
+   save.disabled=true;message('저장 중…');
+   try{const response=await client.from('cheongla_profiles').update({role:role.value,approval_status:status.value}).eq('id',member.id).select('id').single();if(response.error)throw response.error;message('설정을 저장했습니다.');await loadMembers();}catch(e){message(readable(e));}finally{save.disabled=false;}
+  });
+ }
+}
+$('switchMode').addEventListener('click',()=>{
+ mode=mode==='login'?'signup':'login';const signup=mode==='signup';$('nameField').hidden=!signup;$('fullName').required=signup;
+ $('authTitle').textContent=signup?'가입 신청':'로그인';$('authDescription').textContent=signup?'가입 후 원장님의 승인을 받아 이용할 수 있습니다.':'등록한 이메일과 비밀번호로 로그인하세요.';
+ $('submit').textContent=signup?'가입 신청':'로그인';$('switchMode').textContent=signup?'이미 계정이 있나요? 로그인':'처음 이용하시나요? 가입 신청';$('password').autocomplete=signup?'new-password':'current-password';$('password').minLength=signup?8:1;message('');
+});
+$('authForm').addEventListener('submit',async e=>{
+ e.preventDefault();$('submit').disabled=true;$('switchMode').disabled=true;message(mode==='signup'?'가입 신청 중…':'로그인 확인 중…');
+ try{const client=await getClient();const credentials={email:$('email').value.trim(),password:$('password').value};
+  if(mode==='signup'){
+   const name=$('fullName').value.trim();if(!name)throw new Error('이름을 입력해 주세요.');
+   const {data,error}=await client.auth.signUp({...credentials,options:{data:{full_name:name}}});if(error)throw error;
+   if(!data.session){message('계정 신청을 확인해 주세요. 이메일 인증이 켜져 있거나 이미 등록된 이메일일 수 있습니다.');return;}
+  }else{const {error}=await client.auth.signInWithPassword(credentials);if(error)throw error;}
+  await loadProfile();message('');
+ }catch(error){message(readable(error));}finally{$('submit').disabled=false;$('switchMode').disabled=false;}
+});
+$('logout').addEventListener('click',async()=>{
+ $('logout').disabled=true;try{const client=await getClient();const {error}=await client.auth.signOut({scope:'local'});if(error)throw error;clearAccount();message('로그아웃했습니다.');}catch(e){message(readable(e));}finally{$('logout').disabled=false;}
+});
+for(const [id,action] of [['reloadProfile',loadProfile],['reloadMembers',loadMembers]])$(id).addEventListener('click',async()=>{const button=$(id);button.disabled=true;message('확인 중…');try{await action();message('');}catch(e){message(readable(e));}finally{button.disabled=false;}});
+(async()=>{try{const client=await getClient();const {data,error}=await client.auth.getSession();if(error)throw error;if(data.session)await loadProfile();}catch(e){message(readable(e));}})();
+</script></body></html>
