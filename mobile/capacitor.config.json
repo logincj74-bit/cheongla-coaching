@@ -1,0 +1,8 @@
+{
+  "appId": "kr.cheongla.academy",
+  "appName": "청라",
+  "webDir": "www",
+  "backgroundColor": "#fbfcf8",
+  "server": { "hostname": "localhost", "androidScheme": "https" },
+  "ios": { "contentInset": "automatic", "preferredContentMode": "mobile" }
+}
