@@ -70,10 +70,12 @@ async function getClient(){
  return clientPromise;
 }
 function clearAccount(){currentProfile=null;$('accountPanel').hidden=true;$('approvalPanel').hidden=true;$('childrenPanel').hidden=true;$('children').replaceChildren();$('members').replaceChildren();$('authPanel').hidden=false;}
-async function loadProfile(){
- clearAccount();const client=await getClient();const {data,error}=await client.auth.getUser();
- if(error)throw error;if(!data.user){return;}
- const result=await client.from('cheongla_profiles').select('id,full_name,role,approval_status').eq('id',data.user.id).maybeSingle();
+async function loadProfile(verifiedUser=null){
+ clearAccount();const client=await getClient();let user=verifiedUser;
+ if(!user){message('계정 확인 중…');const {data,error}=await client.auth.getUser();if(error)throw error;user=data.user;}
+ if(!user)return;
+ message('회원 정보 확인 중…');
+ const result=await client.from('cheongla_profiles').select('id,full_name,role,approval_status').eq('id',user.id).maybeSingle();
  if(result.error)throw result.error;if(!result.data)throw new Error('계정 프로필이 없습니다. 원장님께 문의해 주세요.');
  currentProfile=result.data;$('password').value='';$('authPanel').hidden=true;$('accountPanel').hidden=false;
  $('welcome').textContent=(currentProfile.full_name||'회원')+'님';
@@ -81,8 +83,10 @@ async function loadProfile(){
  const approved=currentProfile.approval_status==='approved';
  $('accountDescription').textContent=approved?'학원 이용 승인이 완료되었습니다. 현재는 가입 및 승인 기능을 먼저 운영합니다.':currentProfile.approval_status==='pending'?'가입 신청이 접수되었습니다. 원장님의 승인을 기다려 주세요.':'현재 학원 서비스를 이용할 수 없습니다. 원장님께 문의해 주세요.';
  $('approvalPanel').hidden=!(approved&&['owner','english_director','math_director'].includes(currentProfile.role));
- if(approved&&currentProfile.role==='parent')await loadChildren();
- if(!$('approvalPanel').hidden)await loadMembers();
+ try{
+  if(approved&&currentProfile.role==='parent'){message('로그인 완료 · 자녀 정보 확인 중…');await loadChildren();}
+  if(!$('approvalPanel').hidden){message('로그인 완료 · 회원 목록 확인 중…');await loadMembers();}
+ }catch(e){throw new Error('로그인은 완료됐지만 추가 정보를 불러오지 못했습니다. 목록 새로고침 또는 승인 상태 새로 확인을 눌러 주세요. '+readable(e));}
 }
 async function loadChildren(){
  $('childrenPanel').hidden=false;$('children').replaceChildren();const client=await getClient();
@@ -93,9 +97,11 @@ async function loadChildren(){
 }
 async function loadMembers(){
  $('members').replaceChildren();if($('approvalPanel').hidden)return;
- const client=await getClient();const {data,error}=await client.from('cheongla_profiles').select('id,full_name,role,approval_status,created_at,requested_student_name').order('created_at',{ascending:false});
- if(error)throw error;
- const links=await client.from('cheongla_parent_students').select('parent_id,student_id');if(links.error)throw links.error;
+ const client=await getClient();const [profiles,links]=await Promise.all([
+  client.from('cheongla_profiles').select('id,full_name,role,approval_status,created_at,requested_student_name').order('created_at',{ascending:false}),
+  client.from('cheongla_parent_students').select('parent_id,student_id')
+ ]);
+ const {data,error}=profiles;if(error)throw error;if(links.error)throw links.error;
  if(!data?.length){const p=document.createElement('p');p.className='empty';p.textContent='등록된 회원이 없습니다.';$('members').append(p);return;}
  for(const member of data){
   const item=document.createElement('div');item.className='member';
@@ -140,15 +146,17 @@ $('switchMode').addEventListener('click',()=>{
 $('signupRole').addEventListener('change',()=>{const parent=$('signupRole').value==='parent';$('nameLabel').textContent=parent?'학부모 이름':'학생 이름';$('childNameField').hidden=!parent;$('childName').required=parent&&mode==='signup';});
 $('authForm').addEventListener('submit',async e=>{
  e.preventDefault();$('submit').disabled=true;$('switchMode').disabled=true;message(mode==='signup'?'가입 신청 중…':'로그인 확인 중…');
- try{const client=await getClient();const credentials={email:$('email').value.trim(),password:$('password').value};
+ let stage='로그인 연결 준비';
+ try{const client=await getClient();let verifiedUser=null;const credentials={email:$('email').value.trim(),password:$('password').value};
   if(mode==='signup'){
    const name=$('fullName').value.trim();if(!name)throw new Error('이름을 입력해 주세요.');
    const parent=$('signupRole').value==='parent';const child=$('childName').value.trim();if(parent&&!child)throw new Error('재원 중인 자녀 이름을 입력해 주세요.');
-   const {data,error}=await client.auth.signUp({...credentials,options:{data:{full_name:name,requested_role:parent?'parent':'student',requested_student_name:parent?child:''}}});if(error)throw error;
+   stage='가입 신청';const {data,error}=await client.auth.signUp({...credentials,options:{data:{full_name:name,requested_role:parent?'parent':'student',requested_student_name:parent?child:''}}});if(error)throw error;
    if(!data.session){message('계정 신청을 확인해 주세요. 이메일 인증이 켜져 있거나 이미 등록된 이메일일 수 있습니다.');return;}
-  }else{const {error}=await client.auth.signInWithPassword(credentials);if(error)throw error;}
-  await loadProfile();message('');
- }catch(error){message(readable(error));}finally{$('submit').disabled=false;$('switchMode').disabled=false;}
+   verifiedUser=data.user;
+  }else{stage='이메일·비밀번호 확인';const {data,error}=await client.auth.signInWithPassword(credentials);if(error)throw error;verifiedUser=data.user;}
+  stage='회원 정보 조회';await loadProfile(verifiedUser);message('');
+ }catch(error){message(stage+' 단계: '+readable(error));}finally{$('submit').disabled=false;$('switchMode').disabled=false;}
 });
 $('logout').addEventListener('click',async()=>{
  $('logout').disabled=true;try{const client=await getClient();const {error}=await client.auth.signOut({scope:'local'});if(error)throw error;clearAccount();message('로그아웃했습니다.');}catch(e){message(readable(e));}finally{$('logout').disabled=false;}
