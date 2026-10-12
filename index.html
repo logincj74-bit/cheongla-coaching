@@ -13,7 +13,7 @@
 textarea{width:100%;min-height:180px;padding:14px;border:1px solid #cbd5d3;border-radius:10px;font:inherit;resize:vertical;line-height:1.7}textarea:focus-visible{outline:3px solid #6db3a2;outline-offset:3px}.notice{border-top:1px solid #e8ece8;padding:20px 0;overflow-wrap:anywhere}.notice h3{font-size:19px;margin:10px 0}.notice-body{white-space:pre-wrap;margin:12px 0}.notice-meta{font-size:13px;color:#68797c}.check{display:flex;gap:10px;align-items:center}.check input{width:20px;height:20px}.notice-form{background:#f7f9f6;padding:18px;border-radius:14px;margin:18px 0}.notice-form .row{margin-top:18px}#noticeStatus{white-space:pre-wrap}
 </style>
 <style>.qa-item{border:1px solid #dce6df;border-radius:14px;padding:18px;margin:12px 0}.qa-item summary{cursor:pointer;font-weight:700;line-height:1.6;overflow-wrap:anywhere}.qa-body{white-space:pre-wrap;overflow-wrap:anywhere}.qa-answer{background:#edf5f0;border-radius:12px;padding:16px;margin:18px 0}.qa-reply{margin-top:18px}.qa-reply button{margin-top:12px}#qaStatus{white-space:pre-wrap}</style>
-</head>
+<style>.qa-photo{display:block;max-width:100%;height:auto;border-radius:10px;margin:12px 0}.qa-photos{display:grid;gap:16px;margin:18px 0}.qa-photo-form{margin:18px 0}.qa-conversation{border-top:1px solid #dae4dd;margin-top:24px;padding-top:16px}.qa-message{padding:14px;border-radius:12px;margin:12px 0}.student-message{background:#f7f4ee}.teacher-message{background:#edf5f0}.qa-conversation button{margin-top:12px}</style></head>
 <body><main>
 <header class="brand"><img class="brand-image" src="assets/cheongla-brand.png" alt="청라 CL 심벌 · CHEONGLA · 독학재수학원 청라" width="1440" height="1721" fetchpriority="high" decoding="async"><div><small>CHEONGLA</small><h1>청라 학습코칭</h1><p>The Better Tomorrow, Together!</p></div></header>
 <section id="authPanel" class="panel auth">
@@ -40,9 +40,9 @@ textarea{width:100%;min-height:180px;padding:14px;border:1px solid #cbd5d3;borde
 <details id="qaComposer" class="notice-form" open hidden><summary>새 질문 등록</summary>
 <form id="questionForm"><label for="questionSubject">질문 과목</label><select id="questionSubject"><option value="english">영어</option><option value="math">수학</option><option value="korean">국어</option></select>
 <label for="questionTitle">질문 제목</label><input id="questionTitle" maxlength="150" required>
-<label for="questionBody">질문 내용</label><textarea id="questionBody" maxlength="10000" required></textarea><button id="submitQuestion" class="submit" type="submit">질문 등록</button></form></details>
+<label for="questionBody">질문 내용</label><textarea id="questionBody" maxlength="10000" required></textarea><label for="questionPhotos">문제 사진 (선택 · 최대 3장)</label><input id="questionPhotos" type="file" accept="image/*" multiple><p id="questionPhotoHint" class="muted">사진은 글자가 읽히도록 크기를 줄여 저장합니다. 장당 최대 1MB입니다.</p><button id="submitQuestion" class="submit" type="submit">질문 등록</button></form></details>
 <label for="qaFilter">질문 목록 과목</label><select id="qaFilter"><option value="all">전체 과목</option><option value="english">영어</option><option value="math">수학</option><option value="korean">국어</option></select>
-<p id="qaStatus" class="muted" role="status" aria-live="polite"></p><div id="qaList"></div><button id="moreQuestions" class="secondary" type="button" hidden>이전 질문 더 보기</button>
+<p id="qaPhotoUsage" class="muted" hidden></p><p id="qaStatus" class="muted" role="status" aria-live="polite"></p><div id="qaList"></div><button id="moreQuestions" class="secondary" type="button" hidden>이전 질문 더 보기</button>
 </section>
 <section id="noticesPanel" hidden style="margin-top:30px">
 <div class="row"><h2>학원 공지사항</h2><button id="reloadNotices" class="secondary" type="button">공지 새로고침</button></div>
@@ -277,9 +277,82 @@ $('noticeForm').addEventListener('submit',async e=>{
 const qaSubjects={english:'영어',math:'수학',korean:'국어'};
 const qaRoleSubjects={english_director:'english',math_director:'math',korean_teacher:'korean'};
 let qaRequest=0,qaLimit=20;
+let qaExtensionsReady=false,qaPhotoURLs=new Set();
+function clearQAPhotoURLs(){for(const url of qaPhotoURLs)URL.revokeObjectURL(url);qaPhotoURLs.clear();}
+function qaFileLabel(bytes){return (bytes/1024/1024).toFixed(2)+'MB';}
+async function prepareQuestionPhoto(file){
+ if(file.size>20*1024*1024)throw new Error('원본 사진은 20MB 이하로 선택해 주세요.');
+ if(!file.type.startsWith('image/'))throw new Error('사진 파일을 선택해 주세요.');
+ const url=URL.createObjectURL(file),img=new Image();
+ try{await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('이 사진 형식을 읽지 못했습니다. JPEG 또는 PNG로 저장해 다시 선택해 주세요.'));img.src=url;});
+  if(img.naturalWidth*img.naturalHeight>50000000)throw new Error('사진 해상도가 너무 큽니다. 문제 부분을 잘라 다시 선택해 주세요.');
+  const canvas=document.createElement('canvas');let edge=2200;
+  for(let attempt=0;attempt<3;attempt++){
+   const scale=Math.min(1,edge/Math.max(img.naturalWidth,img.naturalHeight));canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+   const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+   for(const quality of [.85,.7,.55]){const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));if(blob&&blob.size<=1048576)return blob;}
+   edge=Math.round(edge*.8);
+  }
+  throw new Error('사진을 1MB 이하로 줄이지 못했습니다. 문제 부분을 잘라 다시 선택해 주세요.');
+ }finally{URL.revokeObjectURL(url);}
+}
+async function uploadQuestionPhotos(questionId,files,actor){
+ const client=await getClient();let saved=0;
+ for(const file of files){
+  if(actor!==currentProfile)throw new Error('계정이 변경됐습니다.');
+  const blob=await prepareQuestionPhoto(file);if(actor!==currentProfile)throw new Error('계정이 변경됐습니다.');
+  const reserve=await client.rpc('cheongla_reserve_photo',{target_question:questionId,photo_bytes:blob.size});if(reserve.error)throw reserve.error;
+  const record=reserve.data;let uploaded=false;
+  try{
+   if(actor!==currentProfile)throw new Error('계정이 변경됐습니다.');
+   const put=await client.storage.from('cheongla-qa-photos').upload(record.object_path,blob,{contentType:'image/jpeg',upsert:false,cacheControl:'3600'});if(put.error)throw put.error;uploaded=true;
+   const finish=await client.rpc('cheongla_finish_photo',{target_photo:record.id});if(finish.error)throw finish.error;saved++;
+  }catch(error){
+   if(actor===currentProfile){try{let removable=true;if(uploaded){const cleanup=await client.storage.from('cheongla-qa-photos').remove([record.object_path]);removable=!cleanup.error;}if(removable)await client.rpc('cheongla_remove_photo_record',{target_photo:record.id});}catch{}}
+   throw new Error(saved+'장 저장 후 사진 첨부를 완료하지 못했습니다. '+readable(error));
+  }
+ }
+ return saved;
+}
+async function loadPhotoUsage(){
+ const actor=currentProfile;if(!isAppAdmin()||!qaExtensionsReady){$('qaPhotoUsage').hidden=true;return;}
+ try{const client=await getClient();const result=await client.rpc('cheongla_photo_usage');if(result.error)throw result.error;if(actor!==currentProfile)return;const u=result.data;$('qaPhotoUsage').hidden=false;$('qaPhotoUsage').textContent='문제 사진 '+u.photo_count+'장 · 사용 '+qaFileLabel(Number(u.used_bytes))+' / 앱 보관 한도 800MB'+(Number(u.reserved_bytes)>Number(u.used_bytes)?' · 미완료 첨부 포함 '+qaFileLabel(Number(u.reserved_bytes)):'')+' · 전체 무료 사용량은 Supabase 대시보드에서 확인하세요.';}
+ catch{if(actor===currentProfile){$('qaPhotoUsage').hidden=false;$('qaPhotoUsage').textContent='사진 사용량을 불러오지 못했습니다.';}}
+}
+function appendQuestionPhotos(item,q,photos,actor){
+ const owner=currentProfile.role==='student'&&q.student_id===actor.id;
+ if(photos.length){const box=document.createElement('div');box.className='qa-photos';
+  for(const photo of photos){const card=document.createElement('div');const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=photo.status==='pending'?'완료되지 않은 사진 첨부':'문제 사진 보기 · '+qaFileLabel(Number(photo.size_bytes));button.disabled=photo.status==='pending';const status=document.createElement('p');status.className='muted';card.append(button,status);box.append(card);let shown=false;
+   button.addEventListener('click',async()=>{if(button.disabled||actor!==currentProfile)return;if(shown){status.textContent='사진은 아래에 표시되어 있습니다.';return;}button.disabled=true;status.textContent='사진을 불러오는 중…';
+    try{const client=await getClient();const result=await client.storage.from('cheongla-qa-photos').download(photo.object_path);if(result.error)throw result.error;if(actor!==currentProfile||!card.isConnected)return;const url=URL.createObjectURL(result.data);qaPhotoURLs.add(url);const image=document.createElement('img');image.className='qa-photo';image.src=url;image.alt='첨부한 문제 사진';const open=document.createElement('a');open.href=url;open.target='_blank';open.rel='noopener';open.textContent='사진 크게 보기';card.append(image,open);shown=true;status.textContent='';}
+    catch(e){if(actor===currentProfile)status.textContent=readable(e);}finally{button.disabled=false;}
+   });
+   if(owner||isAppAdmin()){const remove=document.createElement('button');remove.type='button';remove.className='text-button';remove.textContent=photo.status==='pending'?'미완료 첨부 정리':'사진 삭제';card.append(remove);remove.addEventListener('click',async()=>{if(actor!==currentProfile||!confirm('사진만 삭제하시겠습니까? 질문과 답변 글은 유지됩니다.'))return;remove.disabled=true;
+    try{const client=await getClient();const result=await client.storage.from('cheongla-qa-photos').remove([photo.object_path]);if(result.error)throw result.error;const clean=await client.rpc('cheongla_remove_photo_record',{target_photo:photo.id});if(clean.error)throw clean.error;if(actor===currentProfile)await loadQuestions();}catch(e){if(actor===currentProfile)status.textContent=readable(e);}finally{remove.disabled=false;}});}
+  }
+  item.append(box);
+ }
+ if(owner&&photos.length<3){const form=document.createElement('form');form.className='qa-photo-form';const label=document.createElement('label');label.textContent='문제 사진 추가 (한 질문에 최대 3장)';const input=document.createElement('input');input.type='file';input.accept='image/*';input.multiple=true;input.id='photo-'+q.id;label.htmlFor=input.id;const save=document.createElement('button');save.type='submit';save.className='secondary';save.textContent='사진 첨부';const status=document.createElement('p');status.className='muted';form.append(label,input,save,status);item.append(form);
+  form.addEventListener('submit',async e=>{e.preventDefault();if(save.disabled||actor!==currentProfile)return;const files=Array.from(input.files||[]);if(!files.length){status.textContent='사진을 선택해 주세요.';return;}if(files.length+photos.length>3){status.textContent='한 질문에 사진은 최대 3장입니다.';return;}save.disabled=true;status.textContent='사진 크기를 줄여 첨부하는 중…';
+   try{await uploadQuestionPhotos(q.id,files,actor);if(actor===currentProfile){await loadQuestions();$('qaStatus').textContent='사진을 첨부했습니다.';}}catch(error){if(actor===currentProfile)status.textContent=readable(error);}finally{save.disabled=false;}
+  });
+ }
+}
+function appendQAConversation(item,q,actor){
+ const box=document.createElement('div');box.className='qa-conversation';const heading=document.createElement('h4');heading.textContent='추가 질문과 답변';const list=document.createElement('div');const status=document.createElement('p');status.className='muted';status.setAttribute('role','status');const more=document.createElement('button');more.type='button';more.className='secondary';more.textContent='이전 대화 더 보기';more.hidden=true;box.append(heading,list,status,more);item.append(box);let loaded=false,limit=50,busy=false;
+ async function refresh(){if(busy||actor!==currentProfile)return;busy=true;status.textContent='대화를 불러오는 중…';
+  try{const client=await getClient();const result=await client.from('cheongla_qa_messages').select('id,author_name,author_role,body,created_at').eq('question_id',q.id).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(limit+1);if(result.error)throw result.error;if(actor!==currentProfile||!box.isConnected)return;const rows=result.data||[];more.hidden=rows.length<=limit;list.replaceChildren();for(const m of rows.slice(0,limit).reverse()){const line=document.createElement('div');line.className=m.author_role==='student'?'qa-message student-message':'qa-message teacher-message';const meta=document.createElement('strong');meta.textContent=m.author_name+' · '+(roles[m.author_role]||'회원')+' · '+qaDate(m.created_at);const body=document.createElement('p');body.className='qa-body';body.textContent=m.body;line.append(meta,body);list.append(line);}status.textContent=rows.length?'':'추가 대화가 없습니다.';loaded=true;}
+  catch(e){if(actor===currentProfile)status.textContent=readable(e);}finally{busy=false;}
+ }
+ item.addEventListener('toggle',()=>{if(item.open&&!loaded)void refresh();});more.addEventListener('click',()=>{limit+=50;void refresh();});
+ if((currentProfile.role==='student'&&q.student_id===actor.id)||canAnswerQA(q.subject)){const form=document.createElement('form');const label=document.createElement('label');const input=document.createElement('textarea');input.id='message-'+q.id;input.maxLength=10000;input.required=true;label.htmlFor=input.id;label.textContent=currentProfile.role==='student'?'추가 질문':'추가 답변';const save=document.createElement('button');save.type='submit';save.textContent='대화 등록';form.append(label,input,save);box.append(form);form.addEventListener('submit',async e=>{e.preventDefault();if(save.disabled||actor!==currentProfile)return;const body=input.value.trim();if(!body)return;save.disabled=true;status.textContent='대화 저장 중…';
+  try{const client=await getClient();const result=await client.from('cheongla_qa_messages').insert({question_id:q.id,body}).select('id').single();if(result.error)throw result.error;if(actor!==currentProfile)return;input.value='';await refresh();item.children[0].textContent=qaSubjects[q.subject]+' · '+(actor.role==='student'?'추가 답변 대기':'답변 완료')+' — '+q.title;$('qaStatus').textContent='추가 대화를 저장했습니다.';}
+  catch(e){if(actor===currentProfile)status.textContent=readable(e);}finally{save.disabled=false;}});}
+}
+
 function canUseQA(){return currentProfile?.approval_status==='approved'&&(isAppAdmin()||['student','english_director','math_director','korean_teacher'].includes(currentProfile.role));}
 function canAnswerQA(subject){return canUseQA()&&(isAppAdmin()||qaRoleSubjects[currentProfile.role]===subject);}
-function resetQA(){qaRequest++;qaLimit=20;$('qaPanel').hidden=true;$('qaComposer').hidden=true;$('qaList').replaceChildren();$('qaStatus').textContent='';$('questionTitle').value='';$('questionBody').value='';$('questionSubject').value='english';$('qaFilter').value='all';$('moreQuestions').hidden=true;}
+function resetQA(){qaRequest++;qaExtensionsReady=false;clearQAPhotoURLs();$('questionPhotos').value='';$('questionPhotos').disabled=true;$('qaPhotoUsage').hidden=true;qaLimit=20;$('qaPanel').hidden=true;$('qaComposer').hidden=true;$('qaList').replaceChildren();$('qaStatus').textContent='';$('questionTitle').value='';$('questionBody').value='';$('questionSubject').value='english';$('qaFilter').value='all';$('moreQuestions').hidden=true;}
 function configureQA(){
  const student=currentProfile?.role==='student';$('qaPanel').hidden=!canUseQA();$('qaComposer').hidden=!(canUseQA()&&student);
  $('qaDescription').textContent=student?'영어·수학·국어 질문을 등록하고 선생님의 답변을 확인하세요. 본인 질문만 표시됩니다.':isAppAdmin()?'전체 과목의 질문과 답변을 확인하고 관리할 수 있습니다.':currentProfile?.role==='korean_teacher'?'국어 질문을 확인하고 답변해 주세요.':'공동 학습코칭을 위해 전체 과목을 확인할 수 있습니다. 답변은 담당 과목에 작성해 주세요.';
@@ -296,12 +369,20 @@ async function loadQuestions(){
   const questions=await query;if(request!==qaRequest||actor!==currentProfile)return;if(questions.error)throw questions.error;
   const rows=questions.data||[],visible=rows.slice(0,qaLimit);const answers=visible.length?await client.from('cheongla_answers').select('question_id,teacher_name,teacher_role,body,created_at,updated_at').in('question_id',visible.map(q=>q.id)):{data:[]};
   if(request!==qaRequest||actor!==currentProfile)return;if(answers.error)throw answers.error;
-  const byQuestion=new Map((answers.data||[]).map(a=>[a.question_id,a]));$('qaList').replaceChildren();$('moreQuestions').hidden=rows.length<=qaLimit;
+  let latestQuery=client.from('cheongla_qa_latest').select('question_id,author_role,created_at'),photosQuery=client.from('cheongla_qa_photos').select('id,question_id,object_path,size_bytes,status');
+  if(visible.length){latestQuery=latestQuery.in('question_id',visible.map(q=>q.id));photosQuery=photosQuery.in('question_id',visible.map(q=>q.id));}else{latestQuery=latestQuery.limit(1);photosQuery=photosQuery.limit(1);}
+  const [latest,photos]=await Promise.all([latestQuery,photosQuery]);if(request!==qaRequest||actor!==currentProfile)return;
+  qaExtensionsReady=!latest.error&&!photos.error;$('questionPhotos').disabled=!qaExtensionsReady;$('questionPhotoHint').textContent=qaExtensionsReady?'사진은 최대 3장입니다.':'사진과 추가 대화를 준비 중입니다.';
+  if(qaExtensionsReady)$('questionPhotoHint').textContent='최대 3장 · 장당 최대 1MB로 줄여 비공개 저장합니다.';
+  const byLatest=new Map((latest.data||[]).map(m=>[m.question_id,m]));
+  const byQuestion=new Map((answers.data||[]).map(a=>[a.question_id,a]));clearQAPhotoURLs();$('qaList').replaceChildren();$('moreQuestions').hidden=rows.length<=qaLimit;
   for(const q of visible){
    const answer=byQuestion.get(q.id),item=document.createElement('details');item.className='qa-item';
-   const summary=document.createElement('summary');summary.textContent=(qaSubjects[q.subject]||'과목')+' · '+(answer?'답변 완료':'답변 대기')+' — '+q.title;
+   const last=byLatest.get(q.id),lastAfterAnswer=last&&(!answer||new Date(last.created_at)>new Date(answer.updated_at));const state=lastAfterAnswer?(last.author_role==='student'?'추가 답변 대기':'답변 완료'):(answer?'답변 완료':'답변 대기');
+   const summary=document.createElement('summary');summary.textContent=(qaSubjects[q.subject]||'과목')+' · '+state+' — '+q.title;
    const meta=document.createElement('p');meta.className='muted';meta.textContent=(q.student_name||'학생')+' · '+qaDate(q.created_at);
    const body=document.createElement('p');body.className='qa-body';body.textContent=q.body;item.append(summary,meta,body);
+   if(qaExtensionsReady)appendQuestionPhotos(item,q,(photos.data||[]).filter(p=>p.question_id===q.id),actor);
    if(answer){const box=document.createElement('div');box.className='qa-answer';const heading=document.createElement('strong');heading.textContent=(answer.teacher_name||'선생님')+' · '+(roles[answer.teacher_role]||'선생님')+' 답변';const reply=document.createElement('p');reply.className='qa-body';reply.textContent=answer.body;const date=document.createElement('p');date.className='muted';date.textContent=qaDate(answer.updated_at);box.append(heading,reply,date);item.append(box);}
    else{const waiting=document.createElement('p');waiting.className='muted';waiting.textContent='선생님의 답변을 기다리고 있습니다.';item.append(waiting);}
    if(canAnswerQA(q.subject)){
@@ -314,9 +395,9 @@ async function loadQuestions(){
      catch(error){if(actor===currentProfile)status.textContent=error.code==='40001'?'다른 답변이 저장됐습니다. 질문 새로고침 후 확인해 주세요.':readable(error);}finally{save.disabled=false;}
     });
    }
-   $('qaList').append(item);
+   if(qaExtensionsReady)appendQAConversation(item,q,actor);$('qaList').append(item);
   }
-  $('qaStatus').textContent=visible.length?'제목을 누르면 질문과 답변이 펼쳐집니다.':'등록된 질문이 없습니다.';
+  $('qaStatus').textContent=visible.length?'제목을 누르면 질문과 답변이 펼쳐집니다.':'등록된 질문이 없습니다.';if(qaExtensionsReady&&isAppAdmin())void loadPhotoUsage();
  }catch(error){if(request!==qaRequest||actor!==currentProfile)return;$('qaList').replaceChildren();$('moreQuestions').hidden=true;$('qaStatus').textContent=['PGRST205','42P01'].includes(error.code)?'질의응답을 준비 중입니다. 잠시 후 질문 새로고침을 눌러 주세요.':readable(error);}
  finally{if(request===qaRequest){$('reloadQuestions').disabled=false;$('moreQuestions').disabled=false;}}
 }
@@ -324,8 +405,9 @@ $('questionForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!canUseQA()||currentProfile.role!=='student'||$('submitQuestion').disabled)return;
  const actor=currentProfile,subject=$('questionSubject').value,title=$('questionTitle').value.trim(),body=$('questionBody').value.trim();
  if(!Object.hasOwn(qaSubjects,subject)||!title||!body){$('qaStatus').textContent='과목, 제목과 질문 내용을 확인해 주세요.';return;}
+ const files=Array.from($('questionPhotos').files||[]);if(files.length>3){$('qaStatus').textContent='사진은 최대 3장을 선택해 주세요.';return;}if(files.length&&!qaExtensionsReady){$('qaStatus').textContent='사진 첨부 설정을 준비 중입니다.';return;}
  if(!confirm(qaSubjects[subject]+' 질문을 등록하시겠습니까?'))return;$('submitQuestion').disabled=true;$('qaStatus').textContent='질문 등록 중…';
- try{const client=await getClient();if(actor!==currentProfile)return;const result=await client.from('cheongla_questions').insert({student_id:actor.id,subject,title,body}).select('id').single();if(result.error)throw result.error;if(actor!==currentProfile)return;$('questionTitle').value='';$('questionBody').value='';$('qaFilter').value=subject;qaLimit=20;await loadQuestions();if(actor===currentProfile)$('qaStatus').textContent='질문을 등록했습니다. 선생님의 답변을 기다려 주세요.';}
+ try{const client=await getClient();if(actor!==currentProfile)return;const result=await client.from('cheongla_questions').insert({student_id:actor.id,subject,title,body}).select('id').single();if(result.error)throw result.error;if(actor!==currentProfile)return;$('questionTitle').value='';$('questionBody').value='';$('questionPhotos').value='';$('qaFilter').value=subject;qaLimit=20;let photoError='';if(files.length){$('qaStatus').textContent='질문은 저장됐습니다. 사진을 줄여 첨부하는 중…';try{await uploadQuestionPhotos(result.data.id,files,actor);}catch(e){photoError=readable(e);}}await loadQuestions();if(actor===currentProfile)$('qaStatus').textContent=photoError?'질문 글은 저장됐지만 사진 첨부를 완료하지 못했습니다. '+photoError+' 질문 제목을 펼쳐 사진을 다시 첨부할 수 있습니다.':'질문을 등록했습니다. 선생님의 답변을 기다려 주세요.';}
  catch(error){if(actor===currentProfile)$('qaStatus').textContent=['PGRST205','42P01'].includes(error.code)?'질의응답을 준비 중입니다. 입력한 내용은 유지됩니다. 잠시 후 다시 시도해 주세요.':readable(error);}finally{$('submitQuestion').disabled=false;}
 });
 $('reloadQuestions').addEventListener('click',()=>{void loadQuestions();});
