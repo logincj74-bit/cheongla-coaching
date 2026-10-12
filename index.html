@@ -12,6 +12,7 @@
 <style>
 textarea{width:100%;min-height:180px;padding:14px;border:1px solid #cbd5d3;border-radius:10px;font:inherit;resize:vertical;line-height:1.7}textarea:focus-visible{outline:3px solid #6db3a2;outline-offset:3px}.notice{border-top:1px solid #e8ece8;padding:20px 0;overflow-wrap:anywhere}.notice h3{font-size:19px;margin:10px 0}.notice-body{white-space:pre-wrap;margin:12px 0}.notice-meta{font-size:13px;color:#68797c}.check{display:flex;gap:10px;align-items:center}.check input{width:20px;height:20px}.notice-form{background:#f7f9f6;padding:18px;border-radius:14px;margin:18px 0}.notice-form .row{margin-top:18px}#noticeStatus{white-space:pre-wrap}
 </style>
+<style>.qa-item{border:1px solid #dce6df;border-radius:14px;padding:18px;margin:12px 0}.qa-item summary{cursor:pointer;font-weight:700;line-height:1.6;overflow-wrap:anywhere}.qa-body{white-space:pre-wrap;overflow-wrap:anywhere}.qa-answer{background:#edf5f0;border-radius:12px;padding:16px;margin:18px 0}.qa-reply{margin-top:18px}.qa-reply button{margin-top:12px}#qaStatus{white-space:pre-wrap}</style>
 </head>
 <body><main>
 <header class="brand"><img class="brand-image" src="assets/cheongla-brand.png" alt="청라 CL 심벌 · CHEONGLA · 독학재수학원 청라" width="1440" height="1721" fetchpriority="high" decoding="async"><div><small>CHEONGLA</small><h1>청라 학습코칭</h1><p>The Better Tomorrow, Together!</p></div></header>
@@ -33,6 +34,16 @@ textarea{width:100%;min-height:180px;padding:14px;border:1px solid #cbd5d3;borde
 <div class="row"><h2 id="welcome">내 계정</h2><button id="logout" class="secondary" type="button">로그아웃</button></div>
 <span id="accountBadge" class="badge"></span><p id="accountDescription"></p>
 <button id="reloadProfile" class="secondary" type="button">승인 상태 새로 확인</button>
+<section id="qaPanel" hidden style="margin-top:30px">
+<div class="row"><h2>과목별 질의응답</h2><button id="reloadQuestions" class="secondary" type="button">질문 새로고침</button></div>
+<p id="qaDescription" class="muted"></p>
+<details id="qaComposer" class="notice-form" open hidden><summary>새 질문 등록</summary>
+<form id="questionForm"><label for="questionSubject">질문 과목</label><select id="questionSubject"><option value="english">영어</option><option value="math">수학</option><option value="korean">국어</option></select>
+<label for="questionTitle">질문 제목</label><input id="questionTitle" maxlength="150" required>
+<label for="questionBody">질문 내용</label><textarea id="questionBody" maxlength="10000" required></textarea><button id="submitQuestion" class="submit" type="submit">질문 등록</button></form></details>
+<label for="qaFilter">질문 목록 과목</label><select id="qaFilter"><option value="all">전체 과목</option><option value="english">영어</option><option value="math">수학</option><option value="korean">국어</option></select>
+<p id="qaStatus" class="muted" role="status" aria-live="polite"></p><div id="qaList"></div><button id="moreQuestions" class="secondary" type="button" hidden>이전 질문 더 보기</button>
+</section>
 <section id="noticesPanel" hidden style="margin-top:30px">
 <div class="row"><h2>학원 공지사항</h2><button id="reloadNotices" class="secondary" type="button">공지 새로고침</button></div>
 <p class="muted">전체 공지와 본인에게 해당하는 전용 공지창을 선택해 주세요.</p>
@@ -113,7 +124,7 @@ async function getClient(){
  })().catch(e=>{clientPromise=null;throw e;});}
  return clientPromise;
 }
-function clearAccount(){currentProfile=null;noticeRequest++;noticeLimit=20;activeNoticeAudience='all';configureNoticeTabs();resetNoticeForm();$('noticesPanel').hidden=true;$('noticeForm').hidden=true;$('notices').replaceChildren();$('noticeStatus').textContent='';$('moreNotices').hidden=true;$('accountPanel').hidden=true;$('approvalPanel').hidden=true;$('childrenPanel').hidden=true;$('children').replaceChildren();$('members').replaceChildren();$('coachingPanel').hidden=true;$('coachingStudents').replaceChildren();$('authPanel').hidden=false;}
+function clearAccount(){currentProfile=null;resetQA();noticeRequest++;noticeLimit=20;activeNoticeAudience='all';configureNoticeTabs();resetNoticeForm();$('noticesPanel').hidden=true;$('noticeForm').hidden=true;$('notices').replaceChildren();$('noticeStatus').textContent='';$('moreNotices').hidden=true;$('accountPanel').hidden=true;$('approvalPanel').hidden=true;$('childrenPanel').hidden=true;$('children').replaceChildren();$('members').replaceChildren();$('coachingPanel').hidden=true;$('coachingStudents').replaceChildren();$('authPanel').hidden=false;}
 async function loadProfile(verifiedUser=null){
  clearAccount();const client=await getClient();let user=verifiedUser;
  if(!user){message('계정 확인 중…');const {data,error}=await client.auth.getUser();if(error)throw error;user=data.user;}
@@ -129,6 +140,7 @@ async function loadProfile(verifiedUser=null){
  $('accountDescription').textContent=approved?'학원 이용 승인이 완료되었습니다. 아래에서 학원 공지를 확인해 주세요.':currentProfile.approval_status==='pending'?(staffPending?'교직원 가입 신청이 접수되었습니다. 앱 관리자의 직책 확인과 승인을 기다려 주세요.':'가입 신청이 접수되었습니다. 원장님의 승인을 기다려 주세요.'):'현재 학원 서비스를 이용할 수 없습니다. 원장님께 문의해 주세요.';
  $('noticesPanel').hidden=!approved;
  configureNoticeTabs();if(approved)void loadNotices();
+ configureQA();if(canUseQA())void loadQuestions();
  $('approvalPanel').hidden=!isAppAdmin();$('coachingPanel').hidden=!(canCoachAll()&&!isAppAdmin());
  try{
   if(approved&&currentProfile.role==='parent'){message('로그인 완료 · 자녀 정보 확인 중…');await loadChildren();}
@@ -262,6 +274,64 @@ $('noticeForm').addEventListener('submit',async e=>{
   if(actor!==currentProfile)return;activeNoticeAudience=payload.audience;noticeLimit=20;configureNoticeTabs();resetNoticeForm();await loadNotices();if(actor===currentProfile)$('noticeStatus').textContent=editing?'공지 수정을 저장했습니다.':'공지를 등록했습니다.';
  }catch(error){if(actor===currentProfile)$('noticeStatus').textContent=readable(error);}finally{$('saveNotice').disabled=false;$('cancelNotice').disabled=false;}
 });
+const qaSubjects={english:'영어',math:'수학',korean:'국어'};
+const qaRoleSubjects={english_director:'english',math_director:'math',korean_teacher:'korean'};
+let qaRequest=0,qaLimit=20;
+function canUseQA(){return currentProfile?.approval_status==='approved'&&(isAppAdmin()||['student','english_director','math_director','korean_teacher'].includes(currentProfile.role));}
+function canAnswerQA(subject){return canUseQA()&&(isAppAdmin()||qaRoleSubjects[currentProfile.role]===subject);}
+function resetQA(){qaRequest++;qaLimit=20;$('qaPanel').hidden=true;$('qaComposer').hidden=true;$('qaList').replaceChildren();$('qaStatus').textContent='';$('questionTitle').value='';$('questionBody').value='';$('questionSubject').value='english';$('qaFilter').value='all';$('moreQuestions').hidden=true;}
+function configureQA(){
+ const student=currentProfile?.role==='student';$('qaPanel').hidden=!canUseQA();$('qaComposer').hidden=!(canUseQA()&&student);
+ $('qaDescription').textContent=student?'영어·수학·국어 질문을 등록하고 선생님의 답변을 확인하세요. 본인 질문만 표시됩니다.':isAppAdmin()?'전체 과목의 질문과 답변을 확인하고 관리할 수 있습니다.':currentProfile?.role==='korean_teacher'?'국어 질문을 확인하고 답변해 주세요.':'공동 학습코칭을 위해 전체 과목을 확인할 수 있습니다. 답변은 담당 과목에 작성해 주세요.';
+ const korean=currentProfile?.role==='korean_teacher'&&!isAppAdmin();$('qaFilter').disabled=korean;$('qaFilter').value=korean?'korean':'all';
+}
+function qaDate(value){return new Date(value).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',dateStyle:'short',timeStyle:'short'});}
+async function loadQuestions(){
+ const actor=currentProfile,request=++qaRequest;if(!canUseQA())return;
+ $('qaStatus').textContent='질문을 불러오는 중…';$('reloadQuestions').disabled=true;$('moreQuestions').disabled=true;
+ try{
+  const client=await getClient();let query=client.from('cheongla_questions').select('id,student_id,student_name,subject,title,body,created_at').order('created_at',{ascending:false}).order('id',{ascending:false}).limit(qaLimit+1);
+  if(currentProfile.role==='student')query=query.eq('student_id',actor.id);
+  if($('qaFilter').value!=='all')query=query.eq('subject',$('qaFilter').value);
+  const questions=await query;if(request!==qaRequest||actor!==currentProfile)return;if(questions.error)throw questions.error;
+  const rows=questions.data||[],visible=rows.slice(0,qaLimit);const answers=visible.length?await client.from('cheongla_answers').select('question_id,teacher_name,teacher_role,body,created_at,updated_at').in('question_id',visible.map(q=>q.id)):{data:[]};
+  if(request!==qaRequest||actor!==currentProfile)return;if(answers.error)throw answers.error;
+  const byQuestion=new Map((answers.data||[]).map(a=>[a.question_id,a]));$('qaList').replaceChildren();$('moreQuestions').hidden=rows.length<=qaLimit;
+  for(const q of visible){
+   const answer=byQuestion.get(q.id),item=document.createElement('details');item.className='qa-item';
+   const summary=document.createElement('summary');summary.textContent=(qaSubjects[q.subject]||'과목')+' · '+(answer?'답변 완료':'답변 대기')+' — '+q.title;
+   const meta=document.createElement('p');meta.className='muted';meta.textContent=(q.student_name||'학생')+' · '+qaDate(q.created_at);
+   const body=document.createElement('p');body.className='qa-body';body.textContent=q.body;item.append(summary,meta,body);
+   if(answer){const box=document.createElement('div');box.className='qa-answer';const heading=document.createElement('strong');heading.textContent=(answer.teacher_name||'선생님')+' · '+(roles[answer.teacher_role]||'선생님')+' 답변';const reply=document.createElement('p');reply.className='qa-body';reply.textContent=answer.body;const date=document.createElement('p');date.className='muted';date.textContent=qaDate(answer.updated_at);box.append(heading,reply,date);item.append(box);}
+   else{const waiting=document.createElement('p');waiting.className='muted';waiting.textContent='선생님의 답변을 기다리고 있습니다.';item.append(waiting);}
+   if(canAnswerQA(q.subject)){
+    const form=document.createElement('form');form.className='qa-reply';const label=document.createElement('label');const textarea=document.createElement('textarea');textarea.id='answer-'+q.id;textarea.required=true;textarea.maxLength=10000;textarea.value=answer?.body||'';label.htmlFor=textarea.id;label.textContent=answer?'답변 수정':'답변 작성';
+    const save=document.createElement('button');save.type='submit';save.textContent=answer?'답변 수정 저장':'답변 등록';const status=document.createElement('p');status.className='muted';status.setAttribute('role','status');status.setAttribute('aria-live','polite');form.append(label,textarea,save,status);item.append(form);
+    form.addEventListener('submit',async e=>{
+     e.preventDefault();if(save.disabled||actor!==currentProfile||!canAnswerQA(q.subject))return;const text=textarea.value.trim();if(!text){status.textContent='답변을 입력해 주세요.';return;}
+     if(!confirm('「'+q.title+'」 질문에 답변을 저장하시겠습니까?'))return;save.disabled=true;status.textContent='답변 저장 중…';
+     try{const client=await getClient();if(actor!==currentProfile)return;const result=await client.rpc('cheongla_save_answer',{target_question:q.id,answer_body:text,expected_updated_at:answer?.updated_at||null});if(result.error)throw result.error;if(actor!==currentProfile)return;await loadQuestions();if(actor===currentProfile)$('qaStatus').textContent='답변을 저장했습니다.';}
+     catch(error){if(actor===currentProfile)status.textContent=error.code==='40001'?'다른 답변이 저장됐습니다. 질문 새로고침 후 확인해 주세요.':readable(error);}finally{save.disabled=false;}
+    });
+   }
+   $('qaList').append(item);
+  }
+  $('qaStatus').textContent=visible.length?'제목을 누르면 질문과 답변이 펼쳐집니다.':'등록된 질문이 없습니다.';
+ }catch(error){if(request!==qaRequest||actor!==currentProfile)return;$('qaList').replaceChildren();$('moreQuestions').hidden=true;$('qaStatus').textContent=['PGRST205','42P01'].includes(error.code)?'질의응답을 준비 중입니다. 잠시 후 질문 새로고침을 눌러 주세요.':readable(error);}
+ finally{if(request===qaRequest){$('reloadQuestions').disabled=false;$('moreQuestions').disabled=false;}}
+}
+$('questionForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(!canUseQA()||currentProfile.role!=='student'||$('submitQuestion').disabled)return;
+ const actor=currentProfile,subject=$('questionSubject').value,title=$('questionTitle').value.trim(),body=$('questionBody').value.trim();
+ if(!Object.hasOwn(qaSubjects,subject)||!title||!body){$('qaStatus').textContent='과목, 제목과 질문 내용을 확인해 주세요.';return;}
+ if(!confirm(qaSubjects[subject]+' 질문을 등록하시겠습니까?'))return;$('submitQuestion').disabled=true;$('qaStatus').textContent='질문 등록 중…';
+ try{const client=await getClient();if(actor!==currentProfile)return;const result=await client.from('cheongla_questions').insert({student_id:actor.id,subject,title,body}).select('id').single();if(result.error)throw result.error;if(actor!==currentProfile)return;$('questionTitle').value='';$('questionBody').value='';$('qaFilter').value=subject;qaLimit=20;await loadQuestions();if(actor===currentProfile)$('qaStatus').textContent='질문을 등록했습니다. 선생님의 답변을 기다려 주세요.';}
+ catch(error){if(actor===currentProfile)$('qaStatus').textContent=['PGRST205','42P01'].includes(error.code)?'질의응답을 준비 중입니다. 입력한 내용은 유지됩니다. 잠시 후 다시 시도해 주세요.':readable(error);}finally{$('submitQuestion').disabled=false;}
+});
+$('reloadQuestions').addEventListener('click',()=>{void loadQuestions();});
+$('qaFilter').addEventListener('change',()=>{qaLimit=20;void loadQuestions();});
+$('moreQuestions').addEventListener('click',()=>{qaLimit+=20;void loadQuestions();});
+
 $('switchMode').addEventListener('click',()=>{
  mode=mode==='login'?'signup':'login';const signup=mode==='signup';$('nameField').hidden=!signup;$('fullName').required=signup;syncSignupFields();
  $('authTitle').textContent=signup?'가입 신청':'로그인';$('authDescription').textContent=signup?'가입 후 원장님의 승인을 받아 이용할 수 있습니다.':'등록한 이메일과 비밀번호로 로그인하세요.';
