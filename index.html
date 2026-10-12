@@ -6,6 +6,9 @@
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#233d42;background:#f7f4ee}*{box-sizing:border-box}body{margin:0}main{width:min(100% - 36px,800px);margin:48px auto}.brand{margin-bottom:30px}.brand small{letter-spacing:3px;color:#32756a;font-weight:700}.brand h1{font-size:30px;margin:10px 0}.brand p{color:#637478;margin:0;line-height:1.6}.panel{background:white;border:1px solid #e6e6de;border-radius:22px;padding:28px;box-shadow:0 12px 36px #173d4709}.auth{max-width:460px;margin:auto}h2{font-size:23px;margin:0 0 12px}p{line-height:1.65}label{display:block;font-weight:650;margin:18px 0 8px}input,select,button{font:inherit}input,select{width:100%;padding:14px;border:1px solid #cbd5d3;border-radius:10px;background:#fff;font-size:16px}button{border:0;border-radius:10px;padding:14px 18px;background:#183d47;color:white;cursor:pointer;font-weight:650;min-height:46px}button:disabled{opacity:.55;cursor:wait}.submit{width:100%;margin-top:24px}.secondary{background:#edf3f0;color:#24564d}.text-button{background:none;color:#32756a;padding:12px 0}.row{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}.muted{color:#68797c;font-size:14px}.badge{padding:7px 12px;border-radius:30px;background:#e7f2ed;font-size:13px}#message{min-height:24px;color:#8e4936;font-size:14px;white-space:pre-wrap}footer{text-align:center;color:#73817f;font-size:12px;margin-top:30px}[hidden]{display:none!important}.member{border-top:1px solid #e8ece8;padding:20px 0}.member label{font-size:13px;margin:10px 0 6px}.member .actions{margin-top:12px}.member strong{overflow-wrap:anywhere}.member select{max-width:240px}.empty{padding:20px 0;color:#73817f}a{color:#32756a}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #6db3a2;outline-offset:3px}@media(max-width:500px){main{margin:26px auto}.panel{padding:22px}.brand h1{font-size:26px}}
 </style>
+<style>
+textarea{width:100%;min-height:180px;padding:14px;border:1px solid #cbd5d3;border-radius:10px;font:inherit;resize:vertical;line-height:1.7}textarea:focus-visible{outline:3px solid #6db3a2;outline-offset:3px}.notice{border-top:1px solid #e8ece8;padding:20px 0;overflow-wrap:anywhere}.notice h3{font-size:19px;margin:10px 0}.notice-body{white-space:pre-wrap;margin:12px 0}.notice-meta{font-size:13px;color:#68797c}.check{display:flex;gap:10px;align-items:center}.check input{width:20px;height:20px}.notice-form{background:#f7f9f6;padding:18px;border-radius:14px;margin:18px 0}.notice-form .row{margin-top:18px}#noticeStatus{white-space:pre-wrap}
+</style>
 </head>
 <body><main>
 <header class="brand"><small>CHEONGLA</small><h1>청라 학습코칭</h1><p>The Better Tomorrow, Together!</p></header>
@@ -26,6 +29,20 @@
 <div class="row"><h2 id="welcome">내 계정</h2><button id="logout" class="secondary" type="button">로그아웃</button></div>
 <span id="accountBadge" class="badge"></span><p id="accountDescription"></p>
 <button id="reloadProfile" class="secondary" type="button">승인 상태 새로 확인</button>
+<section id="noticesPanel" hidden style="margin-top:30px">
+<div class="row"><h2>학원 공지사항</h2><button id="reloadNotices" class="secondary" type="button">공지 새로고침</button></div>
+<p class="muted">중요 공지를 먼저 표시합니다. 본인에게 해당하는 공지를 확인해 주세요.</p>
+<form id="noticeForm" class="notice-form" hidden>
+<h3 id="noticeFormTitle">새 공지 작성</h3>
+<label for="noticeTitle">제목</label><input id="noticeTitle" maxlength="150" required>
+<label for="noticeAudience">공지 대상</label><select id="noticeAudience"><option value="all">전체 · 학생과 학부모</option><option value="student">학생</option><option value="parent">학부모</option></select>
+<label for="noticeBody">내용</label><textarea id="noticeBody" maxlength="10000" required></textarea>
+<label class="check"><input id="noticePinned" type="checkbox">중요 공지로 상단 고정</label>
+<div class="row"><button id="saveNotice" type="submit">공지 등록</button><button id="cancelNotice" class="secondary" type="button" hidden>수정 취소</button></div>
+</form>
+<p id="noticeStatus" class="muted" role="status" aria-live="polite"></p><div id="notices"></div>
+<button id="moreNotices" class="secondary" type="button" hidden>이전 공지 더 보기</button>
+</section>
 <section id="childrenPanel" hidden style="margin-top:24px"><h2>연결된 자녀</h2><div id="children"></div></section>
 <section id="approvalPanel" hidden style="margin-top:30px"><div class="row"><h2>가입 및 이용 권한 관리</h2><button id="reloadMembers" class="secondary" type="button">목록 새로고침</button></div><p class="muted">가입자를 확인하고 역할과 승인 상태를 지정해 주세요.</p><div id="members"></div></section>
 </section>
@@ -40,6 +57,10 @@ window.addEventListener('pageshow',()=>{if(!$('authPanel').hidden)clearLoginInpu
 const roles={student:'학생',parent:'학부모',owner:'원장',english_director:'영어원장',math_director:'수학원장',korean_teacher:'국어선생님',manager:'실장'};
 const statuses={pending:'승인 대기',approved:'승인 완료',rejected:'가입 거절',suspended:'이용 중지'};
 let mode='login',clientPromise=null,currentProfile=null;
+const audiences={all:'전체',student:'학생',parent:'학부모'};
+let editingNotice=null,noticeRequest=0,noticeLimit=20;
+function canManageNotices(){return currentProfile?.approval_status==='approved'&&['owner','english_director','math_director','manager'].includes(currentProfile.role);}
+function resetNoticeForm(){editingNotice=null;$('noticeTitle').value='';$('noticeBody').value='';$('noticeAudience').value='all';$('noticePinned').checked=false;$('noticeFormTitle').textContent='새 공지 작성';$('saveNotice').textContent='공지 등록';$('cancelNotice').hidden=true;}
 function message(text){$('message').textContent=text;}
 function readable(error){
  const code=error?.code||'';const text=error?.message||'';
@@ -72,7 +93,7 @@ async function getClient(){
  })().catch(e=>{clientPromise=null;throw e;});}
  return clientPromise;
 }
-function clearAccount(){currentProfile=null;$('accountPanel').hidden=true;$('approvalPanel').hidden=true;$('childrenPanel').hidden=true;$('children').replaceChildren();$('members').replaceChildren();$('authPanel').hidden=false;}
+function clearAccount(){currentProfile=null;noticeRequest++;noticeLimit=20;resetNoticeForm();$('noticesPanel').hidden=true;$('noticeForm').hidden=true;$('notices').replaceChildren();$('noticeStatus').textContent='';$('moreNotices').hidden=true;$('accountPanel').hidden=true;$('approvalPanel').hidden=true;$('childrenPanel').hidden=true;$('children').replaceChildren();$('members').replaceChildren();$('authPanel').hidden=false;}
 async function loadProfile(verifiedUser=null){
  clearAccount();const client=await getClient();let user=verifiedUser;
  if(!user){message('계정 확인 중…');const {data,error}=await client.auth.getUser();if(error)throw error;user=data.user;}
@@ -84,7 +105,9 @@ async function loadProfile(verifiedUser=null){
  $('welcome').textContent=(currentProfile.full_name||'회원')+'님';
  $('accountBadge').textContent=(roles[currentProfile.role]||'회원')+' · '+(statuses[currentProfile.approval_status]||'상태 확인 필요');
  const approved=currentProfile.approval_status==='approved';
- $('accountDescription').textContent=approved?'학원 이용 승인이 완료되었습니다. 현재는 가입 및 승인 기능을 먼저 운영합니다.':currentProfile.approval_status==='pending'?'가입 신청이 접수되었습니다. 원장님의 승인을 기다려 주세요.':'현재 학원 서비스를 이용할 수 없습니다. 원장님께 문의해 주세요.';
+ $('accountDescription').textContent=approved?'학원 이용 승인이 완료되었습니다. 아래에서 학원 공지를 확인해 주세요.':currentProfile.approval_status==='pending'?'가입 신청이 접수되었습니다. 원장님의 승인을 기다려 주세요.':'현재 학원 서비스를 이용할 수 없습니다. 원장님께 문의해 주세요.';
+ $('noticesPanel').hidden=!approved;
+ if(approved)void loadNotices();
  $('approvalPanel').hidden=!(approved&&['owner','english_director','math_director'].includes(currentProfile.role));
  try{
   if(approved&&currentProfile.role==='parent'){message('로그인 완료 · 자녀 정보 확인 중…');await loadChildren();}
@@ -141,6 +164,62 @@ async function loadMembers(){
   });
  }
 }
+async function loadNotices(){
+ const profile=currentProfile,request=++noticeRequest;
+ if(profile?.approval_status!=='approved')return;
+ $('noticeStatus').textContent='공지를 불러오는 중…';$('reloadNotices').disabled=true;$('moreNotices').disabled=true;
+ try{
+  const client=await getClient();
+  const result=await client.from('cheongla_notices').select('id,title,body,audience,pinned,created_at,updated_at').order('pinned',{ascending:false}).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(noticeLimit+1);
+  if(request!==noticeRequest||profile!==currentProfile)return;
+  if(result.error)throw result.error;
+  $('notices').replaceChildren();$('noticeForm').hidden=!canManageNotices();
+  const rows=result.data||[];$('moreNotices').hidden=rows.length<=noticeLimit;
+  for(const notice of rows.slice(0,noticeLimit)){
+   const article=document.createElement('article');article.className='notice';
+   const meta=document.createElement('div');meta.className='notice-meta';
+   meta.textContent=(notice.pinned?'중요 · ':'')+(audiences[notice.audience]||'전체')+' · '+new Date(notice.created_at).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'})+(notice.updated_at!==notice.created_at?' · 수정됨':'');
+   const title=document.createElement('h3');title.textContent=notice.title;
+   const body=document.createElement('p');body.className='notice-body';body.textContent=notice.body;article.append(meta,title,body);
+   if(canManageNotices()){
+    const actions=document.createElement('div');actions.className='row';
+    const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='수정';
+    edit.addEventListener('click',()=>{if(!canManageNotices()||$('saveNotice').disabled)return;editingNotice=notice;$('noticeTitle').value=notice.title;$('noticeBody').value=notice.body;$('noticeAudience').value=notice.audience;$('noticePinned').checked=notice.pinned;$('noticeFormTitle').textContent='공지 수정';$('saveNotice').textContent='수정 저장';$('cancelNotice').hidden=false;$('noticeTitle').focus();});
+    const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='삭제';
+    remove.addEventListener('click',async()=>{
+     if(!canManageNotices()||!confirm('「'+notice.title+'」 공지를 삭제하시겠습니까?'))return;
+     const actor=currentProfile;remove.disabled=true;
+     try{const client=await getClient();if(actor!==currentProfile)return;const response=await client.from('cheongla_notices').delete().eq('id',notice.id).eq('updated_at',notice.updated_at).select('id').maybeSingle();if(response.error)throw response.error;if(!response.data)throw new Error('공지가 변경됐거나 삭제 권한이 없습니다. 공지를 새로고침해 주세요.');if(actor!==currentProfile)return;if(editingNotice?.id===notice.id)resetNoticeForm();await loadNotices();if(actor===currentProfile)$('noticeStatus').textContent='공지를 삭제했습니다.';}catch(e){if(actor===currentProfile)$('noticeStatus').textContent=readable(e);}finally{remove.disabled=false;}
+    });actions.append(edit,remove);article.append(actions);
+   }
+   $('notices').append(article);
+  }
+  $('noticeStatus').textContent=rows.length?'':'등록된 공지가 없습니다.';
+ }catch(e){
+  if(request!==noticeRequest||profile!==currentProfile)return;
+  $('notices').replaceChildren();$('noticeForm').hidden=true;$('moreNotices').hidden=true;
+  $('noticeStatus').textContent=['PGRST205','42P01'].includes(e.code)?'공지사항을 준비 중입니다. 잠시 후 공지 새로고침을 눌러 주세요.':readable(e);
+ }finally{if(request===noticeRequest){$('reloadNotices').disabled=false;$('moreNotices').disabled=false;}}
+}
+$('reloadNotices').addEventListener('click',()=>{void loadNotices();});
+$('moreNotices').addEventListener('click',()=>{noticeLimit+=20;void loadNotices();});
+$('cancelNotice').addEventListener('click',()=>{if(!$('saveNotice').disabled)resetNoticeForm();});
+$('noticeForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(!canManageNotices()||$('saveNotice').disabled)return;
+ const actor=currentProfile,editing=editingNotice;
+ const payload={title:$('noticeTitle').value.trim(),body:$('noticeBody').value.trim(),audience:$('noticeAudience').value,pinned:$('noticePinned').checked};
+ if(!payload.title||!payload.body){$('noticeStatus').textContent='제목과 내용을 입력해 주세요.';return;}
+ if(payload.title.length>150||payload.body.length>10000||!Object.hasOwn(audiences,payload.audience)){$('noticeStatus').textContent='공지 제목, 내용 길이와 대상을 확인해 주세요.';return;}
+ if(!confirm((editing?'수정한 공지를 ':'새 공지를 ')+(audiences[payload.audience])+' 대상으로 게시하시겠습니까?'))return;
+ $('saveNotice').disabled=true;$('cancelNotice').disabled=true;$('noticeStatus').textContent='공지 저장 중…';
+ try{
+  const client=await getClient();if(actor!==currentProfile)return;
+  const query=editing?client.from('cheongla_notices').update(payload).eq('id',editing.id).eq('updated_at',editing.updated_at):client.from('cheongla_notices').insert({...payload,created_by:actor.id});
+  const response=await query.select('id').maybeSingle();if(response.error)throw response.error;
+  if(!response.data)throw new Error('공지가 변경됐거나 게시 권한이 없습니다. 공지를 새로고침해 주세요.');
+  if(actor!==currentProfile)return;resetNoticeForm();await loadNotices();if(actor===currentProfile)$('noticeStatus').textContent=editing?'공지 수정을 저장했습니다.':'공지를 등록했습니다.';
+ }catch(error){if(actor===currentProfile)$('noticeStatus').textContent=readable(error);}finally{$('saveNotice').disabled=false;$('cancelNotice').disabled=false;}
+});
 $('switchMode').addEventListener('click',()=>{
  mode=mode==='login'?'signup':'login';const signup=mode==='signup';$('nameField').hidden=!signup;$('fullName').required=signup;$('childName').required=signup&&$('signupRole').value==='parent';
  $('authTitle').textContent=signup?'가입 신청':'로그인';$('authDescription').textContent=signup?'가입 후 원장님의 승인을 받아 이용할 수 있습니다.':'등록한 이메일과 비밀번호로 로그인하세요.';
