@@ -7,11 +7,14 @@
 :root{font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#233d42;background:#f7f4ee}*{box-sizing:border-box}body{margin:0}main{width:min(100% - 36px,800px);margin:48px auto}.brand{margin-bottom:30px}.brand small{letter-spacing:3px;color:#32756a;font-weight:700}.brand h1{font-size:30px;margin:10px 0}.brand p{color:#637478;margin:0;line-height:1.6}.panel{background:white;border:1px solid #e6e6de;border-radius:22px;padding:28px;box-shadow:0 12px 36px #173d4709}.auth{max-width:460px;margin:auto}h2{font-size:23px;margin:0 0 12px}p{line-height:1.65}label{display:block;font-weight:650;margin:18px 0 8px}input,select,button{font:inherit}input,select{width:100%;padding:14px;border:1px solid #cbd5d3;border-radius:10px;background:#fff;font-size:16px}button{border:0;border-radius:10px;padding:14px 18px;background:#183d47;color:white;cursor:pointer;font-weight:650;min-height:46px}button:disabled{opacity:.55;cursor:wait}.submit{width:100%;margin-top:24px}.secondary{background:#edf3f0;color:#24564d}.text-button{background:none;color:#32756a;padding:12px 0}.row{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}.muted{color:#68797c;font-size:14px}.badge{padding:7px 12px;border-radius:30px;background:#e7f2ed;font-size:13px}#message{min-height:24px;color:#8e4936;font-size:14px;white-space:pre-wrap}footer{text-align:center;color:#73817f;font-size:12px;margin-top:30px}[hidden]{display:none!important}.member{border-top:1px solid #e8ece8;padding:20px 0}.member label{font-size:13px;margin:10px 0 6px}.member .actions{margin-top:12px}.member strong{overflow-wrap:anywhere}.member select{max-width:240px}.empty{padding:20px 0;color:#73817f}a{color:#32756a}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #6db3a2;outline-offset:3px}@media(max-width:500px){main{margin:26px auto}.panel{padding:22px}.brand h1{font-size:26px}}
 </style>
 <style>
+.brand{display:grid;grid-template-columns:1fr;gap:28px;align-items:center;padding:20px;border:1px solid #e6e6de;border-radius:22px;background:#f8f6f1}.brand-image{display:block;width:100%;height:auto;object-fit:contain;border-radius:12px}.brand h1{font-size:28px}.notice-tabs{display:flex;gap:8px;margin:18px 0;flex-wrap:wrap}.notice-tab{flex:1;min-width:100px;background:#edf3f0;color:#24564d;border:1px solid #d7e3de}.notice-tab[aria-selected="true"]{background:#183d47;color:white;border-color:#183d47}#noticeBoardTitle{font-size:20px;margin:18px 0 8px}@media(max-width:500px){.brand{grid-template-columns:1fr;gap:14px;text-align:center;padding:18px}.brand-image{width:180px;margin:auto}.brand h1{font-size:25px}.brand p{font-size:14px}.notice-tab{padding:12px 8px;min-width:85px;font-size:14px}}
+</style>
+<style>
 textarea{width:100%;min-height:180px;padding:14px;border:1px solid #cbd5d3;border-radius:10px;font:inherit;resize:vertical;line-height:1.7}textarea:focus-visible{outline:3px solid #6db3a2;outline-offset:3px}.notice{border-top:1px solid #e8ece8;padding:20px 0;overflow-wrap:anywhere}.notice h3{font-size:19px;margin:10px 0}.notice-body{white-space:pre-wrap;margin:12px 0}.notice-meta{font-size:13px;color:#68797c}.check{display:flex;gap:10px;align-items:center}.check input{width:20px;height:20px}.notice-form{background:#f7f9f6;padding:18px;border-radius:14px;margin:18px 0}.notice-form .row{margin-top:18px}#noticeStatus{white-space:pre-wrap}
 </style>
 </head>
 <body><main>
-<header class="brand"><small>CHEONGLA</small><h1>청라 학습코칭</h1><p>The Better Tomorrow, Together!</p></header>
+<header class="brand"><div><small>CHEONGLA</small><h1>청라 학습코칭</h1><p>The Better Tomorrow, Together!</p></div></header>
 <section id="authPanel" class="panel auth">
 <h2 id="authTitle">로그인</h2><p id="authDescription" class="muted">등록한 이메일과 비밀번호로 로그인하세요.</p>
 <form id="authForm" autocomplete="off">
@@ -31,7 +34,14 @@ textarea{width:100%;min-height:180px;padding:14px;border:1px solid #cbd5d3;borde
 <button id="reloadProfile" class="secondary" type="button">승인 상태 새로 확인</button>
 <section id="noticesPanel" hidden style="margin-top:30px">
 <div class="row"><h2>학원 공지사항</h2><button id="reloadNotices" class="secondary" type="button">공지 새로고침</button></div>
-<p class="muted">중요 공지를 먼저 표시합니다. 본인에게 해당하는 공지를 확인해 주세요.</p>
+<p class="muted">전체 공지와 본인에게 해당하는 전용 공지창을 선택해 주세요.</p>
+<div id="noticeTabs" class="notice-tabs" role="tablist" aria-label="공지창 선택">
+<button id="noticeTabAll" class="notice-tab" type="button" role="tab" aria-selected="true" aria-controls="noticeBoard" tabindex="0">전체 공지</button>
+<button id="noticeTabStudent" class="notice-tab" type="button" role="tab" aria-selected="false" aria-controls="noticeBoard" tabindex="-1" hidden>학생 전용</button>
+<button id="noticeTabParent" class="notice-tab" type="button" role="tab" aria-selected="false" aria-controls="noticeBoard" tabindex="-1" hidden>학부모 전용</button>
+</div>
+<div id="noticeBoard" role="tabpanel" aria-labelledby="noticeTabAll">
+<h3 id="noticeBoardTitle">전체 공지</h3>
 <form id="noticeForm" class="notice-form" hidden>
 <h3 id="noticeFormTitle">새 공지 작성</h3>
 <label for="noticeTitle">제목</label><input id="noticeTitle" maxlength="150" required>
@@ -42,6 +52,7 @@ textarea{width:100%;min-height:180px;padding:14px;border:1px solid #cbd5d3;borde
 </form>
 <p id="noticeStatus" class="muted" role="status" aria-live="polite"></p><div id="notices"></div>
 <button id="moreNotices" class="secondary" type="button" hidden>이전 공지 더 보기</button>
+</div>
 </section>
 <section id="childrenPanel" hidden style="margin-top:24px"><h2>연결된 자녀</h2><div id="children"></div></section>
 <section id="approvalPanel" hidden style="margin-top:30px"><div class="row"><h2>가입 및 이용 권한 관리</h2><button id="reloadMembers" class="secondary" type="button">목록 새로고침</button></div><p class="muted">가입자를 확인하고 역할과 승인 상태를 지정해 주세요.</p><div id="members"></div></section>
@@ -58,9 +69,13 @@ const roles={student:'학생',parent:'학부모',owner:'원장',english_director
 const statuses={pending:'승인 대기',approved:'승인 완료',rejected:'가입 거절',suspended:'이용 중지'};
 let mode='login',clientPromise=null,currentProfile=null;
 const audiences={all:'전체',student:'학생',parent:'학부모'};
-let editingNotice=null,noticeRequest=0,noticeLimit=20;
+let editingNotice=null,noticeRequest=0,noticeLimit=20,activeNoticeAudience='all';
+const noticeTabIds={all:'noticeTabAll',student:'noticeTabStudent',parent:'noticeTabParent'};
+const noticeBoardNames={all:'전체 공지',student:'학생 전용 공지',parent:'학부모 전용 공지'};
+function allowedNoticeAudiences(){if(currentProfile?.approval_status!=='approved')return [];return currentProfile.role==='student'?['all','student']:currentProfile.role==='parent'?['all','parent']:['all','student','parent'];}
+function configureNoticeTabs(){const allowed=allowedNoticeAudiences();if(!allowed.includes(activeNoticeAudience))activeNoticeAudience='all';for(const [audience,id] of Object.entries(noticeTabIds)){const tab=$(id);tab.hidden=!allowed.includes(audience);tab.setAttribute('aria-selected',String(audience===activeNoticeAudience));tab.setAttribute('tabindex',audience===activeNoticeAudience?'0':'-1');}$('noticeBoard').setAttribute('aria-labelledby',noticeTabIds[activeNoticeAudience]);$('noticeBoardTitle').textContent=noticeBoardNames[activeNoticeAudience];}
 function canManageNotices(){return currentProfile?.approval_status==='approved'&&['owner','english_director','math_director','manager'].includes(currentProfile.role);}
-function resetNoticeForm(){editingNotice=null;$('noticeTitle').value='';$('noticeBody').value='';$('noticeAudience').value='all';$('noticePinned').checked=false;$('noticeFormTitle').textContent='새 공지 작성';$('saveNotice').textContent='공지 등록';$('cancelNotice').hidden=true;}
+function resetNoticeForm(){editingNotice=null;$('noticeTitle').value='';$('noticeBody').value='';$('noticeAudience').value=activeNoticeAudience;$('noticePinned').checked=false;$('noticeFormTitle').textContent='새 공지 작성';$('saveNotice').textContent='공지 등록';$('cancelNotice').hidden=true;}
 function message(text){$('message').textContent=text;}
 function readable(error){
  const code=error?.code||'';const text=error?.message||'';
@@ -93,7 +108,7 @@ async function getClient(){
  })().catch(e=>{clientPromise=null;throw e;});}
  return clientPromise;
 }
-function clearAccount(){currentProfile=null;noticeRequest++;noticeLimit=20;resetNoticeForm();$('noticesPanel').hidden=true;$('noticeForm').hidden=true;$('notices').replaceChildren();$('noticeStatus').textContent='';$('moreNotices').hidden=true;$('accountPanel').hidden=true;$('approvalPanel').hidden=true;$('childrenPanel').hidden=true;$('children').replaceChildren();$('members').replaceChildren();$('authPanel').hidden=false;}
+function clearAccount(){currentProfile=null;noticeRequest++;noticeLimit=20;activeNoticeAudience='all';configureNoticeTabs();resetNoticeForm();$('noticesPanel').hidden=true;$('noticeForm').hidden=true;$('notices').replaceChildren();$('noticeStatus').textContent='';$('moreNotices').hidden=true;$('accountPanel').hidden=true;$('approvalPanel').hidden=true;$('childrenPanel').hidden=true;$('children').replaceChildren();$('members').replaceChildren();$('authPanel').hidden=false;}
 async function loadProfile(verifiedUser=null){
  clearAccount();const client=await getClient();let user=verifiedUser;
  if(!user){message('계정 확인 중…');const {data,error}=await client.auth.getUser();if(error)throw error;user=data.user;}
@@ -107,7 +122,7 @@ async function loadProfile(verifiedUser=null){
  const approved=currentProfile.approval_status==='approved';
  $('accountDescription').textContent=approved?'학원 이용 승인이 완료되었습니다. 아래에서 학원 공지를 확인해 주세요.':currentProfile.approval_status==='pending'?'가입 신청이 접수되었습니다. 원장님의 승인을 기다려 주세요.':'현재 학원 서비스를 이용할 수 없습니다. 원장님께 문의해 주세요.';
  $('noticesPanel').hidden=!approved;
- if(approved)void loadNotices();
+ configureNoticeTabs();if(approved)void loadNotices();
  $('approvalPanel').hidden=!(approved&&['owner','english_director','math_director'].includes(currentProfile.role));
  try{
   if(approved&&currentProfile.role==='parent'){message('로그인 완료 · 자녀 정보 확인 중…');await loadChildren();}
@@ -165,12 +180,12 @@ async function loadMembers(){
  }
 }
 async function loadNotices(){
- const profile=currentProfile,request=++noticeRequest;
- if(profile?.approval_status!=='approved')return;
+ const profile=currentProfile,audience=activeNoticeAudience,request=++noticeRequest;
+ if(profile?.approval_status!=='approved'||!allowedNoticeAudiences().includes(audience))return;
  $('noticeStatus').textContent='공지를 불러오는 중…';$('reloadNotices').disabled=true;$('moreNotices').disabled=true;
  try{
   const client=await getClient();
-  const result=await client.from('cheongla_notices').select('id,title,body,audience,pinned,created_at,updated_at').order('pinned',{ascending:false}).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(noticeLimit+1);
+  const result=await client.from('cheongla_notices').select('id,title,body,audience,pinned,created_at,updated_at').eq('audience',audience).order('pinned',{ascending:false}).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(noticeLimit+1);
   if(request!==noticeRequest||profile!==currentProfile)return;
   if(result.error)throw result.error;
   $('notices').replaceChildren();$('noticeForm').hidden=!canManageNotices();
@@ -194,7 +209,7 @@ async function loadNotices(){
    }
    $('notices').append(article);
   }
-  $('noticeStatus').textContent=rows.length?'':'등록된 공지가 없습니다.';
+  $('noticeStatus').textContent=rows.length?'':noticeBoardNames[audience]+'에 등록된 공지가 없습니다.';
  }catch(e){
   if(request!==noticeRequest||profile!==currentProfile)return;
   $('notices').replaceChildren();$('noticeForm').hidden=true;$('moreNotices').hidden=true;
@@ -202,6 +217,15 @@ async function loadNotices(){
  }finally{if(request===noticeRequest){$('reloadNotices').disabled=false;$('moreNotices').disabled=false;}}
 }
 $('reloadNotices').addEventListener('click',()=>{void loadNotices();});
+async function switchNoticeBoard(audience){
+ if(!allowedNoticeAudiences().includes(audience)||audience===activeNoticeAudience||$('saveNotice').disabled)return;
+ if(($('noticeTitle').value.trim()||$('noticeBody').value.trim())&&!confirm('작성 중인 내용을 지우고 다른 공지창으로 이동하시겠습니까?'))return;
+ activeNoticeAudience=audience;noticeLimit=20;configureNoticeTabs();resetNoticeForm();$('notices').replaceChildren();$('moreNotices').hidden=true;await loadNotices();
+}
+for(const [audience,id] of Object.entries(noticeTabIds)){
+ $(id).addEventListener('click',()=>{void switchNoticeBoard(audience);});
+ $(id).addEventListener('keydown',e=>{const allowed=allowedNoticeAudiences(),i=allowed.indexOf(audience);let next;if(e.key==='ArrowRight')next=allowed[(i+1)%allowed.length];else if(e.key==='ArrowLeft')next=allowed[(i-1+allowed.length)%allowed.length];else if(e.key==='Home')next=allowed[0];else if(e.key==='End')next=allowed.at(-1);else return;e.preventDefault();void switchNoticeBoard(next).then(()=>$(noticeTabIds[activeNoticeAudience]).focus());});
+}
 $('moreNotices').addEventListener('click',()=>{noticeLimit+=20;void loadNotices();});
 $('cancelNotice').addEventListener('click',()=>{if(!$('saveNotice').disabled)resetNoticeForm();});
 $('noticeForm').addEventListener('submit',async e=>{
@@ -217,7 +241,7 @@ $('noticeForm').addEventListener('submit',async e=>{
   const query=editing?client.from('cheongla_notices').update(payload).eq('id',editing.id).eq('updated_at',editing.updated_at):client.from('cheongla_notices').insert({...payload,created_by:actor.id});
   const response=await query.select('id').maybeSingle();if(response.error)throw response.error;
   if(!response.data)throw new Error('공지가 변경됐거나 게시 권한이 없습니다. 공지를 새로고침해 주세요.');
-  if(actor!==currentProfile)return;resetNoticeForm();await loadNotices();if(actor===currentProfile)$('noticeStatus').textContent=editing?'공지 수정을 저장했습니다.':'공지를 등록했습니다.';
+  if(actor!==currentProfile)return;activeNoticeAudience=payload.audience;noticeLimit=20;configureNoticeTabs();resetNoticeForm();await loadNotices();if(actor===currentProfile)$('noticeStatus').textContent=editing?'공지 수정을 저장했습니다.':'공지를 등록했습니다.';
  }catch(error){if(actor===currentProfile)$('noticeStatus').textContent=readable(error);}finally{$('saveNotice').disabled=false;$('cancelNotice').disabled=false;}
 });
 $('switchMode').addEventListener('click',()=>{
