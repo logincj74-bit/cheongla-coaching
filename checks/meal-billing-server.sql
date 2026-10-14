@@ -1,0 +1,30 @@
+begin;
+do $$ declare st uuid;ad uuid;r record;b uuid;sv timestamptz;bv timestamptz;payload jsonb;begin
+select id into st from public.cheongla_profiles where role='student' and approval_status='approved' limit 1;
+select id into ad from public.cheongla_profiles where approval_status='approved' and (is_app_admin or role='manager') limit 1;
+if st is null or ad is null then raise exception '검증 계정 없음';end if;
+insert into public.cheongla_meal_forms(month,deadline,unit_price)values('2098-11-01','2098-10-28',7500);
+insert into public.cheongla_meal_submissions(month,student_id,student_name,lunch,dinner)values('2098-11-01',st,'검증용 학생',array['2098-11-03'::date,'2098-11-04'::date],array['2098-11-03'::date]) returning updated_at into sv;
+for r in select id from public.cheongla_profiles where approval_status='approved' and (is_app_admin or role in('owner','english_director','math_director','manager')) loop
+perform set_config('request.jwt.claim.sub',r.id::text,true);
+select updated_at into bv from public.cheongla_meal_bills where month='2098-11-01' and student_id=st;
+b:=public.cheongla_save_meal_bill_v2('2098-11-01',st,'2098-10-31',-7500,'전월 정산',sv,bv);
+if not exists(select 1 from public.cheongla_meal_bills where id=b and amount=15000 and lunch_count=2 and dinner_count=1) then raise exception '청구 계산 오류';end if;
+payload:=public.cheongla_read_meal_form('2098-11-01');if jsonb_array_length(payload->'bills')<>1 or jsonb_array_length(payload->'submissions')<>1 then raise exception '원장·실장 조회 오류';end if;
+end loop;
+select updated_at into bv from public.cheongla_meal_bills where id=b;
+if exists(select 1 from public.cheongla_meal_bill_sms_recipients(b,bv) x where not exists(select 1 from public.cheongla_parent_students l join public.cheongla_profiles p on p.id=l.parent_id where l.student_id=st and l.parent_id=x.parent_id and p.role='parent' and p.approval_status='approved')) then raise exception '잘못된 수신인';end if;
+begin perform public.cheongla_save_meal_bill_v2('2098-11-01',st,'2098-10-31',0,'',sv,null);raise exception 'FAIL stale bill';exception when raise_exception then if SQLERRM like 'FAIL%' then raise;end if;end;
+begin perform public.cheongla_save_meal_bill_v2('2098-11-01',st,'2098-10-31',-30000,'차감',sv,bv);raise exception 'FAIL negative amount';exception when raise_exception then if SQLERRM like 'FAIL%' then raise;end if;end;
+begin perform public.cheongla_save_meal_bill_v2('2098-11-01',st,'2098-10-31',-100,'',sv,bv);raise exception 'FAIL reason';exception when raise_exception then if SQLERRM like 'FAIL%' then raise;end if;end;
+update public.cheongla_meal_submissions set updated_at=clock_timestamp() where month='2098-11-01' and student_id=st;
+begin perform public.cheongla_meal_bill_sms_recipients(b,bv);raise exception 'FAIL stale application';exception when raise_exception then if SQLERRM like 'FAIL%' then raise;end if;end;
+perform set_config('request.jwt.claim.sub',st::text,true);
+payload:=public.cheongla_read_meal_form('2098-11-01');if jsonb_array_length(payload->'bills')<>0 then raise exception '학생 청구 관리 노출';end if;
+begin perform public.cheongla_meal_bill_sms_recipients(b,bv);raise exception 'FAIL student contacts';exception when insufficient_privilege then null;end;
+begin perform public.cheongla_save_meal_bill_v2('2098-11-01',st,'2098-10-31',0,'',sv,bv);raise exception 'FAIL student bill';exception when insufficient_privilege then null;end;
+perform set_config('request.jwt.claim.sub','',true);
+begin perform public.cheongla_meal_bill_sms_recipients(b,bv);raise exception 'FAIL guest contacts';exception when insufficient_privilege then null;end;
+end;$$;
+rollback;
+select 'PASS: 원장·실장 공동 명단·청구 조회, 식비 계산·차감, 동시 수정 보호, 변경된 신청 문자 차단, 연결된 학부모만 수신, 학생·비회원 권한 차단. 검증 자료 롤백, 실제 문자 미발송.' as result;
