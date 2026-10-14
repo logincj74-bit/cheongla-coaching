@@ -1,7 +1,7 @@
 {
   "id": "/cheongla-coaching/",
-  "name": "청라 학습코칭",
-  "short_name": "청라",
+  "name": "독학재수청라",
+  "short_name": "독학재수청라",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
