@@ -1,0 +1,45 @@
+begin;
+do $$declare st uuid;pa uuid;ad uuid;other uuid;mg uuid;e uuid;fv timestamptz;sv timestamptz;data jsonb;n integer;post uuid;director record;
+begin
+select id into st from public.cheongla_profiles where role='student' and approval_status='approved' limit 1;
+select id into other from public.cheongla_profiles where role='student' and approval_status='approved' and id<>st limit 1;
+select id into pa from public.cheongla_profiles where role='parent' and approval_status='approved' limit 1;
+select id into ad from public.cheongla_profiles where is_app_admin and approval_status='approved' limit 1;
+select id into mg from public.cheongla_profiles where role='manager' and approval_status='approved' limit 1;
+if st is null or pa is null or ad is null or other is null or mg is null then raise exception '검증용 승인 계정 없음';end if;
+insert into public.cheongla_parent_students(parent_id,student_id,created_by)values(pa,st,ad)on conflict do nothing;
+delete from public.cheongla_parent_students where parent_id=pa and student_id=other;
+insert into public.cheongla_meal_forms(month,deadline,unit_price) values('2098-11-01','2098-10-28',7500) returning updated_at into fv;
+insert into public.cheongla_exams(title,exam_on,deadline,status)values('역할별 신청 검증','2098-11-20','2098-11-01 12:00+09','open')returning id into e;
+perform set_config('request.jwt.claim.sub',pa::text,true);
+data:=public.cheongla_application_students();if not exists(select 1 from jsonb_array_elements(data)x where x->>'id'=st::text)or exists(select 1 from jsonb_array_elements(data)x where x->>'id'=other::text)then raise exception 'FAIL linked student choices';end if;
+perform public.cheongla_submit_student_meal(st,'2098-11-01',array['2098-11-03'::date],'{}','학부모 신청 검증',null,fv);
+select updated_at into sv from public.cheongla_meal_submissions where month='2098-11-01' and student_id=st;
+data:=public.cheongla_read_meal_form('2098-11-01');if jsonb_array_length(data->'submissions')<>1 then raise exception 'FAIL parent read';end if;
+perform public.cheongla_apply_student_exam(st,e,'register');
+begin perform public.cheongla_submit_student_meal(other,'2098-11-01','{}','{}','',null,fv);raise exception 'FAIL unrelated meal';exception when insufficient_privilege then null;end;
+begin perform public.cheongla_apply_student_exam(other,e,'register');raise exception 'FAIL unrelated exam';exception when insufficient_privilege then null;end;
+begin perform public.cheongla_submit_student_meal(st,'2098-11-01','{}','{}','',null,fv);raise exception 'FAIL concurrent meal overwrite';exception when raise_exception then if sqlerrm='FAIL concurrent meal overwrite' then raise;end if;end;
+perform set_config('request.jwt.claim.sub',st::text,true);perform public.cheongla_submit_student_meal(st,'2098-11-01','{}','{}','학생 변경 검증',sv,fv);perform public.cheongla_apply_student_exam(st,e,'cancel');
+perform set_config('request.jwt.claim.sub',pa::text,true);
+perform public.cheongla_save_my_contact('01000000001');
+post:=public.cheongla_save_board_post(null,'검증용 비공개 문의','원장·실장 답변 및 알림 검증','private',null);
+perform set_config('request.jwt.claim.sub',mg::text,true);
+if not exists(select 1 from public.cheongla_notifications where recipient_id=mg and source_kind='contact_update' and source_id=pa)then raise exception 'FAIL contact notification';end if;
+if not exists(select 1 from public.cheongla_notifications where recipient_id=mg and source_kind='board' and source_id=post)then raise exception 'FAIL private inquiry notification';end if;
+perform public.cheongla_add_board_reply(post,'검증용 답변');
+if not exists(select 1 from public.cheongla_notifications where recipient_id=pa and source_kind='board' and source_id=post)then raise exception 'FAIL reply notification';end if;
+for director in select id from public.cheongla_profiles where approval_status='approved' and membership_state='active' and role in('owner','english_director','math_director') loop
+ if not exists(select 1 from public.cheongla_notifications where recipient_id=director.id and source_kind='meal_submission' and student_id=st)then raise exception 'FAIL director meal notification';end if;
+ if not exists(select 1 from public.cheongla_notifications where recipient_id=director.id and source_kind='board' and source_id=post)then raise exception 'FAIL director inquiry notification';end if;
+end loop;
+
+if exists(select 1 from public.cheongla_member_contacts()where role not in('student','parent'))then raise exception 'FAIL staff contact exposed';end if;
+if not exists(select 1 from public.cheongla_notifications where recipient_id=mg and source_kind='meal_submission' and student_id=st)then raise exception 'FAIL manager meal notification';end if;
+if not exists(select 1 from public.cheongla_notifications where recipient_id=mg and source_kind='application' and source_id=e)then raise exception 'FAIL manager exam notification';end if;
+if not cheongla_private.can_read_notification('meal_submission',st,st)then raise exception 'FAIL meal notification access';end if;
+perform set_config('request.jwt.claim.sub',pa::text,true);if cheongla_private.can_read_notification('meal_submission',other,other)then raise exception 'FAIL private manager notification';end if;
+perform set_config('request.jwt.claim.sub',ad::text,true);begin perform public.cheongla_apply_student_exam(st,e,'register');raise exception 'FAIL staff application';exception when insufficient_privilege then null;end;
+end;$$;
+rollback;
+select 'PASS: 학생·연결 학부모 신청/취소, 자녀 외 신청 차단, 동시 수정 보호, 직원 신청 차단, 학생·학부모 연락처만 조회, 원장·실장 신청/연락처/비공개 문의 알림과 답변 알림. 전부 롤백.' as result;
