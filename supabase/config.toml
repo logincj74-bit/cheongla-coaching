@@ -4,6 +4,5 @@
 verify_jwt = false
 
 [functions.cheongla-account-recovery]
-# Public recovery, with per-phone/IP/global rate limits and one-time proof.
-# No account data/reset privileges are exposed until the SMS challenge is verified.
+# Authenticated manual recovery. JWT verified against /auth/v1/user at the Edge.
 verify_jwt = false
