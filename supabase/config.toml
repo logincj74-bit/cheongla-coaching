@@ -2,3 +2,8 @@
 # This endpoint verifies user JWTs with auth.getUser and dispatcher calls with
 # a private, randomly generated webhook secret. No anonymous dispatch/setup.
 verify_jwt = false
+
+[functions.cheongla-account-recovery]
+# Public recovery, with per-phone/IP/global rate limits and one-time proof.
+# No account data/reset privileges are exposed until the SMS challenge is verified.
+verify_jwt = false
