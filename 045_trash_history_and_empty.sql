@@ -7,7 +7,7 @@ alter table cheongla_private.trash_action_history enable row level security;
 revoke all on cheongla_private.trash_action_history from public,anon,authenticated;
 insert into cheongla_private.trash_action_history(source_event,kind,source_id,action,actor_id,month,created_at)
 select source_event,kind,source_id,action,actor_id,month,created_at from(
- select 'ta:'||a.id::text source_event,'tuition' kind,a.notice_id source_id,a.action,a.actor_id,coalesce((a.snapshot->>'billing_month')::date,n.billing_month)month,a.created_at
+ select 'ta:'||a.id::text source_event,'tuition' kind,a.notice_id source_id,a.action,a.actor_id,coalesce((a.snapshot->>'billing_month')::date,n.billing_month) as month,a.created_at
  from cheongla_private.tuition_draft_actions a left join public.cheongla_tuition_notices n on n.id=a.notice_id
  union all select 'md:'||t.id::text,'meal',t.id,'delete',t.deleted_by,t.month,t.deleted_at from cheongla_private.meal_submission_trash t
  union all select 'mr:'||t.id::text,'meal',t.id,'restore',t.restored_by,t.month,t.restored_at from cheongla_private.meal_submission_trash t where t.restored_at is not null

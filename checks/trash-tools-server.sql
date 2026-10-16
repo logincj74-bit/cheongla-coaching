@@ -25,6 +25,11 @@ for k in 2..5 loop
  select * into s from public.cheongla_meal_submissions where month='2099-01-01'and student_id=st;
  mids:=array_append(mids,public.cheongla_trash_meal_submission(s.month,st,s.updated_at,null));
 end loop;
+perform public.cheongla_restore_meal_submission(mids[1]);
+history:=public.cheongla_trash_history('meal');
+if not exists(select 1 from jsonb_array_elements(history)x where(x->>'source_id')::uuid=mids[1]and x->>'action'='restore')then raise exception 'FAIL restore history';end if;
+select * into s from public.cheongla_meal_submissions where month='2099-01-01'and student_id='04500000-0000-0000-0000-000000000002';
+mids[1]:=public.cheongla_trash_meal_submission(s.month,s.student_id,s.updated_at,null);
 select jsonb_agg(jsonb_build_object('id',id,'version',updated_at)order by id)into items from public.cheongla_tuition_notices where id=any(tids);
 for k in 2..4 loop
  perform set_config('request.jwt.claim.sub','04500000-0000-0000-0000-'||lpad(k::text,12,'0'),true);
