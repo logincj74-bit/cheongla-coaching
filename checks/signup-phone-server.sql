@@ -1,0 +1,31 @@
+begin;
+select set_config('request.jwt.claim.role','service_role',true);
+do $$declare ch uuid:=gen_random_uuid();uid uuid:=gen_random_uuid();r jsonb;event jsonb;ticket text:=repeat('9',64);begin
+ if has_function_privilege('anon','public.cheongla_signup_issue(uuid,text,text,text,text,text)','execute')or has_function_privilege('authenticated','public.cheongla_signup_verify(uuid,text,text)','execute')or has_function_privilege('authenticated','public.cheongla_signup_access_hook(jsonb)','execute')then raise exception 'public signup RPC';end if;
+ event:=jsonb_build_object('user',jsonb_build_object('id',uid,'email','signup-synthetic@example.invalid','user_metadata',jsonb_build_object('contact_phone','01000000999')));
+ if not(public.cheongla_signup_access_hook(event)?'error')then raise exception 'unverified signup bypass';end if;
+ r:=public.cheongla_signup_issue(ch,'01000000999','signup-synthetic@example.invalid',repeat('a',64),repeat('b',64),repeat('c',64));
+ if r->>'eligible'<>'true'then raise exception 'signup issue failed';end if;
+ if(public.cheongla_signup_issue(gen_random_uuid(),'01000000999','signup-synthetic@example.invalid',repeat('a',64),repeat('b',64),repeat('c',64))->>'limited')<>'true'then raise exception 'resend limit bypass';end if;
+ perform public.cheongla_recovery_sent(ch,true);
+ event:=jsonb_set(event,'{user,user_metadata,signup_challenge}',to_jsonb(ch::text));event:=jsonb_set(event,'{user,user_metadata,signup_ticket}',to_jsonb(ticket));
+ if not(public.cheongla_signup_access_hook(event)?'error')then raise exception 'pre-OTP signup';end if;
+ if(public.cheongla_signup_verify(ch,repeat('d',64),repeat('e',64))->>'ok')<>'false'then raise exception 'wrong code';end if;
+ if(select attempts from cheongla_private.recovery_challenges where id=ch)<>1 then raise exception 'attempt not retained';end if;
+ r:=public.cheongla_signup_verify(ch,repeat('c',64),encode(extensions.digest(ticket,'sha256'),'hex'));if r->>'ok'<>'true'then raise exception 'valid code';end if;
+ if not(public.cheongla_signup_access_hook(jsonb_set(event,'{user,email}','"other@example.invalid"'))?'error')then raise exception 'email swap';end if;
+ if not(public.cheongla_signup_access_hook(jsonb_set(event,'{user,user_metadata,contact_phone}','"01011111111"'))?'error')then raise exception 'phone swap';end if;
+ if not(public.cheongla_signup_access_hook(jsonb_set(event,'{user,user_metadata,signup_ticket}',to_jsonb(repeat('8',64))))?'error')then raise exception 'forged ticket';end if;
+ update cheongla_private.recovery_challenges set expires_at=clock_timestamp()-interval '1 second'where id=ch;
+ if not(public.cheongla_signup_access_hook(event)?'error')then raise exception 'expired ticket';end if;
+ update cheongla_private.recovery_challenges set expires_at=clock_timestamp()+interval '5 minutes'where id=ch;
+ r:=public.cheongla_signup_access_hook(event);if r<>'{}'::jsonb then raise exception 'valid signup denied';end if;
+ if not(public.cheongla_signup_access_hook(event)?'error')then raise exception 'ticket reused';end if;
+ insert into auth.users(id,email,raw_user_meta_data)values(uid,'signup-synthetic@example.invalid',(event->'user'->'user_metadata')||'{"full_name":"가입 인증 검증"}'::jsonb);
+ if(select raw_user_meta_data?'signup_ticket' or raw_user_meta_data?'signup_challenge'from auth.users where id=uid)then raise exception 'proof retained in metadata';end if;
+ if(select verified_at is null from cheongla_private.recovery_phones where user_id=uid)then raise exception 'verified signup number not marked';end if;
+ -- Recovery proof cannot be used to create an account; signup proof cannot reset passwords.
+ if public.cheongla_recovery_consume(ch,encode(extensions.digest(ticket,'sha256'),'hex'))is not null then raise exception 'purpose confused';end if;
+end;$$;
+rollback;
+select 'PASS: 신규 가입 인증 필수, 6자리 확인·오류 누적·재요청 제한, 이메일/번호 변경·위조·만료·재사용·복구 토큰 전용 차단, 가입 번호 인증 기록·인증 토큰 비보관. 테스트 롤백.'as result;

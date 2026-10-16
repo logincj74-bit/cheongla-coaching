@@ -19,5 +19,14 @@ const event={preventDefault(){}};
  vm.runInContext(html.slice(html.indexOf('const examKinds='),html.indexOf("$('examFeeKind').addEventListener")),exam);
  for(const [kind,id] of [['daesung','a'],['survival','b'],['kice_june','c'],['kice_september','d'],['other','e']]){$('examFeeKind').value=kind;exam.syncExamFeeExams();assert.equal($('examFeeSelect').children.length,1);assert.equal($('examFeeSelect').value,id);}
  exam.examRows=[];exam.syncExamFeeExams();assert.equal($('examFeeSelect').value,'');assert(!$('examFeeEmpty').hidden);
- console.log('PASS: 가입 비밀번호 불일치 API 차단, 탈퇴 세션 종료·계정 화면 차단, 문자 미설정 안내, 계정 찾기·비밀번호 재설정 UI, 인증 무효화, 모의고사 5구분 필터');
+ // Signup requires a fresh, phone/email-bound proof before any auth API call.
+ c.mode='signup';configured=true;c.resetSignupVerification();await c.loadSignupReadiness();$('email').value='signup@example.invalid';$('signupPhone').value='01012345678';$('password').value='abcdefgh';$('passwordConfirm').value='abcdefgh';let previousSignup=signupCalls;
+ await $('authForm').handlers.submit(event);assert.equal(signupCalls,previousSignup);assert($('submit').disabled);
+ await $('signupSendCode').handlers.click();$('signupVerificationCode').value='123456';await $('signupVerifyCode').handlers.click();assert(c.signupPhoneProof());assert(!$('submit').disabled);
+ $('email').value='other@example.invalid';$('email').handlers.input();assert(!c.signupPhoneProof());assert($('submit').disabled);
+ $('email').value='signup@example.invalid';await $('signupSendCode').handlers.click();$('signupVerificationCode').value='123456';await $('signupVerifyCode').handlers.click();assert(c.signupPhoneProof());
+ $('fullName').value='합성 검증';$('signupRole').value='student';let signupArgs=null;c.getClient=async()=>({auth:{signUp:async args=>{signupArgs=args;return {data:{session:null}}}}});await $('authForm').handlers.submit(event);assert(signupArgs.options.data.signup_ticket);assert(signupArgs.options.data.signup_challenge);assert(!c.signupPhoneProof());
+ c.resetSignupVerification();configured=false;await c.loadSignupReadiness();assert($('submit').disabled);assert($('signupSendCode').disabled);assert($('signupVerificationStatus').textContent.includes('연결 준비'));
+ vm.runInContext(html.slice(html.indexOf("$('switchMode').addEventListener('click'"),html.indexOf('function syncSignupFields()')),c);c.mode='signup';$('submit').disabled=true;await $('switchMode').handlers.click();assert.equal(c.mode,'login');assert(!$('submit').disabled);
+ console.log('PASS: 신규 가입 OTP 필수·번호/이메일 변경 시 무효·미설정 가입 차단, 가입 비밀번호 불일치 API 차단, 탈퇴 세션 종료·계정 화면 차단, 문자 미설정 안내, 계정 찾기·비밀번호 재설정 UI, 인증 무효화, 모의고사 5구분 필터');
 })().catch(e=>{console.error(e);process.exit(1)});

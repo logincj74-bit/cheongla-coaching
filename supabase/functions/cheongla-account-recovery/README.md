@@ -14,3 +14,9 @@
 실제 연동 후 발신번호 불일치/잔액 부족/통신사 수신 실패를 포함해 점검한다. 발송 접수와 휴대전화 실제 수신은 구분한다. 키·인증번호·비밀번호·개인정보를 로그에 기록하지 않는다. provider 설정만으로 서비스 이용 계약을 대신 체결하거나 요금을 결제하지 않는다.
 
 공식 문서: https://solapi.com/developers/api/messages , https://solapi.com/developers/api/authentication-api-key , https://supabase.com/docs/reference/javascript/auth-admin-updateuserbyid , https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook
+
+## v1.7.8 신규 가입 문자 인증
+
+048 설치 후 Auth > Hooks > Before User Created에 `public.cheongla_signup_access_hook`을 활성화한다. 기존 Custom Access Token hook은 유지한다. 가입은 SMS 인증을 완료한 이메일과 전화번호에 묶인 5분짜리 일회용 증명만 허용한다. 가입 메타데이터에서 증명을 제거하며 인증한 가입 번호의 시각을 별도 기록한다. 기존 가입자에게 재가입을 요구하지 않는다. 문자 서비스 미연결 동안 신규 가입은 대기 상태이며 기존 회원 로그인에는 영향이 없다.
+
+서비스 준비 순서: 청라 운영 주체의 SOLAPI 가입·본인확인 → 사업자 정보 등록 → 발신번호 사전 등록(명의/소유 관계에 맞는 증빙 확인) → API Key/Secret 발급 → Supabase Edge Secrets에 키와 발신번호·OTP secret 입력 → 가입·아이디 찾기·비밀번호 변경의 실제 문자 수신을 계정 소유자가 검증. 계정 가입 약관 동의, 명의 인증 및 결제는 운영자가 직접 수행한다. 비용은 공급자의 현재 요금표와 실제 사용량에 따른다. 인증키와 개인정보 증빙은 채팅이나 Git 저장소에 올리지 않는다.

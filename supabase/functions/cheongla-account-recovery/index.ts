@@ -6,6 +6,7 @@ export function createRecoveryHandler(env, fetcher=fetch, crypt=crypto) {
  const ready=!!(base&&service&&key&&secret&&/^0\d{8,10}$/.test(sender||'')&&pepper?.length>=32);
  const encoder=new TextEncoder();
  const hex=b=>Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,'0')).join('');
+ async function sha(text){return hex(await crypt.subtle.digest('SHA-256',encoder.encode(text)));}
  async function hmac(secret,text){const k=await crypt.subtle.importKey('raw',encoder.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);return hex(await crypt.subtle.sign('HMAC',k,encoder.encode(text)));}
  const token=()=>hex(crypt.getRandomValues(new Uint8Array(32)));
  function otp(){let n;do{n=crypt.getRandomValues(new Uint32Array(1))[0];}while(n>=4294000000);return String(n%1000000).padStart(6,'0');}
@@ -27,15 +28,16 @@ export function createRecoveryHandler(env, fetcher=fetch, crypt=crypto) {
    const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
    if(input.action==='request'){
     const phone=typeof input.phone==='string'?input.phone.replace(/[-\s]/g,''):'',email=typeof input.email==='string'?input.email.trim().toLowerCase():'';
-    if(!/^01[016789][0-9]{7,8}$/.test(phone)||!['find_id','reset_password'].includes(input.purpose)||input.purpose==='reset_password'&&(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254))return reply({error:true,message:'가입한 이메일과 휴대전화번호를 확인해 주세요.'},400);
+    if(!/^01[016789][0-9]{7,8}$/.test(phone)||!['find_id','reset_password','signup'].includes(input.purpose)||['reset_password','signup'].includes(input.purpose)&&(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254))return reply({error:true,message:'가입한 이메일과 휴대전화번호를 확인해 주세요.'},400);
     const challenge=crypt.randomUUID(),code=otp(),codeHash=await hmac(pepper,'code:'+challenge+':'+code);
     const ip=(req.headers.get('x-forwarded-for')||'unknown').split(',')[0].trim();
-    const issued=await rpc('cheongla_recovery_issue',{challenge,recovery_purpose:input.purpose,phone,email,phone_hash:await hmac(pepper,'phone:'+phone),ip_hash:await hmac(pepper,'ip:'+ip),code_hash:codeHash});
+    const signup=input.purpose==='signup';
+    const issued=await rpc(signup?'cheongla_signup_issue':'cheongla_recovery_issue',{challenge,...(signup?{}:{recovery_purpose:input.purpose}),phone,email,phone_hash:await hmac(pepper,'phone:'+phone),ip_hash:await hmac(pepper,'ip:'+ip),code_hash:codeHash});
     if(issued?.limited)return reply({error:true,message:'요청 횟수를 초과했습니다. 잠시 후 다시 시도해 주세요.'},429);
     if(issued?.eligible){
      const date=new Date().toISOString(),salt=token(),signature=await hmac(secret,date+salt);
      let accepted=false;
-     try{const r=await fetcher('https://api.solapi.com/messages/v4/send-many/detail',{method:'POST',headers:{Authorization:`HMAC-SHA256 apiKey=${key}, date=${date}, salt=${salt}, signature=${signature}`,'Content-Type':'application/json'},body:JSON.stringify({messages:[{to:phone,from:sender,type:'SMS',text:'[청라] '+(input.purpose==='find_id'?'아이디 찾기':'비밀번호 찾기')+' 인증번호 ['+code+'] (5분간 유효)'}]}),redirect:'error',signal:AbortSignal.timeout(10000)});if(r.ok){const d=await r.json();accepted=d.groupInfo?.count?.registeredSuccess===1&&!d.failedMessageList?.length;}}catch{}
+     try{const r=await fetcher('https://api.solapi.com/messages/v4/send-many/detail',{method:'POST',headers:{Authorization:`HMAC-SHA256 apiKey=${key}, date=${date}, salt=${salt}, signature=${signature}`,'Content-Type':'application/json'},body:JSON.stringify({messages:[{to:phone,from:sender,type:'SMS',text:'[청라] '+(input.purpose==='signup'?'회원가입':input.purpose==='find_id'?'아이디 찾기':'비밀번호 찾기')+' 인증번호 ['+code+'] (5분간 유효)'}]}),redirect:'error',signal:AbortSignal.timeout(10000)});if(r.ok){const d=await r.json();accepted=d.groupInfo?.count?.registeredSuccess===1&&!d.failedMessageList?.length;}}catch{}
      await rpc('cheongla_recovery_sent',{challenge,accepted});
      if(!accepted)return reply({error:true,message:'인증 문자를 접수하지 못했습니다. 잠시 후 다시 요청해 주세요.'},503);
     }else await rpc('cheongla_recovery_sent',{challenge,accepted:true});
@@ -43,7 +45,7 @@ export function createRecoveryHandler(env, fetcher=fetch, crypt=crypto) {
    }
    if(input.action==='verify'){
     if(!uuid(input.challenge)||typeof input.code!=='string'||!/^\d{6}$/.test(input.code))return reply({error:true,message:'인증번호 6자리를 확인해 주세요.'},400);
-    const ticket=token(),r=await rpc('cheongla_recovery_verify',{challenge:input.challenge,code_hash:await hmac(pepper,'code:'+input.challenge+':'+input.code),ticket_hash:await hmac(pepper,'ticket:'+ticket)});
+    const ticket=token(),signup=input.purpose==='signup',r=await rpc(signup?'cheongla_signup_verify':'cheongla_recovery_verify',{challenge:input.challenge,code_hash:await hmac(pepper,'code:'+input.challenge+':'+input.code),ticket_hash:signup?await sha(ticket):await hmac(pepper,'ticket:'+ticket)});
     if(!r?.ok)return reply({error:true,message:'인증번호가 일치하지 않거나 만료되었습니다. 새 인증번호를 요청해 주세요.'},400);
     return reply(r.purpose==='find_id'?{emails:r.emails}:{ticket,expires_in:300});
    }
