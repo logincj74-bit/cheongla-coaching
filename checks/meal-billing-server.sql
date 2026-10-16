@@ -13,6 +13,8 @@ if not exists(select 1 from public.cheongla_meal_bills where id=b and amount=150
 payload:=public.cheongla_read_meal_form('2098-11-01');if jsonb_array_length(payload->'bills')<>1 or jsonb_array_length(payload->'submissions')<>1 then raise exception '원장·실장 조회 오류';end if;
 end loop;
 select updated_at into bv from public.cheongla_meal_bills where id=b;
+perform public.cheongla_publish_meal_bill(b,'publish',bv);
+select updated_at into bv from public.cheongla_meal_bills where id=b;
 if exists(select 1 from public.cheongla_meal_bill_sms_recipients(b,bv) x where not exists(select 1 from public.cheongla_parent_students l join public.cheongla_profiles p on p.id=l.parent_id where l.student_id=st and l.parent_id=x.parent_id and p.role='parent' and p.approval_status='approved')) then raise exception '잘못된 수신인';end if;
 begin perform public.cheongla_save_meal_bill_v2('2098-11-01',st,'2098-10-31',0,'',sv,null);raise exception 'FAIL stale bill';exception when raise_exception then if SQLERRM like 'FAIL%' then raise;end if;end;
 begin perform public.cheongla_save_meal_bill_v2('2098-11-01',st,'2098-10-31',-30000,'차감',sv,bv);raise exception 'FAIL negative amount';exception when raise_exception then if SQLERRM like 'FAIL%' then raise;end if;end;
