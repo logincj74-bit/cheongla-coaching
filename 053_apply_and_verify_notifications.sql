@@ -1,6 +1,7 @@
 -- 청라 게시 알림 누락 보완 · 2026-10-17
 -- 아래 코드를 처음부터 끝까지 한 번에 실행하세요.
 -- 실패하면 COMMIT 전에 중단되어 수정과 검증 자료 모두 저장되지 않습니다.
+rollback;
 begin;
 -- Publication and its recipient inbox rows commit together; include the publisher.
 create or replace function cheongla_private.send_notification(
@@ -106,7 +107,7 @@ begin
  when 'exam' then return exists(select 1 from public.cheongla_exams e where e.id=target and e.deleted_at is null and (cheongla_private.can_manage_exams() or (e.status in ('open','closed') and cheongla_private.can_view_exams())));
  when 'application' then return exists(select 1 from public.cheongla_exam_applications a where a.exam_id=target and a.student_id=student and (cheongla_private.can_manage_exams() or cheongla_private.is_parent_of(student) or me.id=student));
  when 'exam_fee' then return exists(select 1 from public.cheongla_exam_fee_notices n where n.id=target and (cheongla_private.can_manage_exams() or (n.status='published' and cheongla_private.can_read_exam_fee(n.exam_id,n.student_id))));
- when 'schedule' then return exists(select 1 from public.cheongla_schedule_events e where e.id=target and e.deleted_at is null and (cheongla_private.can_manage_schedule() or (e.status='published' and (e.audience='all' or e.audience=me.role))));
+ when 'schedule' then return exists(select 1 from public.cheongla_schedule_events e where e.id=target and (cheongla_private.can_manage_schedule() or (e.status='published' and (e.audience='all' or e.audience=me.role))));
  else return false;
  end case;
 end;$$;
