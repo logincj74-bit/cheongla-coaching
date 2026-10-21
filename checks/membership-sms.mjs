@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';import fs from 'node:fs';import {createHmac}from'node:crypto';
+import {messageFor,sameSecret,authorization,sendMembershipSms}from'../supabase/functions/cheongla-membership-sms/dispatch.mjs';
+const h=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),phone=h.match(/tel:(01[0-9]{8,9})/)?.[1];assert(phone,'Use existing public academy contact only as a mocked fixture');
+assert(sameSecret('same','same'));assert(!sameSecret('same','diff'));assert(!sameSecret('',''));assert.throws(()=>messageFor('ad'));
+for(const kind of ['request','approved']){const text=messageFor(kind);assert([...text].reduce((n,c)=>n+(c.charCodeAt(0)>127?2:1),0)<=90);assert(!text.includes('비밀번호'));}
+const expected=createHmac('sha256','fixture-secret').update('fixture-datefixture-salt').digest('hex');assert((await authorization('fixture-key','fixture-secret','fixture-date','fixture-salt')).endsWith('signature='+expected));
+const job={id:'fixture-job',to:phone,kind:'approved'},config={key:'fixture-key',secret:'fixture-secret',from:phone};let called=0;
+const ok=await sendMembershipSms(job,config,async(url,args)=>{called++;assert.equal(url,'https://api.solapi.com/messages/v4/send-many/detail');const body=JSON.parse(args.body);assert.equal(body.allowDuplicates,false);assert.equal(body.messages[0].type,'SMS');assert.equal(body.messages[0].autoTypeDetect,false);assert.equal(body.messages[0].customFields.jobId,job.id);return{ok:true,json:async()=>({messageList:[{messageId:'fixture-id',statusCode:'2000',customFields:{jobId:job.id}}]})};});assert.deepEqual(ok,{result:'accepted',message_id:'fixture-id'});assert.equal(called,1);
+assert.equal((await sendMembershipSms(job,config,async()=>{throw Error('timeout')})).result,'unknown');assert.equal((await sendMembershipSms(job,config,async()=>({ok:false,status:500}))).result,'unknown');assert.equal((await sendMembershipSms(job,config,async()=>({ok:false,status:403}))).result,'failed');assert.equal((await sendMembershipSms(job,config,async()=>({ok:true,json:async()=>({})}))).result,'unknown');
+assert.equal((await sendMembershipSms(job,config,async()=>({ok:true,json:async()=>({failedMessageList:[{customFields:{jobId:job.id}}]})}))).result,'failed');
+await assert.rejects(()=>sendMembershipSms({...job,to:'invalid'},config,()=>{throw Error('must never send')}));
+console.log('PASS mocked membership SMS: short SMS budget, HMAC, fixed endpoint, accepted vs ambiguous outcomes, no retry loop, invalid phone blocked; no live messages sent');
