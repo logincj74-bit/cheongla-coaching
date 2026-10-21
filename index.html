@@ -188,7 +188,7 @@ textarea{width:100%;min-height:180px;padding:14px;border:1px solid #cbd5d3;borde
 </section>
 <p id="message" role="status" aria-live="polite"></p>
 <dialog id="actionConfirm" aria-labelledby="actionConfirmTitle" aria-describedby="actionConfirmMessage"><h2 id="actionConfirmTitle">확인해 주세요</h2><p id="actionConfirmMessage"></p><div class="confirm-actions"><button id="actionConfirmYes" type="button">네</button><button id="actionConfirmNo" type="button" class="secondary" autofocus>아니오</button></div></dialog>
-<footer><a href="guide.html">사용 안내</a> · <a href="discover.html">청라앱 둘러보기</a><br>독학재수학원 청라 · 공식 안내·상담 및 재원생 서비스 · 웹앱 v1.8.4<br>앱은 학원에서 허용한 시간에 이용해 주세요.</footer>
+<footer><a href="guide.html">사용 안내</a> · <a href="discover.html">청라앱 둘러보기</a><br>독학재수학원 청라 · 공식 안내·상담 및 재원생 서비스 · 웹앱 v1.8.5<br>앱은 학원에서 허용한 시간에 이용해 주세요.</footer>
 </main><aside id="boardAlert" class="board-alert" role="status" aria-live="polite" hidden><p id="boardAlertText"></p><div class="row"><button id="openBoardAlert" type="button">새 상담문의 보기</button><button id="dismissBoardAlert" type="button" class="secondary">닫기</button></div></aside><aside id="notificationToast" class="board-alert" role="status" aria-live="polite" hidden><p id="notificationToastText"></p><div class="row"><button id="openNotificationToast" type="button">알림 확인</button><button id="dismissNotificationToast" type="button" class="secondary">닫기</button></div></aside><script src="config.js"></script><script>
 'use strict';
 const $=id=>document.getElementById(id);
@@ -311,7 +311,7 @@ async function loadMembers(){
   const note=document.createElement('p');note.className='muted';note.textContent='계정 ID: '+member.id;item.append(note);
   if(member.role==='parent'&&member.requested_student_name){const request=document.createElement('p');request.className='muted';request.textContent='신청한 자녀 이름: '+member.requested_student_name+' (관리자 확인 필요)';item.append(request);}
   if(staffRoles.includes(member.requested_staff_role)){const note=document.createElement('p');note.className='muted';note.textContent='교직원 신청 직책: '+roles[member.requested_staff_role]+' · 재직 여부와 직책을 확인한 뒤 역할을 지정해 주세요.';item.append(note);}
-  renderManualRecovery(item,member);if(!admin){$('members').append(item);renderMemberLifecycle(item,member);continue;}
+  renderManualApprovalSMS(item,member);renderManualRecovery(item,member);if(!admin){$('members').append(item);renderMemberLifecycle(item,member);continue;}
   const role=document.createElement('select');role.setAttribute('aria-label',title.textContent+' 역할');
   const status=document.createElement('select');status.setAttribute('aria-label',title.textContent+' 승인 상태');
   for(const [value,label] of Object.entries(roles)){if(value==='owner'&&member.role!=='owner')continue;const o=document.createElement('option');o.value=value;o.textContent=label;role.append(o);}role.value=member.role;
@@ -346,6 +346,24 @@ async function loadMembers(){
   });
  }
  filterMembers();return data||[];
+}
+function renderManualApprovalSMS(item,member){
+ if(!canManageContacts()||member.approval_status!=='approved'||member.membership_state==='withdrawn'||!['student','parent'].includes(member.role))return;
+ const actor=currentProfile,box=document.createElement('details');box.className='notice-form';tuitionText(box,'가입 승인 안내 · 직접 문자 작성','summary');
+ tuitionText(box,'문자 앱에서 수신번호와 내용을 확인한 뒤 직접 전송하세요. 이 버튼은 자동 발송하지 않습니다. 문자 요금은 사용 중인 휴대폰 요금제에 따릅니다.','p','muted');
+ const prepare=document.createElement('button');prepare.type='button';prepare.className='secondary';prepare.textContent='등록 번호 확인 · 안내 준비';const content=document.createElement('div');box.append(prepare,content);item.append(box);
+ prepare.addEventListener('click',async()=>{
+  if(prepare.disabled||actor!==currentProfile||!canManageContacts())return;prepare.disabled=true;content.replaceChildren();
+  try{const c=await getClient(),r=await c.rpc('cheongla_member_contacts');if(r.error)throw r.error;if(actor!==currentProfile||!canManageContacts())return;
+   const contact=(r.data||[]).find(x=>x.member_id===member.id&&x.approval_status==='approved'&&['student','parent'].includes(x.role));
+   if(!contact)throw Error('현재 승인 상태를 확인할 수 없습니다. 회원 목록을 새로고침해 주세요.');
+   const text='[청라] '+(contact.full_name||'회원')+'님, 가입승인이 완료되었습니다. 아래 링크에서 가입하신 아이디로 로그인해 주세요.\nhttps://logincj74-bit.github.io/cheongla-coaching/\n앱을 설치하지 않아도 이용할 수 있습니다.';
+   const preview=document.createElement('textarea');preview.readOnly=true;preview.value=text;preview.setAttribute('aria-label','가입 승인 안내 문자 내용');content.append(preview);
+   const copy=document.createElement('button');copy.type='button';copy.className='secondary';copy.textContent='안내 문구 복사';const status=tuitionText(content,'','p','muted');status.setAttribute('role','status');
+   copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(preview.value);status.textContent='복사했습니다. 학원 휴대폰의 문자 앱에 붙여넣어 전송해 주세요.';}catch{preview.focus();preview.select();status.textContent='문구를 선택했습니다. 직접 복사해 주세요.';}});content.append(copy);
+   const phone=normalizeContactPhone(contact.phone);if(phone){tuitionText(content,'수신번호: '+displayContactPhone(phone));const link=document.createElement('a');link.href=examFeeSMSURL(phone,text);link.className='contact-link';link.textContent='휴대폰에서 문자 작성';link.addEventListener('click',()=>{status.textContent='문자 앱에서 직접 전송해 주세요. 앱에서는 실제 발송 여부를 확인할 수 없습니다.';});content.append(link);}else tuitionText(content,'등록된 휴대폰 번호가 없습니다. 연락처를 확인한 후 학원 휴대폰에서 직접 안내해 주세요.','p','muted');
+  }catch(e){tuitionText(content,readable(e),'p','muted');}finally{if(actor===currentProfile)prepare.disabled=false;}
+ });
 }
 async function loadNotices(){
  const profile=currentProfile,audience=activeNoticeAudience,channel=activeNoticeChannel,request=++noticeRequest;
@@ -1128,3 +1146,4 @@ $('mealSubmitForm').addEventListener('submit',async e=>{e.preventDefault();if(me
 
 (async()=>{try{const client=await getClient();const {data,error}=await client.auth.getSession();if(error)throw error;const pushArrival=consumePushArrival();if(data.session){restoringInitialSession=true;try{await loadProfile();if(contactNeedsPhone)showContactRegistration();else if($('forcedPasswordPanel').hidden)showSiteHome();}finally{restoringInitialSession=false;}if(pushArrival)openSiteDestination('notifications');}else if(pushArrival)openSiteDestination('notifications');const publicStart=new URL(window.location.href).searchParams.get('page');if(!pushArrival&&['meal_forms','billing_dashboard','admissions_news','resources'].includes(publicStart))openSiteDestination(publicStart);if(!pushArrival&&(publicStart==='new_inquiry'||Object.hasOwn(publicPages,publicStart||'')))showPublicPage(publicStart);}catch(e){message(readable(e));}})();
 </script></body></html>
+
