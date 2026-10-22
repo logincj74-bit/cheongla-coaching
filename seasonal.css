@@ -1,0 +1,40 @@
+.season-surface{--season-ink:#122f3c;--season-glow:#655442;--season-accent:#e9c593;--season-soft:#e3d6bd;--particle-color:#cf9b5f;--fall-distance:480px;position:relative;isolation:isolate;overflow:hidden;background:radial-gradient(ellipse at 85% 8%,var(--season-glow),transparent 65%),var(--season-ink);color:#fffaf0}
+.season-surface[data-season="winter"]{--season-ink:#102d3f;--season-glow:#2a5961;--season-accent:#c6e5db;--season-soft:#d8e8e8;--particle-color:#fff}
+.season-surface[data-season="spring"]{--season-ink:#173c42;--season-glow:#67525c;--season-accent:#f1cbd1;--season-soft:#f2dedf;--particle-color:#efc3cd}
+.season-surface[data-season="summer"]{--season-ink:#103c42;--season-glow:#356550;--season-accent:#b5dfbf;--season-soft:#d9eada;--particle-color:#a6d8aa}
+.season-surface:before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(100deg,#102e3be8,#102e3ba6),url('assets/cheongla-space-1.webp') center/cover;opacity:.44;pointer-events:none}
+.brand.season-brand{grid-template-columns:140px minmax(0,1fr);gap:28px;padding:32px;border:1px solid #526761;border-radius:24px;min-height:290px;text-align:left;box-shadow:0 16px 35px #183d4712}
+.season-brand .brand-home{width:100%;max-width:140px;position:relative;z-index:3;background:none;padding:0;border-radius:15px}
+.season-brand .brand-image{display:block;width:100%;height:auto;border-radius:15px;background:#fffdf7;box-shadow:0 10px 35px #061a2438}
+.season-brand .season-brand-copy{position:relative;z-index:3;min-width:0}
+.season-brand small{color:var(--season-accent);font-size:11px;letter-spacing:2px}
+.season-brand h1{color:#fffaf0;font-size:28px;margin:10px 0 14px;letter-spacing:-1px}
+.season-brand .season-brand-line{color:#fffaf0;white-space:pre-line;font-size:20px;line-height:1.65;font-weight:650;letter-spacing:-.7px}
+.season-brand .season-brand-motto{color:var(--season-soft);font-size:11px;letter-spacing:.3px;margin-top:12px}
+.season-brand .season-brand-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:16px}
+.season-brand-actions button{font-size:12px;padding:10px 12px;min-height:44px;border:1px solid #d4e0d24d;background:#ffffff0a;color:var(--season-accent);border-radius:99px}
+.season-particles{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:1;user-select:none}
+.season-particle{position:absolute;top:-40px;left:var(--x);width:var(--size);height:var(--size);opacity:var(--opacity);animation:season-fall var(--duration) var(--delay) linear infinite;will-change:transform;pointer-events:none}
+.season-particle svg{display:block;width:100%;height:100%;fill:var(--particle-color);animation:season-turn var(--spin) linear infinite;transform-origin:center}
+@keyframes season-fall{from{transform:translate3d(0,-20px,0) rotate(0deg)}50%{transform:translate3d(var(--sway),calc(var(--fall-distance)/2),0) rotate(95deg)}to{transform:translate3d(calc(var(--sway)*-.45),var(--fall-distance),0) rotate(210deg)}}
+@keyframes season-turn{0%,100%{transform:rotateY(0deg) rotate(0deg)}50%{transform:rotateY(65deg) rotate(35deg)}}
+.season-surface[data-motion="off"] .season-particles{display:none}
+.season-surface[data-paused="true"] .season-particle,.season-surface[data-paused="true"] .season-particle svg{animation-play-state:paused}
+.season-welcome{--fall-distance:115svh;width:100%;max-width:none;height:100dvh;max-height:none;margin:0;padding:max(20px,env(safe-area-inset-top)) 18px max(20px,env(safe-area-inset-bottom));border:0;inset:0;overflow:auto;overscroll-behavior:contain}
+.season-welcome[open]{display:grid;place-items:center}
+.season-welcome:before{opacity:.8;background:linear-gradient(#102e3bc9,#102e3bd9),url('assets/cheongla-space-1.webp') center/cover;filter:blur(3px);transform:scale(1.03)}
+.season-welcome::backdrop{background:#102e3b}
+.season-welcome .season-particles{position:fixed;z-index:2}
+.season-welcome-card{position:relative;z-index:1;width:min(100%,490px);min-height:min(720px,calc(100svh - 48px));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:38px 28px;text-align:center;border:1px solid #cbdcd357;border-radius:32px;background:linear-gradient(135deg,#173c48f2,#112f3cf7);box-shadow:0 30px 100px #061a2466}
+.season-welcome-logo{display:block;width:155px;height:auto;border-radius:16px;box-shadow:0 12px 32px #061a2433}
+.season-welcome .season-welcome-kicker{margin:4px 0 0;color:var(--season-accent);letter-spacing:2px;font-size:12px;font-weight:700}
+.season-welcome h2{font-size:clamp(26px,4.5vw,36px);line-height:1.6;letter-spacing:-1.7px;white-space:pre-line;margin:0;color:#fffaf0;word-break:keep-all}
+.season-welcome .season-welcome-description{font-size:16px;line-height:1.9;color:var(--season-soft);white-space:pre-line;margin:0;word-break:keep-all}
+.season-welcome .season-welcome-start{position:relative;z-index:3;background:#ffffff08;border:2px solid var(--season-accent);border-radius:99px;padding:16px 32px;min-height:60px;color:#fffaf0;font-size:19px;box-shadow:0 0 0 5px #e9c5930c}
+.season-welcome-start:hover{background:#ffffff12}
+.season-welcome .season-welcome-footer{font-size:12px;color:#c5d8d6;margin:0}
+.season-welcome .season-motion-toggle{position:relative;z-index:3;background:transparent;color:var(--season-soft);font-size:12px;padding:8px 14px;min-height:44px}
+body.season-welcome-open{overflow:hidden}
+@media(max-width:600px){.brand.season-brand{grid-template-columns:1fr;gap:20px;text-align:center;padding:28px 22px}.season-brand .brand-home{max-width:112px;margin:auto}.season-brand h1{font-size:25px}.season-brand .season-brand-line{font-size:19px}.season-brand .season-brand-actions{justify-content:center}.season-welcome-card{border-radius:26px;padding:28px 18px;gap:22px}.season-welcome-logo{width:136px}.season-welcome .season-welcome-kicker{font-size:10px;letter-spacing:1.6px}.season-welcome h2{font-size:27px;letter-spacing:-1.2px}.season-welcome .season-welcome-description{font-size:14px}.season-welcome .season-welcome-start{font-size:18px}}
+@media(max-height:680px){.season-welcome-card{min-height:0;gap:14px;padding:24px 18px}.season-welcome-logo{width:92px}.season-welcome h2{font-size:24px}.season-welcome .season-welcome-description{font-size:13px}.season-welcome .season-welcome-start{min-height:50px;padding:12px 26px}.season-welcome .season-welcome-kicker{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.season-particles{display:none!important}.season-particle,.season-particle svg{animation:none!important}}
