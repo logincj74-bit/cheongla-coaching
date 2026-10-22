@@ -4,11 +4,11 @@ for(const [iso,season] of [['2026-02-28T14:59:59Z','winter'],['2026-02-28T15:00:
 for(const season of Object.keys(SEASONS))for(let i=0;i<22;i++){const p=particleSettings(i,season);assert.ok(parseFloat(p.duration)>=14);assert.ok(parseFloat(p.x)>=0&&parseFloat(p.x)<=100);assert.ok(parseFloat(p.opacity)<=1);}
 assert.equal(skipSeasonWelcome('https://example.com/?push=1'),true);assert.equal(skipSeasonWelcome('https://example.com/?page=resources'),true);assert.equal(skipSeasonWelcome('https://example.com/#access_token=test'),true);assert.equal(skipSeasonWelcome('https://example.com/'),false);
 function element(){return {dataset:{},handlers:{},children:[],style:{setProperty(){}},textContent:'',setAttribute(k,v){this[k]=v;},replaceChildren(){this.children=[];},append(n){this.children.push(n);},addEventListener(k,fn){this.handlers[k]=fn;},focus(){this.focused=true;}};}
-function fixture({reduced=false,savedOff=false,url='https://example.com/',blocked=false}={}){
+function fixture({reduced=false,savedOff=false,url='https://example.com/',blocked=false,noOpen=false}={}){
  const dialog=element(),brand=element(),open=element(),start=element(),logo=element(),button1=element(),button2=element(),bodyClass=new Set(),local=new Map(),session=new Map();
  if(savedOff)local.set('cheongla-season-motion','off');
  for(const surface of [dialog,brand]){surface.layer=element();surface.copy={label:element(),headline:element(),description:element()};surface.querySelector=()=>surface.layer;surface.querySelectorAll=s=>{const k=s.match(/data-season-(\w+)/)?.[1];return k?[surface.copy[k]]:[];};}
- const doc={hidden:false,body:{classList:{add:k=>bodyClass.add(k),remove:k=>bodyClass.delete(k)}},handlers:{},getElementById:id=>({seasonWelcome:dialog,seasonWelcomeOpen:open,seasonWelcomeStart:start,siteHomeLogo:logo})[id],querySelector:()=>dialog.open?dialog:null,querySelectorAll:s=>s==='[data-season-surface]'?[brand,dialog]:[button1,button2],createElement:element,addEventListener(k,f){this.handlers[k]=f;}};
+ const doc={hidden:false,body:{classList:{add:k=>bodyClass.add(k),remove:k=>bodyClass.delete(k)}},handlers:{},getElementById:id=>({seasonWelcome:dialog,seasonWelcomeOpen:noOpen?null:open,seasonWelcomeStart:start,siteHomeLogo:logo})[id],querySelector:()=>dialog.open?dialog:null,querySelectorAll:s=>s==='[data-season-surface]'?[brand,dialog]:[button1,button2],createElement:element,addEventListener(k,f){this.handlers[k]=f;}};
  dialog.showModal=()=>dialog.open=true;dialog.close=()=>{dialog.open=false;dialog.handlers.close();};
  const media={matches:reduced,addEventListener(k,f){this.changed=f;}};
  const storage=map=>({getItem(k){if(blocked)throw Error('blocked');return map.get(k)||null;},setItem(k,v){if(blocked)throw Error('blocked');map.set(k,v);}});
@@ -19,6 +19,9 @@ let f=fixture();assert.equal(f.dialog.open,true);assert.equal(f.dialog.layer.chi
 f=fixture({reduced:true});assert.equal(f.brand.layer.children.length,0);assert.equal(f.button1.disabled,true);assert.equal(f.brand.dataset.motion,'off');f.media.matches=false;f.media.changed();assert.equal(f.brand.layer.children.length,12);
 f=fixture({savedOff:true});assert.equal(f.brand.layer.children.length,0);
 f=fixture({url:'https://example.com/?page=resources'});assert.ok(!f.dialog.open);assert.equal(f.brand.layer.children.length,12);
+f=fixture({noOpen:true});assert.equal(f.dialog.open,true);f.start.handlers.click();assert.equal(f.dialog.open,false);
 f=fixture({blocked:true});assert.equal(f.dialog.open,true);f.start.handlers.click();assert.equal(f.bodyClass.size,0);
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.equal((html.match(/id="seasonWelcome"/g)||[]).length,1);assert.match(html,/id="seasonWelcomeStart"[^>]*autofocus/);assert.ok(html.indexOf('class="home-today"')<html.indexOf('class="brand season-brand'));assert.match(fs.readFileSync(new URL('../seasonal.css',import.meta.url),'utf8'),/prefers-reduced-motion:reduce/);
+const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.equal((html.match(/id="seasonWelcome"/g)||[]).length,1);assert.match(html,/id="seasonWelcomeStart"[^>]*autofocus/);assert.ok(html.indexOf('class="home-today"')<html.indexOf('class="brand season-home'));assert.match(fs.readFileSync(new URL('../seasonal.css',import.meta.url),'utf8'),/prefers-reduced-motion:reduce/);
 console.log('PASS seasonal welcome: Korea season boundaries, all four effects, entry skip, start/reopen, saved choice, reduced motion, hidden-page pause, blocked storage and existing top clock.');
+
+const header=html.slice(html.indexOf('<header'),html.indexOf('</header>'));assert.ok(!header.includes('seasonWelcomeOpen'));assert.ok(!header.includes('data-season-headline'));assert.equal((header.match(/data-season-motion/g)||[]).length,1);assert.match(header,/학원 소개·신규 상담부터 재원생·학부모 서비스까지/);

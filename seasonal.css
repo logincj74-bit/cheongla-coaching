@@ -38,3 +38,21 @@ body.season-welcome-open{overflow:hidden}
 @media(max-width:600px){.brand.season-brand{grid-template-columns:1fr;gap:20px;text-align:center;padding:28px 22px}.season-brand .brand-home{max-width:112px;margin:auto}.season-brand h1{font-size:25px}.season-brand .season-brand-line{font-size:19px}.season-brand .season-brand-actions{justify-content:center}.season-welcome-card{border-radius:26px;padding:28px 18px;gap:22px}.season-welcome-logo{width:136px}.season-welcome .season-welcome-kicker{font-size:10px;letter-spacing:1.6px}.season-welcome h2{font-size:27px;letter-spacing:-1.2px}.season-welcome .season-welcome-description{font-size:14px}.season-welcome .season-welcome-start{font-size:18px}}
 @media(max-height:680px){.season-welcome-card{min-height:0;gap:14px;padding:24px 18px}.season-welcome-logo{width:92px}.season-welcome h2{font-size:24px}.season-welcome .season-welcome-description{font-size:13px}.season-welcome .season-welcome-start{min-height:50px;padding:12px 26px}.season-welcome .season-welcome-kicker{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.season-particles{display:none!important}.season-particle,.season-particle svg{animation:none!important}}
+/* Keep the original home identity and brighten the separate welcome screen. */
+.brand.season-home{background:#f8f6f1;color:#233d42;isolation:isolate;--fall-distance:650px}
+.season-home:before{display:none}
+.season-home>.brand-home,.season-home>div:not(.season-particles){position:relative;z-index:2}
+.season-home .season-motion-toggle{margin-top:14px;padding:10px 16px;border:1px solid #cbd9cc;border-radius:99px;background:#edf3ed;color:#32756a;font-size:12px;min-height:44px}
+.season-home .season-particle{opacity:calc(var(--opacity) * .85)}
+.season-welcome{--season-ink:#f7f4eb;--season-glow:#e5eddc;--season-accent:#876138;--season-soft:#52695d;background:radial-gradient(ellipse at 80% 10%,var(--season-glow),transparent 70%),var(--season-ink);color:#183d47}
+.season-welcome[data-season="winter"]{--season-ink:#f2f7f6;--season-glow:#e2edf0;--season-accent:#356b73;--season-soft:#506974;--particle-color:#96b9c1}
+.season-welcome[data-season="spring"]{--season-ink:#fcf7f2;--season-glow:#f4e4e5;--season-accent:#986473;--season-soft:#6e6067}
+.season-welcome[data-season="summer"]{--season-ink:#f6f8ec;--season-glow:#e2efdc;--season-accent:#3b7657;--season-soft:#536e5a}
+.season-welcome:before{opacity:.2;background:linear-gradient(#fffdf4e8,#f7f5e9ef),url('assets/cheongla-space-1.webp') center/cover;transform:none;filter:none}
+.season-welcome::backdrop{background:#f6f4eb}
+.season-welcome-card{background:linear-gradient(135deg,#fffdf8f5,#f1f5eaf5);border-color:#cbd9c7;box-shadow:0 25px 90px #506e5314}
+.season-welcome h2{color:#183d47}
+.season-welcome .season-welcome-start{background:#eaf1e4;color:#24564d;border-color:#7d9c77;box-shadow:0 0 0 5px #93ac7b0c}
+.season-welcome .season-welcome-start:hover{background:#e0ecd8}
+.season-welcome .season-welcome-footer{color:#62766d}
+.season-welcome .season-motion-toggle{color:#526d60}

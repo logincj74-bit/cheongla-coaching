@@ -20,7 +20,7 @@ export function particleSettings(index,season){
 }
 export function mountSeasonalUI(doc,win){
  const dialog=doc.getElementById('seasonWelcome'),open=doc.getElementById('seasonWelcomeOpen'),start=doc.getElementById('seasonWelcomeStart');
- if(!dialog||!open||!start||dialog.dataset.ready)return;
+ if(!dialog||!start||dialog.dataset.ready)return;
  dialog.dataset.ready='true';
  const surfaces=[...doc.querySelectorAll('[data-season-surface]')],buttons=[...doc.querySelectorAll('[data-season-motion]')];
  const reduced=win.matchMedia('(prefers-reduced-motion: reduce)');
@@ -51,14 +51,14 @@ export function mountSeasonalUI(doc,win){
   for(const surface of surfaces){surface.dataset.season=season;for(const [key,selector] of [['label','[data-season-label]'],['headline','[data-season-headline]'],['description','[data-season-description]']])for(const node of surface.querySelectorAll(selector))node.textContent=copy[key];}
   particles();
  };
- const seenKey=()=> 'cheongla-welcome:'+season;
+ const seenKey=()=> 'cheongla-welcome:light:'+season;
  const show=trigger=>{
   if(dialog.open||doc.querySelector('dialog[open]'))return;
   lastTrigger=trigger;
   try{dialog.showModal();doc.body.classList.add('season-welcome-open');pause();}catch{doc.body.classList.remove('season-welcome-open');}
  };
  const finished=()=>{write('sessionStorage',seenKey(),'seen');doc.body.classList.remove('season-welcome-open');pause();lastTrigger?.focus({preventScroll:true});};
- open.addEventListener('click',()=>show(open));
+ open?.addEventListener('click',()=>show(open));
  start.addEventListener('click',()=>dialog.close());
  dialog.addEventListener('close',finished);
  for(const button of buttons)button.addEventListener('click',()=>{if(reduced.matches)return;off=!off;write('localStorage','cheongla-season-motion',off?'off':'on');particles();});
