@@ -43,7 +43,7 @@ body.season-welcome-open{overflow:hidden}
 .season-home:before{display:none}
 .season-home>.brand-home,.season-home>div:not(.season-particles){position:relative;z-index:2}
 .season-home .season-motion-toggle{margin-top:14px;padding:10px 16px;border:1px solid #cbd9cc;border-radius:99px;background:#edf3ed;color:#32756a;font-size:12px;min-height:44px}
-.season-home .season-particle{opacity:calc(var(--opacity) * .85)}
+.season-home:not([data-season="autumn"]) .season-particle{opacity:calc(var(--opacity) * .85)}
 .season-welcome{--season-ink:#f7f4eb;--season-glow:#e5eddc;--season-accent:#876138;--season-soft:#52695d;background:radial-gradient(ellipse at 80% 10%,var(--season-glow),transparent 70%),var(--season-ink);color:#183d47}
 .season-welcome[data-season="winter"]{--season-ink:#f2f7f6;--season-glow:#e2edf0;--season-accent:#356b73;--season-soft:#506974;--particle-color:#96b9c1}
 .season-welcome[data-season="spring"]{--season-ink:#fcf7f2;--season-glow:#f4e4e5;--season-accent:#986473;--season-soft:#6e6067}

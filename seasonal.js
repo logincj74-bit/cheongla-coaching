@@ -16,7 +16,7 @@ const shapes={
  summer:'<path d="M12 2 8 8 3 6l1 7-3 2 7 4 4 3 4-3 7-4-3-2 1-7-5 2Z"/><path d="M12 5v16m-7-9 7 4 7-4" fill="none" stroke="#487959" stroke-width=".8"/>'
 };
 export function particleSettings(index,season){
- const snow=season==='winter';return {x:((index*47+13)%101)+'%',size:(snow?3+index%5:10+(index*7)%12)+'px',opacity:String(snow?.4+(index%4)*.12:.25+(index%4)*.09),duration:(14+(index*3)%13)+'s',delay:-(index*1.7%25)+'s',spin:(4+index%6)+'s',sway:(index%2?1:-1)*(24+index*7%65)+'px'};
+ const snow=season==='winter';return {x:((index*47+13)%101)+'%',size:(snow?3+index%5:10+(index*7)%12)+'px',opacity:String(snow ? .4+(index%4)*.12 : season==='autumn' ? .78+(index%4)*.06 : .25+(index%4)*.09),duration:(14+(index*3)%13)+'s',delay:-(index*1.7%25)+'s',spin:(4+index%6)+'s',sway:(index%2?1:-1)*(24+index*7%65)+'px'};
 }
 export function mountSeasonalUI(doc,win){
  const dialog=doc.getElementById('seasonWelcome'),open=doc.getElementById('seasonWelcomeOpen'),start=doc.getElementById('seasonWelcomeStart');
@@ -37,7 +37,7 @@ export function mountSeasonalUI(doc,win){
    for(let i=0;i<count;i++){
     const leaf=doc.createElement('span'),settings=particleSettings(i,season);leaf.className='season-particle';
     for(const [key,value] of Object.entries(settings))leaf.style.setProperty('--'+key,value);
-    if(season==='autumn')leaf.style.setProperty('--particle-color',['#c99559','#d6ac70','#b57d50'][i%3]);
+    if(season==='autumn')leaf.style.setProperty('--particle-color',['#e4aa00','#c4382c','#85452c','#efbe16','#ad2928','#a25c32'][i%6]);
     leaf.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'+shapes[season]+'</svg>';
     layer.append(leaf);
    }
