@@ -78,7 +78,8 @@ if (typeof document !== 'undefined') {
           const date=new Date(day.date+'T12:00:00+09:00');if(Number.isNaN(date.getTime()))continue;
           const icon=weatherAppearance(day.symbol),item=document.createElement('div');item.className='home-weather-day';
           item.innerHTML=icon.svg;
-          const weekday=document.createElement('span');weekday.textContent=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',weekday:'short'}).format(date);item.prepend(weekday);
+          const weekday=document.createElement('span');weekday.textContent=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',weekday:'short'}).format(date);
+          const calendarDate=document.createElement('time');calendarDate.className='home-weather-date';calendarDate.dateTime=day.date;calendarDate.textContent=Number(day.date.slice(5,7))+'/'+Number(day.date.slice(8,10));item.prepend(weekday,calendarDate);
           const temp=document.createElement('strong');temp.textContent=day.temperature+'°';
           const description=document.createElement('small');description.textContent=icon.text;item.append(temp,description);
           item.setAttribute('aria-label',day.date+' 낮 예보 '+icon.text+', '+day.temperature+'도');week.append(item);
