@@ -840,7 +840,7 @@ function resetHomeSchedule(){
 }
 async function loadHomeSchedule(force=false){
  if(!homeScheduleAllowed()){resetHomeSchedule();return;}
- const actor=currentProfile,day=scheduleKST().slice(0,10),key=actor.id+':'+day;
+ const actor=currentProfile,day=scheduleKST().slice(0,10),key=[actor.id,actor.role,actor.is_app_admin===true,day].join(':');
  if(homeScheduleBusy&&!force&&homeScheduleKey===key)return;
  if(!force&&homeScheduleKey===key&&Date.now()-homeScheduleChecked<300000)return;
  const request=++homeScheduleRequest;homeScheduleBusy=true;
