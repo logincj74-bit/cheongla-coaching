@@ -49,6 +49,7 @@ if (typeof document !== 'undefined') {
         const element = clock.querySelector(`[data-clock-${key}]`);
         if (element.textContent !== state[key]) element.textContent = state[key];
       }
+      for(const badge of document.querySelectorAll('[data-daily-dday]'))if(badge.textContent!==state.countdown)badge.textContent=state.countdown;
       const countdown = clock.querySelector('[data-clock-dday]');
       if (countdown.textContent !== state.countdown) countdown.textContent = state.countdown;
       clock.querySelector('[data-clock-time]').setAttribute('aria-label', `한국시간 ${state.period} ${state.hours}시 ${state.minutes}분 ${state.seconds}초`);
