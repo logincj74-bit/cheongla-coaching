@@ -20,11 +20,11 @@
 @keyframes season-turn{0%,100%{transform:rotateY(0deg) rotate(0deg)}50%{transform:rotateY(65deg) rotate(35deg)}}
 .season-surface[data-motion="off"] .season-particles{display:none}
 .season-surface[data-paused="true"] .season-particle,.season-surface[data-paused="true"] .season-particle svg{animation-play-state:paused}
-.season-welcome{--fall-distance:115svh;width:100%;max-width:none;height:100dvh;max-height:none;margin:0;padding:max(20px,env(safe-area-inset-top)) 18px max(20px,env(safe-area-inset-bottom));border:0;inset:0;overflow:auto;overscroll-behavior:contain}
+.season-welcome{position:fixed;overflow-x:hidden;--fall-distance:115svh;width:100%;max-width:none;height:100dvh;max-height:none;margin:0;padding:max(20px,env(safe-area-inset-top)) 18px max(20px,env(safe-area-inset-bottom));border:0;inset:0;overflow:auto;overscroll-behavior:contain}
 .season-welcome[open]{display:grid;place-items:center}
 .season-welcome:before{opacity:.8;background:linear-gradient(#102e3bc9,#102e3bd9),url('assets/cheongla-space-1.webp') center/cover;filter:blur(3px);transform:scale(1.03)}
 .season-welcome::backdrop{background:#102e3b}
-.season-welcome .season-particles{position:fixed;z-index:2}
+.season-welcome .season-particles{position:absolute;z-index:2}
 .season-welcome-card{position:relative;z-index:1;width:min(100%,490px);min-height:min(720px,calc(100svh - 48px));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:38px 28px;text-align:center;border:1px solid #cbdcd357;border-radius:32px;background:linear-gradient(135deg,#173c48f2,#112f3cf7);box-shadow:0 30px 100px #061a2466}
 .season-welcome-logo{display:block;width:155px;height:auto;border-radius:16px;box-shadow:0 12px 32px #061a2433}
 .season-welcome .season-welcome-kicker{margin:4px 0 0;color:var(--season-accent);letter-spacing:2px;font-size:12px;font-weight:700}
