@@ -5,6 +5,21 @@ select id into mg from public.cheongla_profiles where role='manager'and approval
 select id into st from public.cheongla_profiles where role='student'and approval_status='approved'and membership_state='active'limit 1;
 if mg is null or st is null then raise exception '검증용 계정 없음';end if;
 perform set_config('request.jwt.claim.sub',mg::text,true);
+declare
+ category_key text;subject_post uuid;subject_version timestamptz;
+begin
+ foreach category_key in array array['admissions','past_papers','forms','learning_materials','learning_materials_korean','learning_materials_math','learning_materials_english','learning_materials_exploration'] loop
+  subject_post:=public.cheongla_save_information(null,'resource','과목 분류 검증','분류별 저장·수정 검증',category_key,'','draft',null);
+  if not exists(select 1 from public.cheongla_information_posts where id=subject_post and category=category_key) then raise exception 'FAIL category save: %',category_key;end if;
+  select updated_at into subject_version from public.cheongla_information_posts where id=subject_post;
+  perform public.cheongla_save_information(subject_post,'resource','과목 수정 검증','과목 변경 검증','learning_materials_math','','draft',subject_version);
+  if not exists(select 1 from public.cheongla_information_posts where id=subject_post and category='learning_materials_math') then raise exception 'FAIL category edit';end if;
+ end loop;
+ begin
+  perform public.cheongla_save_information(null,'resource','잘못된 과목','허용하지 않은 과목 차단','learning_materials_invalid','','draft',null);
+  raise exception 'FAIL invalid subject';
+ exception when raise_exception then if sqlerrm='FAIL invalid subject' then raise;end if;end;
+end;
 post:=public.cheongla_save_information(null,'resource','검증용 첨부 자료','공개·초안·파일 권한 검증','learning_materials','','draft',null);
 draft:=public.cheongla_save_information(null,'news','검증용 비공개 초안','비공개 초안',null,'','draft',null);
 select updated_at into v from public.cheongla_information_posts where id=post;
@@ -57,4 +72,4 @@ if exists(select 1 from storage.objects where bucket_id='cheongla-information'an
 end;$$;
 reset role;
 rollback;
-select 'PASS: 비회원 공개 글·첨부 조회, 초안·삭제글 차단, 실장 글 작성·업로드·게시, 업로드 완료 검증, 용량·확장자 제한, 학생·비회원 작성 및 업로드 차단, 동시 수정 보호. 실제 게시물·파일 변경은 전부 롤백.' as result;
+select 'PASS: 4과목·공통 및 기존 분류 저장·과목 변경·잘못된 과목 차단, 비회원 공개 글·첨부 조회, 초안·삭제글 차단, 실장 글 작성·업로드·게시, 업로드 완료 검증, 용량·확장자 제한, 학생·비회원 작성 및 업로드 차단, 동시 수정 보호. 실제 게시물·파일 변경은 전부 롤백.' as result;
