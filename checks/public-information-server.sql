@@ -5,10 +5,10 @@ select id into mg from public.cheongla_profiles where role='manager'and approval
 select id into st from public.cheongla_profiles where role='student'and approval_status='approved'and membership_state='active'limit 1;
 if mg is null or st is null then raise exception '검증용 계정 없음';end if;
 perform set_config('request.jwt.claim.sub',mg::text,true);
-post:=public.cheongla_save_information(null,'resource','검증용 첨부 자료','공개·초안·파일 권한 검증','forms','','draft',null);
+post:=public.cheongla_save_information(null,'resource','검증용 첨부 자료','공개·초안·파일 권한 검증','learning_materials','','draft',null);
 draft:=public.cheongla_save_information(null,'news','검증용 비공개 초안','비공개 초안',null,'','draft',null);
 select updated_at into v from public.cheongla_information_posts where id=post;
-begin perform public.cheongla_save_information(post,'resource','검증용 첨부 자료','파일 없는 공개 차단','forms','','published',v);raise exception 'FAIL empty resource publication';exception when raise_exception then if sqlerrm='FAIL empty resource publication'then raise;end if;end;
+begin perform public.cheongla_save_information(post,'resource','검증용 첨부 자료','파일 없는 공개 차단','learning_materials','','published',v);raise exception 'FAIL empty resource publication';exception when raise_exception then if sqlerrm='FAIL empty resource publication'then raise;end if;end;
 begin perform public.cheongla_reserve_information_file(post,'test.exe',100);raise exception 'FAIL executable';exception when raise_exception then if sqlerrm='FAIL executable'then raise;end if;end;
 begin perform public.cheongla_reserve_information_file(post,'large.pdf',20971521);raise exception 'FAIL oversized';exception when raise_exception then if sqlerrm='FAIL oversized'then raise;end if;end;
 r:=public.cheongla_reserve_information_file(post,'검증.pdf',100);f:=(r->>'id')::uuid;
@@ -22,8 +22,8 @@ select public.cheongla_finish_information_file(current_setting('test.publication
 do $$declare v timestamptz;post uuid:=current_setting('test.publication_post')::uuid;
 begin
 select updated_at into v from public.cheongla_information_posts where id=post;
-perform public.cheongla_save_information(post,'resource','검증용 첨부 자료','파일 완료 후 공개','forms','','published',v);
-begin perform public.cheongla_save_information(post,'resource','오래된 수정','충돌 차단','forms','','draft',v);raise exception 'FAIL concurrent edit';exception when raise_exception then if sqlerrm='FAIL concurrent edit'then raise;end if;end;
+perform public.cheongla_save_information(post,'resource','검증용 첨부 자료','파일 완료 후 공개','learning_materials','','published',v);
+begin perform public.cheongla_save_information(post,'resource','오래된 수정','충돌 차단','learning_materials','','draft',v);raise exception 'FAIL concurrent edit';exception when raise_exception then if sqlerrm='FAIL concurrent edit'then raise;end if;end;
 end;$$;
 reset role;
 select set_config('request.jwt.claim.sub','',true);
