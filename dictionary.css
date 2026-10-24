@@ -5,3 +5,16 @@
 .dictionary-description,.dictionary-help,.dictionary-credit{font-size:14px;line-height:1.7;color:#58706b}.dictionary-help{margin:8px 0}.dictionary-credit a{color:#326d60}
 .dictionary-card{background:#fff;border:1px solid #dce7e1;border-radius:15px;padding:18px;margin:12px 0}.dictionary-card h3{margin:0;font-size:24px;overflow-wrap:anywhere}.dictionary-pronunciation{color:#5b7470;overflow-wrap:anywhere;margin:5px 0 12px}.dictionary-senses{padding-left:22px;margin:12px 0}.dictionary-senses li{margin:7px 0}.dictionary-pos{color:#427d6d;font-size:13px;margin-right:8px}.dictionary-card .dictionary-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.dictionary-card button{min-height:44px}.dictionary-meaning{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}.wordbook-summary{font-size:18px;font-weight:750;cursor:pointer}.wordbook-controls{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.wordbook-controls input{flex:1;min-width:140px;margin:0!important}.wordbook-controls button{margin:0!important}.dictionary-results-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}.dictionary-source-note{font-size:12px;color:#60746e}.wordbook-list{list-style:none;padding:0}.wordbook-list li{list-style:none}.dictionary-status:empty{display:none}
 @media(max-width:480px){.home-dictionary{padding:18px;border-radius:18px}.dictionary-search{gap:8px}.dictionary-search button{padding:12px 14px}.dictionary-card{padding:15px}.dictionary-credit{font-size:12px}}
+
+/* Compact identity keeps the frequently used menu within reach. */
+.brand.compact-brand{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;margin-bottom:16px;min-height:68px;border-radius:16px;--fall-distance:160px}
+.brand.compact-brand h1{margin:0;font-size:20px;position:relative;z-index:2}
+.compact-brand .brand-home{padding:8px 0;min-height:44px;background:transparent;color:#183d47;font-size:20px;text-align:left;border-radius:8px}
+.compact-brand .brand-home span{display:inline-block;font-size:11px;font-weight:500;color:#58766c;margin-left:6px}
+.brand.compact-brand .season-motion-toggle{position:relative;z-index:2;margin:0;padding:8px 10px;font-size:11px;white-space:nowrap}
+.site-navigation .dictionary-menu{background:#e7f2eb;color:#24564d;border-color:#9ebfae}
+#homeDictionary{margin:20px 0}#homeDictionary>.text-button{padding-top:0}
+.dictionary-source{margin-top:22px;border-top:1px solid #d8e7df;padding-top:14px}.dictionary-source summary{cursor:pointer;font-size:13px;color:#58706b;min-height:44px;display:flex;align-items:center}.dictionary-source summary:before{content:'▸';margin-right:7px}.dictionary-source[open] summary:before{content:'▾'}
+@media(max-width:380px){.brand.compact-brand{padding:8px 12px;gap:8px}.compact-brand .brand-home{font-size:18px}.compact-brand .brand-home span{display:none}.brand.compact-brand .season-motion-toggle{font-size:10px}}
+
+.site-navigation>[data-public-page="visit"]{grid-column:1 / -1}
