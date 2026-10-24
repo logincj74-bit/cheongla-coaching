@@ -36,4 +36,14 @@
 #notificationControls{margin-bottom:12px}
 @media(max-width:360px){.academy-topbar>#academyHome{font-size:13px;gap:4px}.academy-topbar img{width:30px;height:30px}.academy-topbar .home-motion-controls .season-motion-toggle{font-size:10px;padding:8px}}
 
-.home-today:has(.home-weather-more[open]){cursor:pointer}
+
+
+.home-weather-more>button{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;padding:4px 0;min-height:32px;background:transparent;color:#32756a;text-align:left;border-radius:4px;font-size:12px}
+.home-weather-more>button [data-weather-updated]{font-size:11px;color:#637478;font-weight:500;text-align:right}
+.weather-forecast-dialog{position:fixed;inset:0;margin:auto;width:min(760px,calc(100% - 28px));max-width:760px;max-height:calc(100dvh - 48px);overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:22px;border:1px solid #cbdcd0;border-radius:22px;background:#f3f7ee;color:#233d42;box-shadow:0 24px 90px #183d4738;cursor:pointer}
+.weather-forecast-dialog::backdrop{background:#183d4759}
+.weather-dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.weather-dialog-heading h2{margin:0;font-size:21px}.weather-dialog-heading button{min-height:44px;padding:8px 14px}
+.weather-dialog-help{margin:10px 0 14px;font-size:13px;color:#62776a}.weather-forecast-dialog .home-weather-week{margin-top:12px}.weather-forecast-dialog .home-weather-credit{font-size:12px;line-height:1.6}
+@media(max-width:500px){.weather-forecast-dialog{padding:16px 12px;border-radius:18px}.weather-dialog-heading h2{font-size:18px}.home-weather-more>button{font-size:11px}.home-weather-more>button [data-weather-updated]{font-size:10px}}
+
+html{scrollbar-gutter:stable}html:has(#weatherForecastDialog[open]),body:has(#weatherForecastDialog[open]){overflow:hidden}

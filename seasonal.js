@@ -16,7 +16,7 @@ const shapes={
  summer:'<path d="M12 2 8 8 3 6l1 7-3 2 7 4 4 3 4-3 7-4-3-2 1-7-5 2Z"/><path d="M12 5v16m-7-9 7 4 7-4" fill="none" stroke="#487959" stroke-width=".8"/>'
 };
 const autumnShapes=[shapes.autumn,
- '<path d="M12 20C7 19 2 17 1 13c-1-4 1-7 4-10l6 3 1 4 1-4 6-3c3 3 5 6 4 10-1 4-6 6-11 7Z"/><path d="M12 10v13M12 19 4 7m8 12-5-14m5 14L20 7m-8 12 5-14" fill="none" stroke="#aa7900" stroke-width=".65"/>',
+ '<path d="M12 15.5C10.8 12.6 7.8 12 3 12.2 1.4 12.3.4 11.4 1 9.7L2 7.7Q2.2 6.5 3.4 6.3 3.5 5.1 4.9 4.9 5.2 3.7 6.8 3.6 7.8 2.3 9.2 2.5 10.5 1.5 11.3 2.5L12 3.8 12.7 2.5Q13.5 1.5 14.8 2.5 16.2 2.3 17.2 3.6 18.8 3.7 19.1 4.9 20.5 5.1 20.6 6.3 21.8 6.5 22 7.7L23 9.7C23.6 11.4 22.6 12.3 21 12.2 16.2 12 13.2 12.6 12 15.5Z"/><path d="M12 14.8C12 18 11.3 20.8 10.7 23" fill="none" stroke="#c49108" stroke-width="1" stroke-linecap="round"/><path d="m12 14-8-6m8 6L6 5.5m6 8.5L9 4m3 10V5m0 9 3-10m-3 10 6-8.5m-6 8.5 8-6" fill="none" stroke="#c69b0c" stroke-width=".45" opacity=".75"/>',
  '<path d="M12 21C0 16 2 3 18 1c5 10 0 17-6 20Z"/><path d="m18 2-7 21m4-15-7 2m5 4 6-3" fill="none" stroke="#754c29" stroke-width=".8"/>'];
 export function autumnParticle(index){const shape=index%3;return {kind:['maple','ginkgo','oval'][shape],svg:autumnShapes[shape],color:shape===1?['#f6c900','#eab600'][Math.floor(index/3)%2]:['#cb3929','#99502d','#dfa008','#b82f26'][Math.floor(index/3)%4]};}
 export function particleSettings(index,season){

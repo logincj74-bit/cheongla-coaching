@@ -39,17 +39,22 @@ export function weatherAppearance(code){
  else if(base.includes('rain')){text=base.includes('heavy')?'강한 비':base.includes('light')?'약한 비':'비';shape=cloud+'<path d="m8 19-1 3m6-3-1 3m6-3-1 3"/>';}
  return {text,svg:`<svg class="home-weather-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${shape}</svg>`};
 }
-export function mountWeatherCollapse(clock){
- const details=clock.querySelector('.home-weather-more'),summary=details?.querySelector('summary');
- if(!details||!summary)return;
- const card=clock.closest('.home-today')||clock;
- const close=()=>{details.open=false;summary.focus({preventScroll:true});};
- card.addEventListener('click',event=>{
-  // The summary already toggles through the shared details navigation.
-  if(!details.open||event.target?.closest?.('summary')===summary)return;
-  event.preventDefault();close();
+export function mountWeatherCollapse(clock,win=window){
+ const dialog=clock.querySelector('#weatherForecastDialog'),toggle=clock.querySelector('#weatherForecastToggle'),closeButton=clock.querySelector('#weatherForecastClose');
+ if(!dialog||!toggle||!closeButton)return;
+ let position=null;
+ const close=()=>{if(dialog.open)dialog.close();};
+ toggle.addEventListener('click',()=>{
+  if(dialog.open){close();return;}
+  position={top:win.scrollY,left:win.scrollX};
+  dialog.showModal();toggle.setAttribute('aria-expanded','true');closeButton.focus({preventScroll:true});
  });
- card.addEventListener('keydown',event=>{if(event.key==='Escape'&&details.open){event.preventDefault();close();}});
+ dialog.addEventListener('click',event=>{event.preventDefault();close();});
+ dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
+ dialog.addEventListener('close',()=>{
+  toggle.setAttribute('aria-expanded','false');toggle.focus({preventScroll:true});
+  if(position)win.scrollTo({...position,behavior:'instant'});
+ });
 }
 if (typeof document !== 'undefined') {
   const clock = document.querySelector('.home-clock');
