@@ -1,0 +1,9 @@
+{
+  "source": "https://github.com/DanielGregorini/koreader-dicts/releases/download/v1.2.0/en-ko.zip",
+  "source_sha256": "219eacf3f57e93da993a9ba438d3c3eaf3fa3b94de745847fe74826cb776ccf1",
+  "version": "en-ko-v1.2.0-cheongla-1",
+  "license": "CC-BY-SA-4.0",
+  "headwords": 25457,
+  "forms": 72011,
+  "changes": "HTML removed; Korean translations, part of speech, pronunciation and inflection references retained; Unicode and case normalization; split into seven JSON files."
+}
