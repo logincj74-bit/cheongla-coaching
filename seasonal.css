@@ -56,3 +56,11 @@ body.season-welcome-open{overflow:hidden}
 .season-welcome .season-welcome-start:hover{background:#e0ecd8}
 .season-welcome .season-welcome-footer{color:#62766d}
 .season-welcome .season-motion-toggle{color:#526d60}
+
+/* A non-interactive viewport layer follows the entire home while scrolling. */
+.home-season-effects{position:fixed;inset:0;z-index:12;pointer-events:none;overflow:hidden;--fall-distance:115vh;--fall-distance:115svh}
+.home-season-effects .season-particle{filter:drop-shadow(0 1px 1px #84541b26)}
+.home-season-effects[data-motion="off"]{display:none}
+.home-season-effects[data-paused="true"] .season-particle,.home-season-effects[data-paused="true"] .season-particle svg{animation-play-state:paused}
+.home-motion-controls{display:flex;justify-content:flex-end;margin:-4px 0 14px;position:relative;z-index:13}
+.home-motion-controls .season-motion-toggle{padding:8px 12px;min-height:44px;border:1px solid #d4dfd7;border-radius:99px;background:#edf3ed;color:#32756a;font-size:12px}

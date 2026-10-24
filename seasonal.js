@@ -15,6 +15,10 @@ const shapes={
  spring:'<path d="M12 5C5-3-3 6 4 14c3 3 6 5 8 7 2-2 5-4 8-7 7-8-1-17-8-9Z"/>',
  summer:'<path d="M12 2 8 8 3 6l1 7-3 2 7 4 4 3 4-3 7-4-3-2 1-7-5 2Z"/><path d="M12 5v16m-7-9 7 4 7-4" fill="none" stroke="#487959" stroke-width=".8"/>'
 };
+const autumnShapes=[shapes.autumn,
+ '<path d="M12 20C7 19 2 17 1 13c-1-4 1-7 4-10l6 3 1 4 1-4 6-3c3 3 5 6 4 10-1 4-6 6-11 7Z"/><path d="M12 10v13M12 19 4 7m8 12-5-14m5 14L20 7m-8 12 5-14" fill="none" stroke="#aa7900" stroke-width=".65"/>',
+ '<path d="M12 21C0 16 2 3 18 1c5 10 0 17-6 20Z"/><path d="m18 2-7 21m4-15-7 2m5 4 6-3" fill="none" stroke="#754c29" stroke-width=".8"/>'];
+export function autumnParticle(index){const shape=index%3;return {kind:['maple','ginkgo','oval'][shape],svg:autumnShapes[shape],color:shape===1?['#f6c900','#eab600'][Math.floor(index/3)%2]:['#cb3929','#99502d','#dfa008','#b82f26'][Math.floor(index/3)%4]};}
 export function particleSettings(index,season){
  const snow=season==='winter';return {x:((index*47+13)%101)+'%',size:(snow?3+index%5:10+(index*7)%12)+'px',opacity:String(snow ? .4+(index%4)*.12 : season==='autumn' ? .78+(index%4)*.06 : .25+(index%4)*.09),duration:(14+(index*3)%13)+'s',delay:-(index*1.7%25)+'s',spin:(4+index%6)+'s',sway:(index%2?1:-1)*(24+index*7%65)+'px'};
 }
@@ -27,18 +31,19 @@ export function mountSeasonalUI(doc,win){
  const read=(store,key)=>{try{return win[store].getItem(key);}catch{return null;}};
  const write=(store,key,value)=>{try{win[store].setItem(key,value);}catch{}};
  let season='',lastTrigger=null,off=read('localStorage','cheongla-season-motion')==='off';
- const pause=()=>{for(const surface of surfaces)surface.dataset.paused=String(doc.hidden||(surface!==dialog&&dialog.open));};
+ const homeVisible=()=>!doc.getElementById('homePanel')?.hidden;
+ const pause=()=>{for(const surface of surfaces){const away=surface.id==='homeSeasonEffects'&&!homeVisible();surface.hidden=away;surface.dataset.paused=String(doc.hidden||away||(surface!==dialog&&dialog.open));}};
  const particles=()=>{
   const enabled=!off&&!reduced.matches;
   for(const surface of surfaces){
    surface.dataset.motion=enabled?'on':'off';
    const layer=surface.querySelector('[data-season-particles]');layer.replaceChildren();if(!enabled)continue;
-   const count=surface===dialog?22:12;
+   const count=surface===dialog?22:20;
    for(let i=0;i<count;i++){
     const leaf=doc.createElement('span'),settings=particleSettings(i,season);leaf.className='season-particle';
     for(const [key,value] of Object.entries(settings))leaf.style.setProperty('--'+key,value);
-    if(season==='autumn')leaf.style.setProperty('--particle-color',['#e4aa00','#c4382c','#85452c','#efbe16','#ad2928','#a25c32'][i%6]);
-    leaf.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'+shapes[season]+'</svg>';
+    const autumn=season==='autumn'?autumnParticle(i):null;if(autumn){leaf.dataset.leaf=autumn.kind;leaf.style.setProperty('--particle-color',autumn.color);}
+    leaf.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'+(autumn?.svg||shapes[season])+'</svg>';
     layer.append(leaf);
    }
   }
@@ -68,6 +73,7 @@ export function mountSeasonalUI(doc,win){
  win.addEventListener('pageshow',()=>{updateSeason();pause();});
  win.setInterval(()=>{if(!doc.hidden)updateSeason();},60000);
  updateSeason();
+ const home=doc.getElementById('homePanel');if(home&&win.MutationObserver)new win.MutationObserver(pause).observe(home,{attributes:true,attributeFilter:['hidden']});
  const originalURL=win.performance?.getEntriesByType('navigation')?.[0]?.name||win.location.href;
  if(!skipSeasonWelcome(originalURL)&&!read('sessionStorage',seenKey()))show(doc.getElementById('siteHomeLogo'));
 }
