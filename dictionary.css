@@ -35,3 +35,5 @@
 .home-today{margin-bottom:14px}
 #notificationControls{margin-bottom:12px}
 @media(max-width:360px){.academy-topbar>#academyHome{font-size:13px;gap:4px}.academy-topbar img{width:30px;height:30px}.academy-topbar .home-motion-controls .season-motion-toggle{font-size:10px;padding:8px}}
+
+.home-today:has(.home-weather-more[open]){cursor:pointer}
