@@ -47,3 +47,11 @@
 @media(max-width:500px){.weather-forecast-dialog{padding:16px 12px;border-radius:18px}.weather-dialog-heading h2{font-size:18px}.home-weather-more>button{font-size:11px}.home-weather-more>button [data-weather-updated]{font-size:10px}}
 
 html{scrollbar-gutter:stable}html:has(#weatherForecastDialog[open]),body:has(#weatherForecastDialog[open]){overflow:hidden}
+
+/* Keep the member entry above the main menu, before long home content. */
+.home-account-entry{display:flex;align-items:center;gap:14px;margin:0 0 24px;padding:12px 14px;border:1px solid #d4e1d4;border-radius:14px;background:#f2f7ef}
+.home-account-entry .login-entry{flex:none;margin:0;min-height:44px;padding:12px 18px;white-space:nowrap}
+.home-account-entry #homeAccountStatus{margin:0;font-size:12px;line-height:1.6;word-break:keep-all}
+main:has(#homePanel[hidden]) #homeAccountEntry{display:none}
+#authPanel{scroll-margin-top:16px}
+@media(max-width:500px){.home-account-entry{gap:10px;padding:10px;margin-bottom:22px}.home-account-entry .login-entry{font-size:14px;padding:12px 14px}.home-account-entry #homeAccountStatus{font-size:11px}}
