@@ -20,3 +20,8 @@
 .site-navigation>[data-public-page="visit"]{grid-column:1 / -1}
 
 .wordbook-state{font-size:12px;border-radius:99px;padding:5px 10px;background:#fff3d6;color:#82601b}.wordbook-state.is-learned{background:#e1f1e5;color:#286343}
+
+.academy-topbar{margin:-8px 0 12px;display:flex;justify-content:flex-start;position:relative;z-index:13}
+.academy-topbar button{display:inline-flex;align-items:center;gap:9px;background:transparent;color:#183d47;padding:2px 4px;min-height:44px;font-size:16px;font-weight:750;letter-spacing:-.4px}
+.academy-topbar img{display:block;width:40px;height:40px;object-fit:contain;flex:none;border-radius:5px}
+@media(max-width:500px){.academy-topbar button{font-size:15px}.academy-topbar img{width:36px;height:36px}}

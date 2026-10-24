@@ -6,23 +6,26 @@
  const valid=word=>/^[a-z][a-z0-9 .'-]{0,79}$/.test(word);
  const bucket=word=>String(Math.floor((word.charCodeAt(0)-97)/4));
  function createLookup(fetcher){
-  const cache=new Map();
+  const cache=new Map();let editorialPromise;
+  async function editorial(){
+   if(!editorialPromise)editorialPromise=(async()=>{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);try{const r=await fetcher('assets/dictionary/editorial-senses.json?v=20261024-1',{signal:controller.signal,credentials:'omit'});if(!r.ok)throw Error('보강 사전 자료를 불러오지 못했습니다. 다시 찾아 주세요.');return (await r.json()).entries;}finally{clearTimeout(timer);}})().catch(e=>{editorialPromise=null;throw e;});return editorialPromise;
+  }
   async function shard(id){
    if(!cache.has(id))cache.set(id,(async()=>{
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
-    try{const r=await fetcher('assets/dictionary/'+id+'.json?v=en-ko-v1.2.0-cheongla-1',{signal:controller.signal,credentials:'omit'});if(!r.ok)throw Error('사전 자료를 불러오지 못했습니다. 잠시 후 다시 찾아 주세요.');return await r.json();}
+    try{const r=await fetcher('assets/dictionary/'+id+'.json?v=en-ko-v1.2.0-cheongla-2',{signal:controller.signal,credentials:'omit'});if(!r.ok)throw Error('사전 자료를 불러오지 못했습니다. 잠시 후 다시 찾아 주세요.');return await r.json();}
     finally{clearTimeout(timer);}
    })().catch(e=>{cache.delete(id);throw e;}));
    return cache.get(id);
   }
   async function lookup(value){
    const word=normalize(value);if(!valid(word))throw Error('영어 단어나 짧은 표현을 입력해 주세요. (최대 80자)');
-   const d=await shard(bucket(word));const own=Object.hasOwn(d.entries,word),refs=own?[word]:Object.hasOwn(d.aliases,word)?d.aliases[word].slice(0,4):[];
+   const [d,extra]=await Promise.all([shard(bucket(word)),editorial()]);const own=Object.hasOwn(d.entries,word)||Object.hasOwn(extra,word),refs=own?[word]:Object.hasOwn(d.aliases,word)?d.aliases[word].slice(0,4):[];
    const results=[];
-   for(const ref of refs){const part=await shard(bucket(ref)),items=Object.hasOwn(part.entries,ref)?part.entries[ref]:[];if(!items.length)continue;
+   for(const ref of refs){const part=await shard(bucket(ref));let items=Object.hasOwn(part.entries,ref)?part.entries[ref]:[];if(Object.hasOwn(extra,ref))items=[{w:items[0]?.w||ref,p:items[0]?.p||'',s:extra[ref],editorial:true}];if(!items.length)continue;
     const pronunciations=[...new Set(items.map(x=>x.p).filter(Boolean))];const senses=[],seen=new Set();
     for(const item of items)for(const s of item.s){const k=JSON.stringify(s);if(!seen.has(k)){seen.add(k);senses.push({pos:posLabels[s[0]]||s[0],meaning:s[1]});}}
-    results.push({word:ref,display:items[0].w,pronunciation:pronunciations.join(' · '),senses});
+    results.push({word:ref,display:items[0].w,pronunciation:pronunciations.join(' · '),editorial:items.some(x=>x.editorial===true),senses});
    }
    return {query:word,results,suggestions:refs.length?[]:Object.keys(d.entries).filter(x=>x.startsWith(word.slice(0,Math.min(3,word.length)))).slice(0,5)};
   }
@@ -45,7 +48,7 @@
    if(!current.length){$('dictionaryStatus').textContent='이 사전에 등록되지 않은 단어입니다. 철자나 기본형을 확인해 주세요.';
     if(result.suggestions.length){const box=node('div','비슷한 시작의 단어: ','dictionary-actions');for(const word of result.suggestions){const b=node('button',word,'secondary');b.type='button';b.addEventListener('click',()=>{$('dictionaryWord').value=word;void search();});box.append(b);}list.append(box);}return;}
    $('dictionaryStatus').textContent=result.query===current[0].word?'뜻을 찾았습니다.':'「'+result.query+'」의 기본형 뜻입니다.';
-   for(const entry of current){const card=node('article',undefined,'dictionary-card');card.append(node('h3',entry.display));if(entry.pronunciation)card.append(node('p',entry.pronunciation,'dictionary-pronunciation'));
+   for(const entry of current){const card=node('article',undefined,'dictionary-card');card.append(node('h3',entry.display));card.append(node('p','뜻 '+entry.senses.length+'개'+(entry.editorial?' · 청라 학습용 대표 뜻':''),'dictionary-source-note'));if(entry.pronunciation)card.append(node('p',entry.pronunciation,'dictionary-pronunciation'));
     const senses=node('ol',undefined,'dictionary-senses');for(const sense of entry.senses){const li=node('li');if(sense.pos)li.append(node('span',sense.pos,'dictionary-pos'));li.append(node('span',sense.meaning));senses.append(li);}card.append(senses);
     const b=node('button','내 단어장에 저장');b.type='button';b.dataset.saveWord=entry.word;b.addEventListener('click',()=>void save(entry));card.append(b);list.append(card);}
    if(!eligible())list.append(node('p','단어장 저장은 로그인하고 학원 이용 승인을 받은 후 사용할 수 있습니다.','dictionary-help'));controls();

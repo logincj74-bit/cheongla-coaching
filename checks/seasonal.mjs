@@ -24,7 +24,7 @@ f=fixture({blocked:true});assert.equal(f.dialog.open,true);f.start.handlers.clic
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.equal((html.match(/id="seasonWelcome"/g)||[]).length,1);assert.match(html,/id="seasonWelcomeStart"[^>]*autofocus/);assert.ok(html.indexOf('class="home-today"')<html.indexOf('id="homeSeasonEffects"'));assert.match(fs.readFileSync(new URL('../seasonal.css',import.meta.url),'utf8'),/prefers-reduced-motion:reduce/);
 console.log('PASS seasonal welcome: Korea season boundaries, all four effects, entry skip, start/reopen, saved choice, reduced motion, hidden-page pause, blocked storage and existing top clock.');
 
-assert.ok(!html.includes('<header class="brand season-home'));assert.ok(!html.includes('id="siteHomeLogo"'));assert.match(html,/class="home-motion-controls"/);
+assert.ok(!html.includes('<header class="brand season-home'));assert.ok(!html.includes('id="siteHomeLogo"'));assert.ok(html.indexOf('class="academy-topbar"')<html.indexOf('class="home-today"'));assert.match(html,/src="assets\/cheongla-header-cl.png"/);assert.match(html,/class="home-motion-controls"/);
 const leaves=Array.from({length:20},(_,i)=>autumnParticle(i));assert.equal(new Set(leaves.map(x=>x.kind)).size,3);for(const x of leaves.filter(x=>x.kind==='ginkgo'))assert(['#f6c900','#eab600'].includes(x.color));
 const css=fs.readFileSync(new URL('../seasonal.css',import.meta.url),'utf8');assert.match(css,/home-season-effects\{position:fixed/);assert.match(css,/z-index:12;pointer-events:none/);
 console.log('PASS: full-home leaf overlay, three leaf shapes, yellow ginkgo, no identity strip, motion control retained');

@@ -1,7 +1,7 @@
 const fs=require('fs'),path=require('path'),assert=require('node:assert/strict');
 const {createLookup,normalize,valid,mount}=require('../dictionary.js');
 const dir=path.join(__dirname,'../assets/dictionary');let fetched=[];
-async function dataFetch(url){assert(url.startsWith('assets/dictionary/'));fetched.push(url);return {ok:true,json:async()=>JSON.parse(fs.readFileSync(path.join(dir,url.match(/\/(\d+)\.json/)[1]+'.json'),'utf8'))};}
+async function dataFetch(url){assert(url.startsWith('assets/dictionary/'));fetched.push(url);return {ok:true,json:async()=>JSON.parse(fs.readFileSync(path.join(dir,url.split('/').at(-1).split('?')[0]),'utf8'))};}
 class N{constructor(tag='div'){this.tag=tag;this.children=[];this.dataset={};this.handlers={};this.hidden=false;this.disabled=false;this.open=false;this.value='';this.textContent='';}append(...x){this.children.push(...x)}replaceChildren(){this.children=[]}addEventListener(k,f){this.handlers[k]=f}setAttribute(k,v){this[k]=v}focus(){this.focused=true}querySelectorAll(sel){return this.children.flatMap(x=>[...(sel==='[data-save-word]'&&x.dataset?.saveWord?[x]:[]),...x.querySelectorAll(sel)])}}
 const nodes={},$=id=>nodes[id]??=new N();const doc={getElementById:$,createElement:t=>new N(t)};
 let actor={id:'first',approval_status:'approved',membership_state:'active'},confirm=false,fail=false,failLoad=false,db=[],pendingClient=null;
@@ -11,6 +11,7 @@ const text=n=>[n.textContent,...n.children.map(text)].join(' ');
 (async()=>{
  assert.equal(normalize('  STUDY  '),'study');assert.equal(normalize('it’s'),'it\'s');for(const s of ['','사과','../secret','<script>','a'.repeat(81)])assert(!valid(s));
  const lookup=createLookup(dataFetch);for(const [word,meaning]of [['study','공부'],['STUDIES','공부'],['went','가다'],['children','아이'],['bank','은행'],['beautiful','아름답다'],['photosynthesis','광합성']]){const r=await lookup(word);assert(r.results.length,word);assert(JSON.stringify(r).includes(meaning),word);}
+ const editorial=JSON.parse(fs.readFileSync(path.join(dir,'editorial-senses.json'),'utf8'));assert.equal(Object.keys(editorial.entries).length,40);for(const word of Object.keys(editorial.entries)){const r=await lookup(word);assert(r.results[0].senses.length>=5,word+' at least five real senses');assert(r.results[0].editorial);}
  assert.equal((await lookup('qzxnonexistent')).results.length,0);await assert.rejects(()=>lookup('../secret'));const before=fetched.length;await lookup('study');assert.equal(fetched.length,before);
  let attempts=0;const retry=createLookup(async u=>{if(++attempts===1)throw Error('network');return dataFetch(u)});await assert.rejects(()=>retry('study'));assert((await retry('study')).results.length);
  const ui=mount({document:doc,fetch:dataFetch,profile:()=>actor,client:async()=>pendingClient?await pendingClient:client,confirm:async()=>confirm});

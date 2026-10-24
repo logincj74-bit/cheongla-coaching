@@ -37,10 +37,15 @@ while i<len(raw):
  if not valid(form) or not valid(word) or form==word or word not in shards[bucket(word)]['entries']:continue
  refs=shards[bucket(form)]['aliases'].setdefault(form,[])
  if word not in refs:refs.append(word)
+editorial=json.loads((Path(__file__).resolve().parent.parent/'assets/dictionary/editorial-senses.json').read_text())
+for word,senses in editorial['entries'].items():
+ old=shards[bucket(word)]['entries'].get(word,[{'w':word,'p':''}])[0]
+ shards[bucket(word)]['entries'][word]=[{'w':old['w'],'p':old['p'],'s':senses,'editorial':True}]
 for k,d in shards.items():(out/(k+'.json')).write_text(json.dumps(d,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
-meta={'source':SOURCE_URL,'source_sha256':SHA256,'version':'en-ko-v1.2.0-cheongla-1','license':'CC-BY-SA-4.0','headwords':sum(len(d['entries'])for d in shards.values()),'forms':sum(len(d['aliases'])for d in shards.values()),'changes':'HTML removed; Korean translations, part of speech, pronunciation and inflection references retained; Unicode and case normalization; split into seven JSON files.'}
+meta={'source':SOURCE_URL,'source_sha256':SHA256,'version':'en-ko-v1.2.0-cheongla-2','editorial_headwords':len(editorial['entries']),'license':'CC-BY-SA-4.0','headwords':sum(len(d['entries'])for d in shards.values()),'forms':sum(len(d['aliases'])for d in shards.values()),'changes':'HTML removed; Korean translations, part of speech, pronunciation and inflection references retained; Unicode and case normalization; split into seven JSON files.'}
 (out/'manifest.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2)+'\n')
 (out/'ATTRIBUTION.txt').write_text('Cheongla English–Korean dictionary data\n\n'+(root/'ATTRIBUTION').read_text()+'\n'+(root/'LICENSE').read_text()+'\nCompilation: DanielGregorini/koreader-dicts v1.2.0\n'+SOURCE_URL+'\nSource SHA256: '+SHA256+'\n\nOriginal sources:\nEnglish Wiktionary contributors, via Kaikki.org / Wiktextract\nhttps://en.wiktionary.org/\nhttps://kaikki.org/\nPrinceton University WordNet 3.0\nhttps://wordnet.princeton.edu/license-and-commercial-use\n\nAdapted by Cheongla: '+meta['changes']+'\nThis adapted dictionary data is distributed under CC BY-SA 4.0.\nhttps://creativecommons.org/licenses/by-sa/4.0/\nOriginal page histories: https://en.wiktionary.org/w/index.php?title=WORD&action=history\nNo affiliation or endorsement by source authors is implied.\n',encoding='utf-8')
+with (out/'ATTRIBUTION.txt').open('a') as f:f.write('\nCheongla editorial supplement (2026-10-24): original Korean representative learning senses for '+str(len(editorial['entries']))+' high-frequency headwords; CC BY-SA 4.0. See editorial-senses.json.\n')
 print(json.dumps(meta,ensure_ascii=False));print('bytes',sum(p.stat().st_size for p in out.glob('*')))
 for w in ['study','go','bank','beautiful','photosynthesis','studies','went','children']:
  d=shards[bucket(w)];print(w,d['entries'].get(w)or d['aliases'].get(w))

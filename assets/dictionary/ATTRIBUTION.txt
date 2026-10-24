@@ -35,3 +35,5 @@ Original page histories: https://en.wiktionary.org/w/index.php?title=WORD&action
 No affiliation or endorsement by source authors is implied.
 
 WordNet 3.0 license notice is included in WORDNET-LICENSE.txt in this directory.
+
+Cheongla editorial supplement (2026-10-24): 40 high-frequency headwords have original Korean learning definitions authored by Cheongla. These representative senses replace sparse source translations for those entries; not exhaustive. Editorial content also licensed CC BY-SA 4.0. See editorial-senses.json.
