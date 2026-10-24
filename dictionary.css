@@ -25,3 +25,13 @@
 .academy-topbar button{display:inline-flex;align-items:center;gap:9px;background:transparent;color:#183d47;padding:2px 4px;min-height:44px;font-size:16px;font-weight:750;letter-spacing:-.4px}
 .academy-topbar img{display:block;width:40px;height:40px;object-fit:contain;flex:none;border-radius:5px}
 @media(max-width:500px){.academy-topbar button{font-size:15px}.academy-topbar img{width:36px;height:36px}}
+
+/* Pair the motion switch with the identity and bring the main menu upward. */
+.academy-topbar{align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.academy-topbar>#academyHome{min-width:0;flex:1;gap:7px;white-space:nowrap}
+.academy-topbar>#academyHome span{overflow:hidden;text-overflow:ellipsis}
+.academy-topbar .home-motion-controls{flex:none;margin:0;max-width:43%}
+.academy-topbar .home-motion-controls .season-motion-toggle{font-size:11px;padding:8px 10px;line-height:1.35;letter-spacing:-.3px;gap:0}
+.home-today{margin-bottom:14px}
+#notificationControls{margin-bottom:12px}
+@media(max-width:360px){.academy-topbar>#academyHome{font-size:13px;gap:4px}.academy-topbar img{width:30px;height:30px}.academy-topbar .home-motion-controls .season-motion-toggle{font-size:10px;padding:8px}}
