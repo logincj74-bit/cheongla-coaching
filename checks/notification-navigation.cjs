@@ -1,0 +1,19 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');const h=fs.readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8');
+const nid='12345678-1234-1234-1234-123456789012',sid='abcdefab-1234-1234-1234-123456789012';
+function context(kind='notice',role='parent'){
+ const routes=[],calls=[],frames=[],nodes={},$=id=>nodes[id]??={value:'',textContent:'',hidden:false};
+ const row={id:sid,title:'검증 공지',channel:'desk',audience:'parent',kind:'resource',starts_on:'2026-11-03'};
+ const ctx=vm.createContext({$,console,currentProfile:role?{id:'actor',role,approval_status:'approved'}:null,requestAnimationFrame:f=>frames.push(f),openSiteDestination:async r=>routes.push(r),setNoticeChannel:async()=>true,informationPrefix:k=>'[청라정보:'+k+'] ',informationSelect:()=>'*',billingNotificationContext:async()=>({kind:'meal',month:'2026-11'}),loadInbox:async()=>{},loadSchedule(){calls.push('schedule')},readable:e=>e.message,getClient:async()=>({from:table=>({select(){return this},eq(){return this},is(){return this},maybeSingle:async()=>({data:table==='cheongla_notifications'?(kind==='missing'?null:{id:nid,source_id:sid,source_kind:kind,route:kind==='fee_collection'?'billing_dashboard':kind==='information'?'resources':'question_board'}):row})}),rpc:async(n,a)=>{calls.push({n,a});return {}}})});
+ vm.runInContext('let activeNoticeAudience="all",pendingBillingContext=null,newInquiryLimit=20,scheduleDay="";'+h.slice(h.indexOf("let pendingNotificationId='';"),h.indexOf('async function loadInbox(')),ctx);
+ return {ctx,routes,calls,frames,$};
+}
+(async()=>{
+ let x=context();await x.ctx.navigateNotification(nid);assert.equal(x.routes[0],'desk_notice_parent');assert.equal(x.calls[0].n,'cheongla_read_notification');assert.equal(vm.runInContext('CheonglaNotificationNavigation.target.row.title',x.ctx),'검증 공지');
+ x=context('information');await x.ctx.navigateNotification(nid);assert.equal(x.routes[0],'resources');const card={tagName:'DETAILS',isConnected:true,classList:{add(){}},setAttribute(){},focus(){this.focused=true},scrollIntoView(){this.scrolled=true}};x.ctx.CheonglaNotificationNavigation.mark(card,'information',sid);x.frames[0]();assert(card.open&&card.focused&&card.scrolled);
+ x=context('fee_collection');await x.ctx.navigateNotification(nid);assert.equal(x.routes[0],'billing_dashboard');assert.equal(vm.runInContext('pendingBillingContext.month',x.ctx),'2026-11');assert.equal(x.ctx.CheonglaNotificationNavigation.target.id,sid);
+ x=context('notice',null);await x.ctx.navigateNotification(nid);assert.equal(vm.runInContext('pendingNotificationId',x.ctx),nid);assert.equal(x.routes[0],'notifications');assert.equal(x.calls.length,0);x.ctx.currentProfile={id:'signed-in',role:'parent',approval_status:'approved'};await x.ctx.navigateNotification(nid);assert.equal(x.routes[1],'desk_notice_parent');
+ x=context('missing');await x.ctx.navigateNotification(nid);assert.equal(x.routes[0],'notifications');assert(x.$('notificationStatus').textContent.includes('볼 수 없습니다'));
+ const c=vm.createContext({URL,window:{location:{href:'https://example.test/app/?push='+nid+'&v=1'},history:{state:{},replaceState(a,b,url){this.url=url}}}});vm.runInContext(h.match(/function consumePushArrival\(\)\{[^\n]+/)[0],c);assert.equal(c.consumePushArrival(),nid);assert(!c.window.history.url.includes('push='));c.window.location.href='https://example.test/app/?push=invalid';assert.equal(c.consumePushArrival(),'');
+ assert(h.includes('if(pushArrival)await navigateNotification(pushArrival)'));assert(h.includes('pendingNotificationId&&!restoringInitialSession'));
+ console.log('PASS push UUID routing, login continuation, exact desk notice/resource/charge, expanded focus, deleted/inaccessible error, safe query cleanup');
+})().catch(e=>{console.error(e);process.exit(1)});
