@@ -100,7 +100,7 @@ main{margin-top:18px}.home-today{padding:16px 18px;margin:0 0 22px;border:1px so
 <div id="tuitionManager" hidden>
 <details class="notice-form"><summary>학생 등록 정보와 납부 안내 관리</summary>
 <label for="tuitionStudent">재원생 선택</label><select id="tuitionStudent"></select>
-<form id="tuitionSettingsForm"><label for="tuitionKind">학원비 유형</label><select id="tuitionKind"><option value="repeat">재수생 · 기본 450,000원 / 일 15,000원</option><option value="school">재학생 · 기본 200,000원 / 일 6,667원</option><option value="winter">윈터스쿨 · 기본 610,000원 / 일 20,000원</option><option value="summer">썸머스쿨 · 기본 610,000원 / 일 20,000원</option><option value="civil">공시생 · 기본 350,000원 / 일 11,667원</option><option value="custom">별도 금액</option></select><label for="tuitionEnrollment">최초 등록일 (학원 이용 시작일)</label><input id="tuitionEnrollment" type="date" required>
+<form id="tuitionSettingsForm"><label for="tuitionKind">학원비 유형</label><select id="tuitionKind"><option value="repeat">재수생 · 450,000원</option><option value="school">재학생 · 200,000원</option><option value="winter">윈터스쿨 · 610,000원</option><option value="summer">썸머스쿨 · 610,000원</option><option value="civil">공시생 · 350,000원</option><option value="custom">별도 금액</option></select><label for="tuitionEnrollment">최초 등록일 (학원 이용 시작일)</label><input id="tuitionEnrollment" type="date" required>
 <label for="tuitionFee">월 기본 원비 (원)</label><input id="tuitionFee" type="number" min="0" max="10000000" step="1" required><p class="muted">재수생·재학생·공시생은 월 원비 ÷ 30일로 일할 계산합니다. 윈터·썸머스쿨은 기본 원비 610,000원을 유지하며 일별 계산에는 하루 20,000원을 적용합니다.</p>
 <button id="saveTuitionSettings" class="submit secondary" type="submit">등록 정보 저장</button></form>
 <p id="tuitionPreview" class="muted"></p>
