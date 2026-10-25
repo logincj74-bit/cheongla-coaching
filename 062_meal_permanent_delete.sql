@@ -1,4 +1,4 @@
--- PREPARED ONLY: server migration is NOT applied yet.
+-- Applied through Supabase SQL Editor; verified with rollback tests.
 create or replace function public.cheongla_purge_meal_submission(target_trash uuid,expected_deleted_at timestamptz)
 returns void language plpgsql security definer set search_path='' as $$
 declare t cheongla_private.meal_submission_trash%rowtype;b uuid;
