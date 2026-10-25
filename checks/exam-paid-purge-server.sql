@@ -1,0 +1,25 @@
+begin;
+update cheongla_private.push_settings set enabled=false;
+do $$declare ad uuid;st uuid;pa uuid;e uuid;f uuid;v timestamptz;d timestamptz;r uuid;j jsonb;
+begin
+select id into ad from public.cheongla_profiles where role='english_director'and approval_status='approved'and membership_state='active'limit 1;
+select id into st from public.cheongla_profiles where role='student'and approval_status='approved'and membership_state='active'limit 1;
+select id into pa from public.cheongla_profiles where role='parent'and approval_status='approved'and membership_state='active'limit 1;
+perform set_config('request.jwt.claim.sub',ad::text,true);
+insert into public.cheongla_parent_students(parent_id,student_id,created_by)values(pa,st,ad)on conflict do nothing;
+insert into public.cheongla_exams(title,exam_on,deadline,status)values('삭제 검증 자동 롤백','2095-11-10','2095-11-09','draft')returning id into e;
+insert into public.cheongla_exam_applications(exam_id,student_id,student_name,status)values(e,st,'검증','registered');
+insert into public.cheongla_exam_fee_notices(exam_id,student_id,student_name,exam_title,exam_on,amount,due_on,status)values(e,st,'검증','검증','2095-11-10',1000,'2095-11-09','published')returning id,updated_at into f,v;
+insert into cheongla_private.fee_deposit_reports(fee_kind,notice_id,reported_by,depositor_name,deposit_on,amount,note,notice_updated_at)values('exam',f,pa,'검증',current_date,1000,'',v)returning id into r;
+update public.cheongla_exams set deleted_at=clock_timestamp(),updated_at=clock_timestamp()where id=e returning updated_at,deleted_at into v,d;
+begin perform public.cheongla_purge_deleted_exam(e,v,d);raise exception 'FAIL pending';exception when raise_exception then if sqlerrm not like '입금 확인 대기%'then raise;end if;end;
+update cheongla_private.fee_deposit_reports set state='closed'where id=r;
+insert into cheongla_private.fee_payments(notice_kind,notice_id,paid_at,paid_amount)values('exam',f,clock_timestamp(),1000);
+perform public.cheongla_purge_deleted_exam(e,v,d);
+if exists(select 1 from public.cheongla_exams where id=e)or not exists(select 1 from cheongla_private.fee_payments where notice_id=f)then raise exception 'FAIL purge or payment';end if;
+perform set_config('request.jwt.claim.sub',pa::text,true);
+j:=public.cheongla_billing_list('2095-11-01');
+if not exists(select 1 from jsonb_array_elements(j->'items')x where x->>'id'=f::text and (x->>'exam_archived')::boolean and x->'_payment'->>'paid_at'is not null)then raise exception 'FAIL retained receipt flag';end if;
+end;$$;
+rollback;
+select 'PASS: pending-deposit guard, actual paid exam purge, retained payment and parent read-only receipt. All rolled back; no messages sent.' as result;

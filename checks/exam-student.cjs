@@ -19,6 +19,6 @@ const text=n=>[n.textContent||'',...n.children.map(text)].join(' '),buttons=()=>
   await buttons()[0].handlers.click();assert.equal(buttons()[0].textContent,'다시 신청');await buttons()[0].handlers.click();assert(text($('examList')).includes('신청완료'));
  }
  vm.runInContext('examRows=[];',c);$('examApplicationKind').value='all';c.renderExamCards([]);for(const label of ['대성 더 프리미엄','시대인재 서프','한국교육과정평가원 6월','한국교육과정평가원 9월'])assert(text($('examList')).includes(label));assert.equal(buttons().length,0);assert(text($('examList')).includes('게시된 시험이 없습니다'));
- c.currentProfile={...actor,role:'parent'};c.getClient=async()=>({rpc:async n=>{assert.equal(n,'cheongla_application_students');return{data:[{id:'linked',full_name:'연결학생'}]}}});await c.loadApplicationStudents();assert.equal(c.applicationStudents[0].id,'linked');
- console.log('PASS student self applicant without child-link RPC; 4 visible categories, confirmed register/cancel/re-register, status readback rendering, no fake application for unpublished exams, parent link lookup retained');
+ c.currentProfile={...actor,role:'parent'};c.getClient=async()=>({rpc:async n=>{assert.equal(n,'cheongla_application_students');return{data:[{id:'linked',full_name:'연결학생'}]}}});await c.loadApplicationStudents();assert.equal(c.applicationStudents.length,0);assert(!c.canUseExams());
+ console.log('PASS student self applicant without child-link RPC; 4 visible categories, confirmed register/cancel/re-register, status readback rendering, no fake application for unpublished exams, parent application access denied');
 })().catch(e=>{console.error(e);process.exit(1)});
