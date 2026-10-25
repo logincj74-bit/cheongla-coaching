@@ -1,0 +1,20 @@
+begin;
+update cheongla_private.push_settings set enabled=false;
+do $$declare st uuid;pa uuid;mg uuid;v timestamptz;n integer;
+begin
+ select id into st from public.cheongla_profiles where role='student'and approval_status='approved'and membership_state='active'limit 1;
+ select id into pa from public.cheongla_profiles where role='parent'and approval_status='approved'and membership_state='active'limit 1;
+ select id into mg from public.cheongla_profiles where role='manager'and approval_status='approved'and membership_state='active'limit 1;
+ insert into public.cheongla_parent_students(parent_id,student_id,created_by)values(pa,st,mg)on conflict do nothing;
+ insert into public.cheongla_meal_forms(month,deadline,unit_price)values('2094-11-01','2094-10-28',7500);
+ insert into public.cheongla_meal_submissions(month,student_id,student_name,lunch,dinner)values('2094-11-01',st,'문자 검증',array['2094-11-05'::date],array[]::date[])returning updated_at into v;
+ perform set_config('request.jwt.claim.sub',st::text,true);
+ begin perform public.cheongla_meal_submission_message_recipients('2094-11-01',st,v);raise exception 'FAIL student recipients';exception when insufficient_privilege then null;end;
+ perform set_config('request.jwt.claim.sub',pa::text,true);
+ begin perform public.cheongla_meal_submission_message_recipients('2094-11-01',st,v);raise exception 'FAIL parent recipients';exception when insufficient_privilege then null;end;
+ perform set_config('request.jwt.claim.sub',mg::text,true);
+ select count(*)into n from public.cheongla_meal_submission_message_recipients('2094-11-01',st,v)where parent_id=pa;
+ if n<>1 then raise exception 'FAIL linked recipient';end if;
+ begin perform public.cheongla_meal_submission_message_recipients('2094-11-01',st,v-interval '1 day');raise exception 'FAIL stale accepted';exception when raise_exception then if sqlerrm like 'FAIL%'then raise;end if;end;
+end;$$;
+rollback;select 'PASS staff-only linked parent meal acknowledgement recipients and stale submission protection; rolled back, no SMS/push sent.'as result;
