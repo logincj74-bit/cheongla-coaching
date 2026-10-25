@@ -55,3 +55,10 @@ html{scrollbar-gutter:stable}html:has(#weatherForecastDialog[open]),body:has(#we
 main:has(#homePanel[hidden]) #homeAccountEntry{display:none}
 #authPanel{scroll-margin-top:16px}
 @media(max-width:500px){.home-account-entry{gap:10px;padding:10px;margin-bottom:22px}.home-account-entry .login-entry{font-size:14px;padding:12px 14px}.home-account-entry #homeAccountStatus{font-size:11px}}
+
+/* Member payments show actionable bills rather than the staff ledger. */
+.member-billing .billing-filters{grid-template-columns:1fr}.member-billing .billing-help{padding:16px;margin:16px 0}.member-billing .billing-help p{font-size:13px;line-height:1.7;margin:8px 0 0}
+.member-payment-card{background:#fffdf8;border:1px solid #d5e3d8;border-radius:18px;padding:20px;margin:16px 0}.member-payment-card h3{font-size:19px;margin:0 0 6px}.member-payment-card>p{margin:8px 0}.member-payment-amount{display:block;font-size:28px;color:#183d47;margin-top:14px}.member-payment-card>.member-deposit-open,.member-payment-card>.member-deposit-sms{display:block;width:100%;text-align:center;min-height:48px;margin:12px 0 0;box-sizing:border-box}.member-bank-details{border-top:1px solid #dce6da;padding-top:14px;margin-top:18px}.member-bank-details>summary{cursor:pointer;font-weight:700}.member-payment-feedback{padding:12px;background:#e9f3eb;border-radius:10px;color:#24564d;font-weight:650}.member-payment-card .deposit-report-details>.contact-link,.member-payment-card .deposit-report-details>.contact-link+p{display:none}.member-payment-card .notice-form{padding:16px;margin:12px 0}.member-payment-card .notice-form h4{margin-top:0}.member-payment-card .notice-form>button[type=submit]{width:100%;margin-top:12px}
+@media(max-width:500px){.member-payment-card{padding:16px}.member-payment-card h3{font-size:18px}.member-payment-amount{font-size:26px}}
+
+#notificationList h4{white-space:pre-line;overflow-wrap:anywhere}

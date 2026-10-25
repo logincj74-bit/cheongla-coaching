@@ -31,6 +31,9 @@ for r in select fee_kind,id,amount,updated_at from cheongla_private.collection_n
  begin perform public.cheongla_report_fee_deposit(r.fee_kind,r.id,'검증용 학생',today+1,r.amount,'',nv);raise exception 'FAIL future date';exception when raise_exception then if SQLERRM like 'FAIL%' then raise;end if;end;
  begin perform public.cheongla_report_fee_deposit(r.fee_kind,r.id,'검증용 학생',today,r.amount-1,'',nv);raise exception 'FAIL wrong amount';exception when raise_exception then if SQLERRM like 'FAIL%' then raise;end if;end;
  rid:=public.cheongla_report_fee_deposit(r.fee_kind,r.id,'다른 입금자명',today,r.amount,'실제 이름 대조 검증',nv);
+ if not exists(select 1 from public.cheongla_notifications q where q.event_key='fee_report:'||rid::text and q.title like '%검증용 학생%' and q.title like '%입금자: 다른 입금자명%' and q.title like '%'||today::text||'%') then raise exception 'FAIL detailed deposit notification';end if;
+ if exists(select 1 from public.cheongla_profiles p where p.approval_status='approved' and p.membership_state='active' and (p.is_app_admin or p.role in ('owner','english_director','math_director','manager')) and not exists(select 1 from public.cheongla_notifications q where q.recipient_id=p.id and q.event_key='fee_report:'||rid::text)) then raise exception 'FAIL staff deposit notification missing';end if;
+
  select updated_at into rv from cheongla_private.fee_deposit_reports where id=rid;
  if exists(select 1 from cheongla_private.fee_payments where notice_kind=r.fee_kind and notice_id=r.id and paid_at is not null) then raise exception 'FAIL report auto paid';end if;
  begin perform public.cheongla_report_fee_deposit(r.fee_kind,r.id,'검증용 학생',today,r.amount,'중복',nv);raise exception 'FAIL duplicate report';exception when raise_exception then if SQLERRM like 'FAIL%' then raise;end if;end;
