@@ -19,3 +19,17 @@
 .season-admin-settings small{display:block;line-height:1.7;color:#5c7167}
 .season-admin-settings p{font-size:.9rem;line-height:1.6}
 @media(prefers-reduced-motion:reduce){.season-particle,.season-particle svg{animation:none!important}.season-particles{display:none!important}}
+.season-settings-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.season-settings-target{padding:10px 12px;border-radius:10px;background:#e8f1e7;font-weight:650}
+.season-admin-settings h2{margin-top:0}
+@media(max-width:420px){.season-settings-options{grid-template-columns:1fr;gap:0}}
+/* Soft shading and asymmetric flutter create depth without changing the home background. */
+[data-season="spring"] .season-particle{animation-name:season-petal-fall;filter:drop-shadow(0 1px 1px #ab6c7c25)}
+[data-season="spring"] .season-particle svg{animation:season-petal-turn var(--spin) ease-in-out infinite;transform-origin:50% 65%;height:calc(100% * var(--aspect))}
+[data-season="summer"] .season-particle svg{fill:none}
+[data-season="summer"] .season-particle{filter:drop-shadow(0 1px 1px #3f96b82b)}
+[data-season="winter"] .season-particle:nth-child(3n){filter:blur(.45px);opacity:calc(var(--opacity)*.75)}
+[data-season="winter"] .season-particle svg{stroke:none;fill:none}
+@keyframes season-petal-fall{0%{transform:translate3d(0,-30px,0) rotate(var(--tilt))}30%{transform:translate3d(var(--sway),calc(var(--fall-distance)*.3),0) rotate(calc(var(--tilt) + 38deg))}65%{transform:translate3d(calc(var(--sway)*-.25),calc(var(--fall-distance)*.65),0) rotate(calc(var(--tilt) - 24deg))}100%{transform:translate3d(calc(var(--sway)*.8),var(--fall-distance),0) rotate(calc(var(--tilt) + 85deg))}}
+@keyframes season-petal-turn{0%,100%{transform:perspective(180px) rotateY(-15deg) rotateX(10deg)}45%{transform:perspective(180px) rotateY(65deg) rotateX(-20deg)}75%{transform:perspective(180px) rotateY(-35deg) rotateX(15deg)}}
+@media(prefers-reduced-motion:reduce){.season-particle,.season-particle svg{animation:none!important}}
