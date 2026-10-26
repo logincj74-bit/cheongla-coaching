@@ -64,4 +64,4 @@ root.CheonglaLearning={mount,week,total,hours,range,subjects,marks};
 })(globalThis);
 
 /* Load the staff journal UI after the existing application shell is ready. */
-(function(root){function load(){if(!root.document?.createElement||root.CheonglaStaffJournal)return;const script=root.document.createElement('script');script.src='staff-journal.js?v=1.9.33.1';script.async=true;root.document.head.append(script);}if(root.document?.readyState==='loading')root.document.addEventListener('DOMContentLoaded',load,{once:true});else if(root.document?.head)load();})(globalThis);
+(function(root){function load(){if(!root.document?.createElement||root.CheonglaStaffJournal)return;const script=root.document.createElement('script');script.src='staff-journal.js?v=1.9.34';script.async=true;root.document.head.append(script);}if(root.document?.readyState==='loading')root.document.addEventListener('DOMContentLoaded',load,{once:true});else if(root.document?.head)load();})(globalThis);
