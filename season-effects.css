@@ -1,0 +1,21 @@
+/* Light seasonal overlays preserve the original home palette and never intercept input. */
+[data-season="spring"]{--particle-color:#f1a7be}
+[data-season="summer"]{--particle-color:#55b9e8}
+[data-season="winter"]{--particle-color:#eefaff}
+.home-season-effects[data-season="spring"] .season-particle{filter:drop-shadow(0 1px 1px #b9577c40)}
+.home-season-effects[data-season="summer"] .season-particle{filter:drop-shadow(0 0 3px #73d4ff80)}
+[data-season="summer"] .season-particle svg{fill:#55b9e8;animation:season-water-glint var(--spin) ease-in-out infinite;transform-origin:center}
+[data-season="summer"] .season-particle{animation-name:season-water-fall}
+.home-season-effects[data-season="winter"] .season-particle{filter:drop-shadow(0 0 1px #6e9bbd) drop-shadow(0 1px 1px #7292aa70)}
+[data-season="winter"] .season-particle svg{animation:none;fill:#f5fcff;stroke:#8bb7cd;stroke-width:.7}
+@keyframes season-water-fall{from{transform:translate3d(0,-20px,0)}50%{transform:translate3d(calc(var(--sway)*.35),calc(var(--fall-distance)/2),0)}to{transform:translate3d(calc(var(--sway)*-.2),var(--fall-distance),0)}}
+@keyframes season-water-glint{0%,100%{opacity:.65;filter:brightness(1)}45%{opacity:1;filter:brightness(1.45)}65%{opacity:.85;filter:brightness(1.12)}}
+.season-admin-settings{margin:0 0 16px;padding:12px 14px;border:1px solid #d6e1d9;border-radius:14px;background:#f4f8f3;color:#254f48}
+.season-admin-settings[hidden]{display:none}
+.season-admin-settings summary{cursor:pointer;font-weight:700;min-height:32px}
+.season-admin-settings label{display:block;margin-top:12px;font-weight:650}
+.season-admin-settings select{width:100%;min-height:48px;margin:8px 0}
+.season-admin-settings button{min-height:46px;margin:4px 0 12px}
+.season-admin-settings small{display:block;line-height:1.7;color:#5c7167}
+.season-admin-settings p{font-size:.9rem;line-height:1.6}
+@media(prefers-reduced-motion:reduce){.season-particle,.season-particle svg{animation:none!important}.season-particles{display:none!important}}
