@@ -63,5 +63,5 @@ function mount(api){const doc=api.document||document;let sequence=0,currentKind=
 root.CheonglaLearning={mount,week,total,hours,range,subjects,marks};
 })(globalThis);
 
-/* Load the staff journal UI after the existing application shell is ready. */
-(function(root){function load(){if(!root.document?.createElement||root.CheonglaStaffJournal)return;const script=root.document.createElement('script');script.src='staff-journal.js?v=1.9.34';script.async=true;root.document.head.append(script);}if(root.document?.readyState==='loading')root.document.addEventListener('DOMContentLoaded',load,{once:true});else if(root.document?.head)load();})(globalThis);
+/* Load private operational UI and the public winter section after the existing shell. */
+(function(root){function load(){if(!root.document?.head)return;const scripts=['print-tools.js?v=1.9.35','staff-journal.js?v=1.9.35','winter-school.js?v=1.9.35'];function next(){const path=scripts.shift();if(!path)return;const script=root.document.createElement('script');script.src=path;script.async=true;script.onload=next;script.onerror=()=>{root.console?.error('청라 화면 모듈을 불러오지 못했습니다: '+path);next();};root.document.head.append(script);}next();}if(root.document?.readyState==='loading')root.document.addEventListener('DOMContentLoaded',load,{once:true});else load();})(globalThis);
