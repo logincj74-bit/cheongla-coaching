@@ -32,7 +32,7 @@ export function naturalParticle(index,season,prefix='fx'){
  const leaf=autumnParticle(index);return '<defs><linearGradient id="'+id+'" x2=".9" y2="1"><stop stop-color="'+leaf.color+'"/><stop offset="1" stop-color="'+(leaf.kind==='ginkgo'?'#bc8b08':'#78371e')+'"/></linearGradient></defs>'+leaf.svg.replace('<path ','<path fill="url(#'+id+')" ');
 }
 export function particleSettings(index,season,options={}){
- const snow=season==='winter';return {x:((index*47+13)%101)+'%',size:(snow?5+index%7:season==='spring'?14+(index*7)%12:10+(index*7)%12)+'px',opacity:String(snow ? .4+(index%4)*.12 : season==='autumn' ? .78+(index%4)*.06 : .55+(index%4)*.1),duration:((14+(index*3)%13)*({slow:1.5,normal:1,fast:.7}[options.speed]||1))+'s',delay:-(index*1.7%25)+'s',spin:(4+index%6)+'s',sway:(index%2?1:-1)*(24+index*7%65)+'px',tilt:((index*53)%180-90)+'deg',aspect:String(season==='spring'?.65+(index%4)*.1:1)};
+ const snow=season==='winter';return {x:((index*47+13)%101)+'%',size:(snow?7+(index%7)*1.2:season==='spring'?14+(index*7)%12:10+(index*7)%12)+'px',opacity:String(snow ? .4+(index%4)*.12 : season==='autumn' ? .78+(index%4)*.06 : .55+(index%4)*.1),duration:((14+(index*3)%13)*({slow:1.5,normal:1,fast:.7}[options.speed]||1))+'s',delay:-(index*1.7%25)+'s',spin:(4+index%6)+'s',sway:(index%2?1:-1)*(24+index*7%65)+'px',tilt:((index*53)%180-90)+'deg',aspect:String(season==='spring'?.65+(index%4)*.1:1)};
 }
 export function particleCount(options={},welcome=false){return Math.round((welcome?22:20)*({light:.55,normal:1,rich:1.6}[options.amount]||1));}
 export function mountSeasonalUI(doc,win){
