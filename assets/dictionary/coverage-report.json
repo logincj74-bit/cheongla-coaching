@@ -1,0 +1,31 @@
+{
+  "checked_on": "2026-10-27",
+  "baseline_headwords": 32714,
+  "target_headwords": 200000,
+  "target_complete": false,
+  "note": "단어군 대표형과 문서에 명시된 형태의 검색 성공 여부 점검. 수능 전체 출제 어휘를 보장하지 않음.",
+  "lists": {
+    "moe2022": {
+      "label": "2022 개정 영어과 교육과정 기본 어휘",
+      "source": "https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&boardSeq=93458&lev=0&searchType=null&statusYN=W",
+      "representatives": 3000,
+      "checked": 3282,
+      "found": 3282,
+      "missing": []
+    },
+    "ngsl12": {
+      "label": "NGSL 1.2",
+      "source": "https://www.newgeneralservicelist.com/new-general-service-list",
+      "checked": 2809,
+      "found": 2809,
+      "missing": []
+    },
+    "nawl12": {
+      "label": "NAWL 1.2",
+      "source": "https://www.newgeneralservicelist.com/new-academic-word-list",
+      "checked": 957,
+      "found": 957,
+      "missing": []
+    }
+  }
+}

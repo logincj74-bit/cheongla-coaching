@@ -1,0 +1,11 @@
+.dictionary-admin{border:1px solid #d6e2d8;border-radius:16px;background:#fffdf8;padding:16px;margin:20px 0}
+.dictionary-admin[hidden]{display:none}
+.dictionary-admin summary{font-weight:750;cursor:pointer;color:#24554a}
+.dictionary-admin p{font-size:13px;line-height:1.8;color:#586e63}
+.dictionary-admin label{display:block;font-weight:650;flex:1}
+.dictionary-admin input,.dictionary-admin select,.dictionary-admin textarea{box-sizing:border-box;width:100%;font:inherit;min-height:44px;margin:6px 0;padding:10px;border:1px solid #cddacf;border-radius:10px;background:#fff}
+.dictionary-admin-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:14px 0}
+.dictionary-admin button{min-height:44px}
+.dictionary-admin-sense{display:grid;grid-template-columns:120px 1fr auto;gap:8px;align-items:start;margin:10px 0}
+.dictionary-admin textarea{line-height:1.6;resize:vertical}
+@media(max-width:600px){.dictionary-admin-sense{grid-template-columns:1fr auto}.dictionary-admin-sense textarea{grid-column:1/-1;grid-row:2}.dictionary-admin-actions>label{flex-basis:100%}.dictionary-admin{padding:12px}}

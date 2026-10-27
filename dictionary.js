@@ -14,21 +14,22 @@
   for(const suffix of ['ed','ing'])if(word.endsWith(suffix)&&word.length>suffix.length+2){const stem=word.slice(0,-suffix.length);candidates.push(stem,stem+'e');if(/([b-df-hj-np-tv-z])\1$/.test(stem))candidates.push(stem.slice(0,-1));}
   return [...new Set(candidates)].filter(valid);
  }
- function createLookup(fetcher){
+ function createLookup(fetcher,options={}){
   const cache=new Map();
   function get(path){
    if(!cache.has(path))cache.set(path,(async()=>{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);try{const r=await fetcher('assets/dictionary/'+path,{signal:controller.signal,credentials:'omit'});if(!r.ok)throw Error('사전 자료를 불러오지 못했습니다. 잠시 후 다시 찾아 주세요.');return await r.json();}finally{clearTimeout(timer);}})().catch(e=>{cache.delete(path);throw e;}));
    return cache.get(path);
   }
   async function bundle(word){
-   const results=await Promise.allSettled([get(bucket(word)+'.json?v=en-ko-v1.2.0-cheongla-2'),get('supplement/'+word[0]+'.json?v=20261027-1'),get('editorial-senses.json?v=20261024-1')]);
-   if(results[0].status==='rejected'&&results[1].status==='rejected')throw results[0].reason;
+   const results=await Promise.allSettled([get(bucket(word)+'.json?v=en-ko-v1.2.0-cheongla-2'),get('supplement/'+word[0]+'.json?v=20261027-1'),get('editorial-senses.json?v=20261024-1'),get('coverage-core.json?v=20261027-coverage-1')]);
+   if(results[0].status==='rejected'&&results[1].status==='rejected'&&results[3].status==='rejected')throw results[0].reason;
    const data=i=>results[i].status==='fulfilled'?results[i].value:{entries:{},aliases:{}};
-   return {base:data(0),supp:data(1),extra:data(2),incomplete:results.some(x=>x.status==='rejected')};
+   return {base:data(0),supp:data(1),extra:data(2),core:data(3),incomplete:results.some(x=>x.status==='rejected')};
   }
   const has=(data,word)=>Object.hasOwn(data?.entries||{},word);
-  const owns=(b,word)=>has(b.base,word)||has(b.supp,word)||has(b.extra,word);
+  const owns=(b,word)=>has(b.base,word)||has(b.supp,word)||has(b.extra,word)||has(b.core,word);
   function itemsFor(b,word){
+   if(has(b.core,word))return b.core.entries[word].map(x=>({...x,editorial:true}));
    const base=has(b.base,word)?b.base.entries[word]:[],supp=has(b.supp,word)?b.supp.entries[word]:[];
    if(has(b.extra,word))return [{w:base[0]?.w||word,p:base[0]?.p||supp[0]?.p||'',s:b.extra.entries[word],editorial:true}];
    if(supp.some(x=>x.reviewed))return supp.map(x=>({...x,p:base[0]?.p||x.p,editorial:true}));
@@ -45,18 +46,31 @@
     results.push({word:ref,display:items[0].w,pronunciation:pronunciations.join(' · '),editorial:items.some(x=>x.editorial===true),senses});
    }
    if(!results.length&&incomplete)throw Error('일부 사전 자료를 불러오지 못했습니다. 연결 상태를 확인하고 다시 찾아 주세요.');
-   const keys=[...new Set([...Object.keys(b.base.entries),...Object.keys(b.supp.entries),...Object.keys(b.extra.entries)])];
+   const keys=[...new Set([...Object.keys(b.base.entries),...Object.keys(b.supp.entries),...Object.keys(b.extra.entries),...Object.keys(b.core.entries)])];
    return {query:word,results,incomplete,suggestions:results.length?[]:keys.filter(x=>x.startsWith(word.slice(0,Math.min(3,word.length)))).sort().slice(0,5)};
   }
-  return lookup;
+  const baseLookup=lookup;
+  async function withCustom(value){
+   const word=normalize(value);if(!valid(word))return baseLookup(value);
+   let base,error;try{base=await baseLookup(word);}catch(e){error=e;base={query:word,results:[],suggestions:[],incomplete:true};}
+   let rows=[];try{if(options.custom)rows=await options.custom([...new Set([word,...base.results.map(x=>x.word),...inflectionCandidates(word)])]);}catch(e){if(error)throw error;if(!base.results.length)throw Error('원장 등록 사전을 확인하지 못했습니다. 연결 상태를 확인하고 다시 찾아 주세요.');base.incomplete=true;}
+   const convert=row=>({word:row.word,display:row.word,pronunciation:row.pronunciation||'',custom:true,senses:row.senses.map(s=>({pos:posLabels[s.pos]||s.pos,meaning:s.meaning}))});
+   const exact=rows.find(x=>x.word===word);
+   if(exact)return {...base,results:[convert(exact)],suggestions:[]};
+   const mapped=base.results.map(entry=>{const row=rows.find(x=>x.word===entry.word);return row?convert(row):entry;});
+   if(!mapped.length)for(const ref of inflectionCandidates(word)){const row=rows.find(x=>x.word===ref);if(row)mapped.push(convert(row));if(mapped.length===4)break;}
+   if(error&&!mapped.length)throw error;
+   return {...base,results:mapped,suggestions:mapped.length?[]:base.suggestions};
+  }
+  withCustom.base=baseLookup;return withCustom;
  }
  function mount(adapter){
-  const doc=adapter.document||document,$=id=>doc.getElementById(id),lookup=createLookup(adapter.fetch||fetch);
+  const doc=adapter.document||document,$=id=>doc.getElementById(id),lookup=createLookup(adapter.fetch||fetch,{custom:adapter.client?async words=>{const c=await adapter.client(),r=await c.from('cheongla_dictionary_overrides').select('word,pronunciation,senses,updated_at').in('word',words);if(r.error)throw r.error;return r.data||[];}:null});
   let searchRequest=0,current=[];
   $('personalWordbook')?.remove();
   for(const item of doc.querySelectorAll('[data-public-page="dictionary"]'))item.textContent='영단어 찾기';
   if($('dictionaryHeading'))$('dictionaryHeading').textContent='영단어 찾기';
-  if($('dictionaryHelp'))$('dictionaryHelp').textContent='32,464개 표제어 · 한국어 뜻과 제공된 품사·발음기호를 확인합니다. 복수형·과거형·진행형도 기본형을 찾아봅니다. 실제 뜻의 수는 단어마다 다릅니다.';
+  if($('dictionaryHelp'))$('dictionaryHelp').textContent='32,714개 기본 표제어 · 한국어 뜻과 제공된 품사·발음기호를 확인합니다. 복수형·과거형·진행형도 기본형을 찾아봅니다. 원장님이 추가한 단어도 함께 검색합니다. 뜻의 수는 단어마다 다릅니다.';
   const credit=doc.querySelector('#homeDictionary .dictionary-credit');if(credit){const note=doc.createElement('span');note.textContent=' 한국어 위키낱말사전·Kaikki 자료와 청라 검토 핵심 어휘 154개를 추가했습니다.';credit.prepend(note);}
   const description=doc.querySelector('#homeDictionary .dictionary-description');if(description)description.textContent='궁금한 영어 단어의 뜻·품사·발음기호를 찾아보세요.';
   function node(tag,text,cls){const n=doc.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
@@ -66,7 +80,7 @@
    if(!current.length){$('dictionaryStatus').textContent='아직 수록되지 않은 단어입니다. 철자나 기본형을 확인해 주세요.';
     if(result.suggestions.length){const box=node('div','비슷한 시작의 단어: ','dictionary-actions');for(const word of result.suggestions){const b=node('button',word,'secondary');b.type='button';b.addEventListener('click',()=>{$('dictionaryWord').value=word;void search();});box.append(b);}list.append(box);}return;}
    $('dictionaryStatus').textContent=(result.query===current[0].word?'뜻을 찾았습니다.':'「'+result.query+'」의 기본형 뜻입니다.')+(result.incomplete?' 일부 보강 자료는 연결 후 다시 확인해 주세요.':'');
-   for(const entry of current){const card=node('article',undefined,'dictionary-card');card.append(node('h3',entry.display));card.append(node('p','뜻 '+entry.senses.length+'개'+(entry.editorial?' · 청라 학습용 대표 뜻':''),'dictionary-source-note'));if(entry.pronunciation)card.append(node('p',entry.pronunciation,'dictionary-pronunciation'));
+   for(const entry of current){const card=node('article',undefined,'dictionary-card');card.append(node('h3',entry.display));card.append(node('p','뜻 '+entry.senses.length+'개'+(entry.custom?' · 원장 등록·수정 뜻':entry.editorial?' · 청라 학습용 대표 뜻':''),'dictionary-source-note'));if(entry.pronunciation)card.append(node('p',entry.pronunciation,'dictionary-pronunciation'));
     const senses=node('ol',undefined,'dictionary-senses');for(const sense of entry.senses){const li=node('li');if(sense.pos)li.append(node('span',sense.pos,'dictionary-pos'));li.append(node('span',sense.meaning));senses.append(li);}card.append(senses);
     list.append(card);}
 
@@ -79,7 +93,8 @@
    catch(e){if(request===searchRequest)$('dictionaryStatus').textContent=errorText(e);}
    finally{if(request===searchRequest)$('dictionarySearchButton').disabled=false;}
   }
-  function accountChanged(){}
+  let admin;function accountChanged(){searchRequest++;$('dictionarySearchButton').disabled=false;admin?.configure();}
+  if(adapter.client&&adapter.profile)void import('./dictionary-admin.js?v=20261027-1').then(m=>{admin=m.mountDictionaryAdmin(adapter,{baseLookup:lookup.base,normalize,valid,onSaved:word=>{$('dictionaryWord').value=word;void search();}});admin.configure();}).catch(()=>{});
   $('dictionaryForm').addEventListener('submit',e=>{e.preventDefault();void search();});
   $('dictionaryClear').addEventListener('click',()=>{searchRequest++;$('dictionaryResultsWrap').hidden=true;$('dictionaryResults').replaceChildren();$('dictionaryStatus').textContent='';$('dictionarySearchButton').disabled=false;current=[];});
   return {accountChanged,search};
