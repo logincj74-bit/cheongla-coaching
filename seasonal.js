@@ -1,3 +1,4 @@
+import {koreanLunarDate} from './lunar-date.js';
 export const SEASONS = Object.freeze({
  autumn:{label:'CHEONGLA · AUTUMN',headline:'차곡차곡 쌓은 하루,\n단단해지는 나의 내일.',description:'깊어지는 가을,\n청라에서 나의 공부를 이어갑니다.',effect:'낙엽'},
  winter:{label:'CHEONGLA · WINTER',headline:'따뜻한 공간에서,\n단단해지는 나의 겨울.',description:'추운 겨울,\n공부의 온기를 만나는 곳.',effect:'눈'},
@@ -30,12 +31,12 @@ export function welcomeCard(now=new Date(),audience='guest',overrides=globalThis
 
 function dailyWelcome(doc,dialog,start){
  if(!doc.head)return ()=>{};
- const link=doc.createElement('link');link.rel='stylesheet';link.href='daily-welcome.css?v=1.9.45';doc.head.append(link);
+ const link=doc.createElement('link');link.rel='stylesheet';link.href='daily-welcome.css?v=1.9.46';doc.head.append(link);
  const el=(tag,cls,text)=>{const n=doc.createElement(tag);n.className=cls;if(text)n.textContent=text;return n;};
  const card=el('article','daily-welcome-card'),brand=el('div','daily-welcome-brand','독학재수학원 청라'),image=el('img','daily-welcome-image'),copy=el('div','daily-welcome-copy'),date=el('p','daily-welcome-date'),title=el('h2','daily-welcome-title'),body=el('p','daily-welcome-message'),signature=el('p','daily-welcome-signature','청라가 당신의 오늘을 응원합니다.');
  title.id='seasonWelcomeTitle';body.id='seasonWelcomeDescription';image.decoding='async';image.fetchPriority='high';image.width=1200;image.height=800;image.addEventListener('error',()=>{image.hidden=true;});
  start.textContent='오늘도 시작하기';start.className='daily-welcome-start';start.type='button';copy.append(date,title,body,start,signature);card.append(brand,image,copy);dialog.replaceChildren(card);dialog.classList?.add('daily-welcome');
- let current='';return ()=>{let p;try{p=typeof currentProfile!=='undefined'?currentProfile:null;}catch{}const audience=welcomeAudience(p),c=welcomeCard(new Date(),audience),key=c.day+'|'+audience+'|'+JSON.stringify(globalThis.CheonglaWelcomeCopy?.[c.index]||{});if(key===current)return;current=key;date.textContent=c.day.replaceAll('-','. ')+' · 오늘의 응원';title.textContent=c.title;body.textContent=c.body;image.hidden=false;image.src=c.image;image.alt=c.alt;};
+ let current='';return ()=>{let p;try{p=typeof currentProfile!=='undefined'?currentProfile:null;}catch{}const audience=welcomeAudience(p),c=welcomeCard(new Date(),audience),key=c.day+'|'+audience+'|'+JSON.stringify(globalThis.CheonglaWelcomeCopy?.[c.index]||{});if(key===current)return;current=key;date.textContent=c.day.replaceAll('-','. ')+' · 오늘의 응원';const lunar=koreanLunarDate();if(lunar){const line=el('span','daily-welcome-lunar',lunar);date.append(line);}title.textContent=c.title;body.textContent=c.body;image.hidden=false;image.src=c.image;image.alt=c.alt;};
 }
 
 const shapes={
@@ -65,7 +66,8 @@ export function particleSettings(index,season,options={}){
 }
 export function particleCount(options={},welcome=false){return Math.round((welcome?22:20)*({light:.55,normal:1,rich:1.6}[options.amount]||1));}
 export function mountSeasonalUI(doc,win){
- const dialog=doc.getElementById('seasonWelcome'),open=doc.getElementById('seasonWelcomeOpen'),start=doc.getElementById('seasonWelcomeStart');
+ const dialog=doc.getElementById('seasonWelcome'),start=doc.getElementById('seasonWelcomeStart');
+ let open=doc.getElementById('seasonWelcomeOpen');
  if(!dialog||!start||dialog.dataset.ready)return;
  dialog.dataset.ready='true';
  const drawWelcome=dailyWelcome(doc,dialog,start);const surfaces=[...doc.querySelectorAll('[data-season-surface]')],buttons=[...doc.querySelectorAll('[data-season-motion]')].filter(b=>!dialog.contains?.(b));
@@ -105,7 +107,8 @@ export function mountSeasonalUI(doc,win){
   try{dialog.showModal();doc.body.classList.add('season-welcome-open');pause();}catch{doc.body.classList.remove('season-welcome-open');}
  };
  const finished=()=>{const day=shownDay||welcomeDay();write('localStorage',seenKey(day),'seen');write('sessionStorage',seenKey(day),'seen');win.CheonglaWelcomeSeenDay=day;doc.body.classList.remove('season-welcome-open');pause();lastTrigger?.focus({preventScroll:true});};
- open?.addEventListener('click',()=>show(open));
+ if(!open){const home=doc.getElementById('homePanel');if(home){open=doc.createElement('button');open.id='seasonWelcomeOpen';open.type='button';open.className='daily-welcome-reopen secondary';home.prepend(open);}}
+ if(open){open.textContent='오늘의 응원 다시 보기';open.hidden=false;open.setAttribute('aria-haspopup','dialog');open.setAttribute('aria-controls','seasonWelcome');open.addEventListener('click',()=>show(open));}
  start.addEventListener('click',()=>dialog.close());
  dialog.addEventListener('close',finished);
  for(const button of buttons)button.addEventListener('click',()=>{if(reduced.matches)return;off=!off;write('localStorage','cheongla-season-motion',off?'off':'on');particles();});
@@ -155,3 +158,4 @@ export function mountWelcomeEditor(doc,win){
  if(typeof configureStaffWorkspace==='function'){const before=configureStaffWorkspace;win.configureStaffWorkspace=function(...args){const r=before.apply(this,args);configure();void load();return r;};}
  configure();void load();win.setInterval(()=>void load(),30000);doc.addEventListener('visibilitychange',()=>{configure();if(!doc.hidden)void load();});win.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 }
+

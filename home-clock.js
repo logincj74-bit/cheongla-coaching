@@ -1,3 +1,4 @@
+import {koreanLunarDate} from './lunar-date.js';
 const dateFormat = new Intl.DateTimeFormat('ko-KR', {
   timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short',
 });
@@ -13,7 +14,7 @@ export function koreaClockState(now = new Date()) {
   const days = Math.round((examDay - today) / 86400000);
   return {
     hours: String(Number(parts.hour)%12||12).padStart(2,'0'), period:Number(parts.hour)<12?'오전':'오후', minutes: parts.minute, seconds: parts.second,
-    date: dateFormat.format(now),localDate:`${parts.year}-${parts.month}-${parts.day}`, iso: now.toISOString(), days,
+    date: dateFormat.format(now),lunar: koreanLunarDate(now),localDate:`${parts.year}-${parts.month}-${parts.day}`, iso: now.toISOString(), days,
     countdown: days === 0 ? 'D-DAY' : days > 0 ? `D-${days}` : `D+${Math.abs(days)}`,
     cheer: days === 0 ? '차분하게, 자신 있게. 청라가 응원합니다.' : days < 0
       ? '수고했어요. 여러분의 새로운 시작을 응원합니다.' : '오늘의 한 걸음, 더 나은 내일로.',
@@ -61,8 +62,12 @@ if (typeof document !== 'undefined') {
   if (clock && !clock.dataset.ready) {
     clock.dataset.ready = 'true';
     mountWeatherCollapse(clock);
+    const solarDate=clock.querySelector('[data-clock-date]');
+    let lunarDate=clock.querySelector('[data-clock-lunar]');
+    if(solarDate&&!lunarDate){lunarDate=document.createElement('small');lunarDate.dataset.clockLunar='';lunarDate.style.cssText='display:block;font-size:11px;color:#657a6d;line-height:1.6';solarDate.after(lunarDate);}
     const update = () => {
       const state = koreaClockState();
+      if(lunarDate){lunarDate.textContent=state.lunar;lunarDate.hidden=!state.lunar;}
       for (const key of ['period', 'hours', 'minutes', 'seconds', 'date', 'cheer']) {
         const element = clock.querySelector(`[data-clock-${key}]`);
         if (element.textContent !== state[key]) element.textContent = state[key];
@@ -121,3 +126,4 @@ if (typeof document !== 'undefined') {
     window.addEventListener('pageshow', start);
   }
 }
+

@@ -24,3 +24,7 @@
 .welcome-copy-preview h3{color:#234f44;padding:0 18px}
 .welcome-copy-preview p{white-space:pre-line;line-height:1.9;padding:0 22px 20px;color:#50655c;word-break:keep-all}
 .welcome-copy-editor label[hidden]{display:none}
+
+
+.daily-welcome-lunar{display:block;margin-top:4px;font-size:11px;letter-spacing:0;color:#738477}
+#homePanel>.daily-welcome-reopen{grid-column:1/-1;justify-self:end;min-height:44px;padding:10px 14px;margin:8px 16px;font-size:13px;color:#31594b}
