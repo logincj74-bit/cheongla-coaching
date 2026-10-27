@@ -14,3 +14,13 @@
 .daily-welcome-signature{font-size:11px;color:#849183;line-height:1.6;margin:14px 0 0}
 @media(max-height:650px){.daily-welcome-image{max-height:25svh}.daily-welcome-copy{padding:16px 20px}.daily-welcome-message{font-size:14px;margin-bottom:14px}.daily-welcome-brand{padding:10px}.daily-welcome .daily-welcome-title{font-size:23px}}
 @media(prefers-reduced-motion:reduce){.daily-welcome *{animation:none!important;transition:none!important}}
+.welcome-copy-editor label{display:block;font-weight:650;margin:14px 0 6px}
+.welcome-copy-editor input,.welcome-copy-editor textarea,.welcome-copy-editor select{display:block;width:100%;box-sizing:border-box;min-height:46px;margin-top:7px;font:inherit}
+.welcome-copy-editor textarea{line-height:1.8;resize:vertical;padding:12px}
+.welcome-copy-actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}
+.welcome-copy-actions button{min-height:48px;flex:1;min-width:160px}
+.welcome-copy-preview{border:1px solid #d4dfd3;border-radius:18px;overflow:hidden;background:#fffdf8;text-align:center;margin-top:12px}
+.welcome-copy-preview img{display:block;width:100%;max-height:280px;object-fit:cover;aspect-ratio:3/2}
+.welcome-copy-preview h3{color:#234f44;padding:0 18px}
+.welcome-copy-preview p{white-space:pre-line;line-height:1.9;padding:0 22px 20px;color:#50655c;word-break:keep-all}
+.welcome-copy-editor label[hidden]{display:none}

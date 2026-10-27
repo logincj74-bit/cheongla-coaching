@@ -25,15 +25,17 @@ export const WELCOME_CARDS=[
  ['river','작은 흐름이 모이면','맑은 물이 흐르는 숲속 개울','짧은 집중도 모이면 큰 힘이 됩니다.\n지금 이 시간에 마음을 모아봐요.','작은 습관이 이어지도록\n꾸준히 응원하는 마음을 전해주세요.','각자의 자리에서 이어가는 수고가 모여\n청라의 하루를 움직입니다.'],
  ['sky','내일을 향한 오늘','푸른 하늘과 부드러운 구름','오늘의 나에게 성실했던 시간은 남습니다.\n나의 내일을 위해 다시 시작해요.','아이의 내일을 함께 바라보며\n오늘의 노력을 따뜻하게 안아주세요.','학생의 더 나은 내일을 위해\n오늘도 함께해주셔서 감사합니다.']
 ];
-export function welcomeCard(now=new Date(),audience='guest'){const day=welcomeDay(now),index=((Math.floor(Date.parse(day+'T00:00:00Z')/86400000)%12)+12)%12,c=WELCOME_CARDS[index];return {index,day,image:'assets/daily-welcome/'+String(index+1).padStart(2,'0')+'-'+c[0]+'.webp',title:c[1],alt:c[2],body:audience==='parent'?c[4]:audience==='staff'?c[5]:audience==='student'?c[3]:'작은 배움이 쌓여 더 넓은 내일이 됩니다.\n청라와 함께 오늘의 한 걸음을 시작해요.'};}
+export function welcomeCardByIndex(index,audience='guest',overrides={}){const c=WELCOME_CARDS[index]||WELCOME_CARDS[0],copy=overrides?.[index]||{};return {index,image:'assets/daily-welcome/'+String(index+1).padStart(2,'0')+'-'+c[0]+'.webp',title:copy.title||c[1],alt:c[2],body:copy[audience+'_body']||(audience==='parent'?c[4]:audience==='staff'?c[5]:audience==='student'?c[3]:'작은 배움이 쌓여 더 넓은 내일이 됩니다.\n청라와 함께 오늘의 한 걸음을 시작해요.')};}
+export function welcomeCard(now=new Date(),audience='guest',overrides=globalThis.CheonglaWelcomeCopy||{}){const day=welcomeDay(now),index=((Math.floor(Date.parse(day+'T00:00:00Z')/86400000)%12)+12)%12;return {...welcomeCardByIndex(index,audience,overrides),day};}
+
 function dailyWelcome(doc,dialog,start){
  if(!doc.head)return ()=>{};
- const link=doc.createElement('link');link.rel='stylesheet';link.href='daily-welcome.css?v=1.9.44';doc.head.append(link);
+ const link=doc.createElement('link');link.rel='stylesheet';link.href='daily-welcome.css?v=1.9.45';doc.head.append(link);
  const el=(tag,cls,text)=>{const n=doc.createElement(tag);n.className=cls;if(text)n.textContent=text;return n;};
  const card=el('article','daily-welcome-card'),brand=el('div','daily-welcome-brand','독학재수학원 청라'),image=el('img','daily-welcome-image'),copy=el('div','daily-welcome-copy'),date=el('p','daily-welcome-date'),title=el('h2','daily-welcome-title'),body=el('p','daily-welcome-message'),signature=el('p','daily-welcome-signature','청라가 당신의 오늘을 응원합니다.');
  title.id='seasonWelcomeTitle';body.id='seasonWelcomeDescription';image.decoding='async';image.fetchPriority='high';image.width=1200;image.height=800;image.addEventListener('error',()=>{image.hidden=true;});
  start.textContent='오늘도 시작하기';start.className='daily-welcome-start';start.type='button';copy.append(date,title,body,start,signature);card.append(brand,image,copy);dialog.replaceChildren(card);dialog.classList?.add('daily-welcome');
- let current='';return ()=>{let p;try{p=typeof currentProfile!=='undefined'?currentProfile:null;}catch{}const audience=welcomeAudience(p),c=welcomeCard(new Date(),audience),key=c.day+'|'+audience;if(key===current)return;current=key;date.textContent=c.day.replaceAll('-','. ')+' · 오늘의 응원';title.textContent=c.title;body.textContent=c.body;image.hidden=false;image.src=c.image;image.alt=c.alt;};
+ let current='';return ()=>{let p;try{p=typeof currentProfile!=='undefined'?currentProfile:null;}catch{}const audience=welcomeAudience(p),c=welcomeCard(new Date(),audience),key=c.day+'|'+audience+'|'+JSON.stringify(globalThis.CheonglaWelcomeCopy?.[c.index]||{});if(key===current)return;current=key;date.textContent=c.day.replaceAll('-','. ')+' · 오늘의 응원';title.textContent=c.title;body.textContent=c.body;image.hidden=false;image.src=c.image;image.alt=c.alt;};
 }
 
 const shapes={
@@ -118,4 +120,38 @@ export function mountSeasonalUI(doc,win){
  const originalURL=win.performance?.getEntriesByType('navigation')?.[0]?.name||win.location.href;
  if(!skipSeasonWelcome(originalURL)&&!wasSeen(welcomeDay()))show(doc.getElementById('academyHome')||doc.getElementById('siteHomeLogo'));
 }
-if(typeof document!=='undefined')mountSeasonalUI(document,window);
+if(typeof document!=='undefined'){mountSeasonalUI(document,window);mountWelcomeEditor(document,window);}
+
+// Only public encouragement copy is read here. Server RLS enforces the exact owner's update permission.
+export function mountWelcomeEditor(doc,win){
+ if(!doc?.head||win.CheonglaWelcomeEditor||typeof getClient!=='function')return;
+ const host=doc.getElementById('accountPanel');if(!host)return;
+ const fields=['title','student_body','parent_body','staff_body','guest_body'],labels={title:'공통 제목',student_body:'학생용 응원 문구',parent_body:'학부모용 응원 문구',staff_body:'원장·직원용 응원 문구',guest_body:'로그인 전 응원 문구'};
+ let rows={},selected=0,editingVersion=null,dirty=false,busy=false,loading=false,verifiedFor=null,verified=false,revision=0;
+ const actor=()=>typeof currentProfile!=='undefined'?currentProfile:null;
+ const eligible=()=>actor()?.role==='english_director'&&actor()?.approval_status==='approved'&&actor()?.membership_state==='active';
+ const allowed=()=>eligible()&&verifiedFor===actor()?.id&&verified;
+ const el=(tag,text)=>{const n=doc.createElement(tag);if(text)n.textContent=text;return n;};
+ const panel=el('section');panel.id='welcomeMessagePanel';panel.className='panel welcome-copy-editor account-section-inactive';panel.tabIndex=-1;panel.hidden=true;
+ panel.append(el('h2','오늘의 응원 문구 관리'),el('p','이미지와 문구 대상을 선택해 수정하세요. 문구는 2~3줄이 읽기 좋습니다. 저장하면 모든 이용자에게 적용됩니다.'));
+ const cardLabel=el('label','응원 이미지 선택'),choose=el('select');choose.setAttribute('aria-label','응원 이미지 선택');for(let i=0;i<12;i++){const o=el('option',String(i+1).padStart(2,'0')+' · '+WELCOME_CARDS[i][1]);o.value=String(i);choose.append(o);}choose.value='0';cardLabel.append(choose);panel.append(cardLabel);
+ const form=el('form'),inputs={},fieldLabels={};form.addEventListener('submit',e=>{e.preventDefault();void save(false);});
+ for(const key of fields){const label=el('label',labels[key]),input=el(key==='title'?'input':'textarea');input.setAttribute('aria-label',labels[key]);input.required=true;input.maxLength=key==='title'?80:600;if(key!=='title')input.rows=3;inputs[key]=input;fieldLabels[key]=label;label.append(input);form.append(label);input.addEventListener('input',()=>{dirty=true;feedback.textContent='변경 내용을 저장해 주세요.';preview();});}
+ const saveButton=el('button','문구 저장'),reset=el('button','기본 문구로 되돌리기');saveButton.type='submit';reset.type='button';reset.className='secondary';reset.addEventListener('click',()=>void save(true));const actions=el('div');actions.className='welcome-copy-actions';actions.append(saveButton,reset);form.append(actions);panel.append(form);
+ const feedback=el('p');feedback.setAttribute('role','status');feedback.setAttribute('aria-live','polite');panel.append(feedback);
+ const previewLabel=el('label','문구 대상'),audience=el('select');audience.setAttribute('aria-label','문구 대상');for(const[k,t]of [['student','학생'],['parent','학부모'],['staff','원장·직원'],['guest','로그인 전']]){const o=el('option',t);o.value=k;audience.append(o);}audience.value='student';previewLabel.append(audience);panel.insertBefore(previewLabel,form);
+ const previewBox=el('article');previewBox.className='welcome-copy-preview';const image=el('img'),heading=el('h3'),body=el('p');image.loading='lazy';image.decoding='async';previewBox.append(image,heading,body);panel.append(previewBox);host.append(panel);const showAudience=()=>{for(const key of fields)fieldLabels[key].hidden=key!=='title'&&key!==audience.value+'_body';preview();};audience.addEventListener('change',showAudience);showAudience();
+ function payload(){return Object.fromEntries(fields.map(k=>[k,inputs[k].value.trim()]));}
+ function preview(){const c=welcomeCardByIndex(selected,audience.value,{[selected]:payload()});image.src=c.image;image.alt=c.alt;heading.textContent=c.title;body.textContent=c.body;}
+ function edit(){const row=rows[selected];if(!row)return;editingVersion=row.updated_at;inputs.title.value=row.title??WELCOME_CARDS[selected][1];for(const who of ['student','parent','staff','guest'])inputs[who+'_body'].value=row[who+'_body']??welcomeCardByIndex(selected,who).body;dirty=false;preview();}
+ function configure(){panel.hidden=!allowed();for(const n of [choose,...Object.values(inputs),saveButton,reset])n.disabled=busy||!rows[selected]||!allowed();if(!allowed()&&dirty){dirty=false;edit();}}
+ const confirm=message=>typeof appConfirm==='function'?appConfirm(message):Promise.resolve(win.confirm(message));
+ choose.addEventListener('change',async()=>{const next=Number(choose.value);if(busy||next===selected)return;if(dirty&&!await confirm('저장하지 않은 문구가 있습니다. 변경을 취소하고 다른 이미지를 선택할까요?')){choose.value=String(selected);return;}selected=next;edit();feedback.textContent='문구를 수정한 뒤 문구 저장을 눌러 주세요.';configure();});
+ function publish(){win.CheonglaWelcomeCopy=Object.fromEntries(Object.values(rows).map(r=>[r.card_index,r]));}
+ async function load(){if(loading||busy||doc.hidden)return;loading=true;const loadRevision=revision;try{const c=await getClient(),who=actor()?.id;let changed=false;if(eligible()){const p=await c.rpc('cheongla_can_manage_season');if(actor()?.id!==who)return;const can=!p.error&&p.data===true;changed=verifiedFor!==who||verified!==can;verifiedFor=who;verified=can;}else{changed=verifiedFor!==null;verifiedFor=null;verified=false;}const r=await c.from('cheongla_welcome_copy').select('card_index,title,student_body,parent_body,staff_body,guest_body,updated_at').order('card_index').limit(12);if(r.error)throw r.error;if(!Array.isArray(r.data)||r.data.length!==12)throw Error('incomplete');if(loadRevision!==revision)return;rows=Object.fromEntries(r.data.map(x=>[x.card_index,x]));publish();if(!dirty){edit();feedback.textContent='이미지를 고르고 문구를 수정해 주세요.';}configure();if(changed&&typeof configureAccountSections==='function')configureAccountSections();}catch(e){feedback.textContent='문구를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';}finally{loading=false;configure();}}
+ async function save(restore){if(busy||!allowed()||!rows[selected])return;if(restore&&!await confirm('이 이미지의 모든 대상별 문구를 기본 문구로 되돌릴까요?'))return;const data=restore?Object.fromEntries(fields.map(k=>[k,null])):payload();if(!restore){const missing=fields.find(k=>!data[k]);if(missing){if(missing!=='title'){audience.value=missing.replace('_body','');showAudience();}feedback.textContent=labels[missing]+'를 입력해 주세요.';inputs[missing].focus?.();return;}if(!form.reportValidity())return;}const index=selected,version=editingVersion,who=actor()?.id;revision++;busy=true;configure();feedback.textContent='저장 중…';try{const c=await getClient(),r=await c.from('cheongla_welcome_copy').update(data).eq('card_index',index).eq('updated_at',version).select('card_index,title,student_body,parent_body,staff_body,guest_body,updated_at').maybeSingle();if(r.error)throw r.error;if(!r.data)throw Error('conflict');if(actor()?.id!==who||!allowed())return;rows[index]=r.data;publish();edit();feedback.textContent=restore?'기본 문구로 되돌렸습니다.':'저장 완료 · 다음 응원 팝업부터 적용됩니다. 열려 있는 화면은 30초 내 갱신됩니다.';}catch(e){feedback.textContent=e.message==='conflict'?'다른 기기에서 문구가 바뀌었거나 권한이 변경됐습니다. 작성한 글을 복사해 두고 화면을 새로고침해 주세요.':'저장되지 않았습니다. 작성한 글은 유지됩니다. 연결 상태를 확인한 뒤 다시 눌러 주세요.';}finally{busy=false;configure();}}
+ win.CheonglaWelcomeEditor={load,configure,allowed};
+ if(typeof accountSectionLabels!=='undefined'){accountSectionLabels.welcomeMessagePanel='오늘의 응원 문구 관리';const prev=allowedAccountSection;win.allowedAccountSection=id=>id==='welcomeMessagePanel'?allowed():prev(id);const group=accountSectionGroup;win.accountSectionGroup=id=>id==='welcomeMessagePanel'?'내 계정':group(id);}
+ if(typeof configureStaffWorkspace==='function'){const before=configureStaffWorkspace;win.configureStaffWorkspace=function(...args){const r=before.apply(this,args);configure();void load();return r;};}
+ configure();void load();win.setInterval(()=>void load(),30000);doc.addEventListener('visibilitychange',()=>{configure();if(!doc.hidden)void load();});win.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
+}
