@@ -8,7 +8,34 @@ export function seasonForDate(now=new Date()){
  const month=Number(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Seoul',month:'numeric'}).format(now));
  return month>=3&&month<=5?'spring':month>=6&&month<=8?'summer':month>=9&&month<=11?'autumn':'winter';
 }
-export function skipSeasonWelcome(url){const u=new URL(url);return u.searchParams.has('push')||u.searchParams.has('page')||!!u.hash;}
+export function skipSeasonWelcome(url){const u=new URL(url);return ['push','page','notification','notification_id','destination','target','type','code','token_hash','error'].some(k=>u.searchParams.has(k))||!!u.hash;}
+export function welcomeDay(now=new Date()){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);}
+export function welcomeAudience(p){if(p?.approval_status!=='approved'||p?.membership_state==='withdrawn')return 'guest';if(p.role==='student'||p.role==='parent')return p.role;return ['owner','english_director','math_director','manager','korean_teacher'].includes(p.role)?'staff':'guest';}
+export const WELCOME_CARDS=[
+ ['morning-desk','오늘의 한 걸음','햇살이 드는 책상과 노트','지금 할 수 있는 작은 공부부터 시작해요.\n그 한 걸음이면 충분합니다.','오늘도 아이의 작은 노력을 알아봐 주세요.\n따뜻한 한마디가 든든한 힘이 됩니다.','세심하게 살피는 한 번의 관심이\n학생의 하루를 단단하게 만듭니다.'],
+ ['forest','나만의 속도로','아침 햇살이 비치는 숲길','다른 사람의 속도보다\n오늘 나의 한 걸음에 집중해요.','아이마다 자라는 속도는 다릅니다.\n곁에서 지켜보는 믿음을 전해주세요.','서두르지 않고 한 사람씩 살피는 일.\n그 꾸준함이 청라의 힘입니다.'],
+ ['sea','다시 시작하는 마음','잔잔한 아침 바다','어제의 아쉬움은 잠시 내려두고\n오늘의 첫 문제를 만나봐요.','결과를 묻기 전에 오늘의 마음을 물어봐 주세요.\n그 대화에서 새로운 힘이 시작됩니다.','어제보다 조금 더 편안한 배움의 하루를\n오늘도 함께 만들어갑니다.'],
+ ['seedling','보이지 않아도 자라요','작은 화분에서 자라는 새싹','잘 풀리지 않는 날에도\n쌓이고 있는 실력은 있습니다.','당장 보이지 않는 변화도 자라고 있습니다.\n아이의 시간을 믿고 응원해주세요.','눈에 띄지 않는 작은 도움도\n학생에게는 오래 남는 지지가 됩니다.'],
+ ['mountain','한 걸음씩, 단단하게','아침 안개가 감도는 산 능선','큰 목표는 작은 실천으로 가까워집니다.\n오늘 할 수 있는 것부터 차근차근 해요.','먼 목표보다 오늘 해낸 한 가지를\n함께 기뻐해주세요.','작은 약속을 지키는 하루가 쌓여\n믿고 맡기는 청라를 만듭니다.'],
+ ['spring','가능성이 피어나는 날','옅은 분홍빛 벚꽃이 핀 길','아직 피어나지 않은 가능성이 있어요.\n오늘의 배움으로 조금씩 펼쳐봐요.','아이의 가능성은 한 번의 점수보다 넓습니다.\n잘하는 것과 좋아하는 것도 함께 봐주세요.','서로 다른 가능성이 피어나는 공간.\n오늘도 그 곁을 함께 지킵니다.'],
+ ['summer','잠깐 숨을 고르고','이슬이 반짝이는 초록 잎','마음이 복잡하면 잠깐 숨을 고르세요.\n다시 한 문제부터 시작하면 됩니다.','공부 이야기만큼 쉼과 일상도 소중합니다.\n오늘은 편안한 안부를 건네주세요.','바쁜 중에도 잠깐 숨을 고르세요.\n차분한 마음이 세심한 돌봄으로 이어집니다.'],
+ ['autumn','차곡차곡 쌓이는 하루','노란 은행잎이 내려앉은 가을 길','완벽한 하루보다 꾸준한 하루.\n오늘 쌓은 공부를 소중히 여겨요.','성실하게 보낸 하루를 알아주는 말이\n내일도 이어갈 용기가 됩니다.','매일의 작은 기록과 확인이\n학생의 안정적인 하루를 받쳐줍니다.'],
+ ['winter','따뜻하게, 꾸준하게','창밖으로 눈이 내리는 따뜻한 공간','춥고 긴 날에도 나의 시간은 자랍니다.\n오늘도 나를 위한 공부를 이어가요.','따뜻한 식사와 다정한 안부처럼\n익숙한 응원이 아이를 지켜줍니다.','공부에 집중할 수 있는 따뜻한 공간을\n오늘도 함께 지켜주셔서 감사합니다.'],
+ ['library','질문에서 시작되는 배움','햇살이 드는 조용한 서가','모르는 것을 발견했다면 한 걸음 나아간 거예요.\n질문하고, 다시 이해해봐요.','무엇을 몰랐는지 말할 수 있도록\n판단보다 경청을 먼저 전해주세요.','편하게 질문할 수 있는 분위기가\n학생의 배움을 더 깊게 만듭니다.'],
+ ['river','작은 흐름이 모이면','맑은 물이 흐르는 숲속 개울','짧은 집중도 모이면 큰 힘이 됩니다.\n지금 이 시간에 마음을 모아봐요.','작은 습관이 이어지도록\n꾸준히 응원하는 마음을 전해주세요.','각자의 자리에서 이어가는 수고가 모여\n청라의 하루를 움직입니다.'],
+ ['sky','내일을 향한 오늘','푸른 하늘과 부드러운 구름','오늘의 나에게 성실했던 시간은 남습니다.\n나의 내일을 위해 다시 시작해요.','아이의 내일을 함께 바라보며\n오늘의 노력을 따뜻하게 안아주세요.','학생의 더 나은 내일을 위해\n오늘도 함께해주셔서 감사합니다.']
+];
+export function welcomeCard(now=new Date(),audience='guest'){const day=welcomeDay(now),index=((Math.floor(Date.parse(day+'T00:00:00Z')/86400000)%12)+12)%12,c=WELCOME_CARDS[index];return {index,day,image:'assets/daily-welcome/'+String(index+1).padStart(2,'0')+'-'+c[0]+'.webp',title:c[1],alt:c[2],body:audience==='parent'?c[4]:audience==='staff'?c[5]:audience==='student'?c[3]:'작은 배움이 쌓여 더 넓은 내일이 됩니다.\n청라와 함께 오늘의 한 걸음을 시작해요.'};}
+function dailyWelcome(doc,dialog,start){
+ if(!doc.head)return ()=>{};
+ const link=doc.createElement('link');link.rel='stylesheet';link.href='daily-welcome.css?v=1.9.44';doc.head.append(link);
+ const el=(tag,cls,text)=>{const n=doc.createElement(tag);n.className=cls;if(text)n.textContent=text;return n;};
+ const card=el('article','daily-welcome-card'),brand=el('div','daily-welcome-brand','독학재수학원 청라'),image=el('img','daily-welcome-image'),copy=el('div','daily-welcome-copy'),date=el('p','daily-welcome-date'),title=el('h2','daily-welcome-title'),body=el('p','daily-welcome-message'),signature=el('p','daily-welcome-signature','청라가 당신의 오늘을 응원합니다.');
+ title.id='seasonWelcomeTitle';body.id='seasonWelcomeDescription';image.decoding='async';image.fetchPriority='high';image.width=1200;image.height=800;image.addEventListener('error',()=>{image.hidden=true;});
+ start.textContent='오늘도 시작하기';start.className='daily-welcome-start';start.type='button';copy.append(date,title,body,start,signature);card.append(brand,image,copy);dialog.replaceChildren(card);dialog.classList?.add('daily-welcome');
+ let current='';return ()=>{let p;try{p=typeof currentProfile!=='undefined'?currentProfile:null;}catch{}const audience=welcomeAudience(p),c=welcomeCard(new Date(),audience),key=c.day+'|'+audience;if(key===current)return;current=key;date.textContent=c.day.replaceAll('-','. ')+' · 오늘의 응원';title.textContent=c.title;body.textContent=c.body;image.hidden=false;image.src=c.image;image.alt=c.alt;};
+}
+
 const shapes={
  autumn:'<path d="m12 1-3 6-4-2 1 6H2l5 5-1 3 5-1v5h2v-5l5 1-1-3 5-5h-4l1-6-4 2Z"/><path d="M12 7v12m-5-8 5 4 5-4" fill="none" stroke="#765139" stroke-width=".8"/>',
  winter:'<circle cx="12" cy="12" r="8"/>',
@@ -39,7 +66,7 @@ export function mountSeasonalUI(doc,win){
  const dialog=doc.getElementById('seasonWelcome'),open=doc.getElementById('seasonWelcomeOpen'),start=doc.getElementById('seasonWelcomeStart');
  if(!dialog||!start||dialog.dataset.ready)return;
  dialog.dataset.ready='true';
- const surfaces=[...doc.querySelectorAll('[data-season-surface]')],buttons=[...doc.querySelectorAll('[data-season-motion]')];
+ const drawWelcome=dailyWelcome(doc,dialog,start);const surfaces=[...doc.querySelectorAll('[data-season-surface]')],buttons=[...doc.querySelectorAll('[data-season-motion]')].filter(b=>!dialog.contains?.(b));
  const reduced=win.matchMedia('(prefers-reduced-motion: reduce)');
  const read=(store,key)=>{try{return win[store].getItem(key);}catch{return null;}};
  const write=(store,key,value)=>{try{win[store].setItem(key,value);}catch{}};
@@ -50,7 +77,7 @@ export function mountSeasonalUI(doc,win){
   const enabled=!off&&!reduced.matches;
   for(const surface of surfaces){
    surface.dataset.motion=enabled?'on':'off';
-   const layer=surface.querySelector('[data-season-particles]');layer.replaceChildren();if(!enabled)continue;
+   const layer=surface.querySelector('[data-season-particles]');if(surface===dialog){layer?.replaceChildren();continue;}if(!layer)continue;layer.replaceChildren();if(!enabled)continue;
    const options=win.CheonglaSeasonOptions?.[season]||{};const count=particleCount(options,surface===dialog);
    for(let i=0;i<count;i++){
     const leaf=doc.createElement('span'),settings=particleSettings(i,season,options);leaf.className='season-particle';
@@ -69,13 +96,13 @@ export function mountSeasonalUI(doc,win){
   for(const surface of surfaces){surface.dataset.season=season;for(const [key,selector] of [['label','[data-season-label]'],['headline','[data-season-headline]'],['description','[data-season-description]']])for(const node of surface.querySelectorAll(selector))node.textContent=copy[key];}
   particles();
  };
- const seenKey=()=> 'cheongla-welcome:light:'+season;
+ let shownDay='';const seenKey=day=>'cheongla-daily-welcome:v1:'+day;const wasSeen=day=>read('localStorage',seenKey(day))==='seen'||read('sessionStorage',seenKey(day))==='seen'||win.CheonglaWelcomeSeenDay===day;
  const show=trigger=>{
   if(dialog.open||doc.querySelector('dialog[open]'))return;
-  lastTrigger=trigger;
+  lastTrigger=trigger;shownDay=welcomeDay();drawWelcome();
   try{dialog.showModal();doc.body.classList.add('season-welcome-open');pause();}catch{doc.body.classList.remove('season-welcome-open');}
  };
- const finished=()=>{write('sessionStorage',seenKey(),'seen');doc.body.classList.remove('season-welcome-open');pause();lastTrigger?.focus({preventScroll:true});};
+ const finished=()=>{const day=shownDay||welcomeDay();write('localStorage',seenKey(day),'seen');write('sessionStorage',seenKey(day),'seen');win.CheonglaWelcomeSeenDay=day;doc.body.classList.remove('season-welcome-open');pause();lastTrigger?.focus({preventScroll:true});};
  open?.addEventListener('click',()=>show(open));
  start.addEventListener('click',()=>dialog.close());
  dialog.addEventListener('close',finished);
@@ -84,11 +111,11 @@ export function mountSeasonalUI(doc,win){
  doc.addEventListener('visibilitychange',()=>{if(!doc.hidden)updateSeason();pause();});
  win.addEventListener('pagehide',()=>{for(const surface of surfaces)surface.dataset.paused='true';});
  win.addEventListener('pageshow',()=>{updateSeason();pause();});
- win.setInterval(()=>{if(!doc.hidden)updateSeason();},60000);
+ win.setInterval(()=>{if(!doc.hidden)updateSeason();},60000);win.setInterval(()=>{if(dialog.open)drawWelcome();},750);
  win.CheonglaSeasonal={setSettings(value){win.CheonglaSeasonOptions=value.effect_options||{};this.setMode(value.mode);},setMode(mode){win.CheonglaSeasonMode=Object.hasOwn(SEASONS,mode)?mode:'auto';updateSeason();},getMode(){return win.CheonglaSeasonMode||'auto';}};
  updateSeason();
  const home=doc.getElementById('homePanel');if(home&&win.MutationObserver)new win.MutationObserver(pause).observe(home,{attributes:true,attributeFilter:['hidden']});
  const originalURL=win.performance?.getEntriesByType('navigation')?.[0]?.name||win.location.href;
- if(!skipSeasonWelcome(originalURL)&&!read('sessionStorage',seenKey()))show(doc.getElementById('siteHomeLogo'));
+ if(!skipSeasonWelcome(originalURL)&&!wasSeen(welcomeDay()))show(doc.getElementById('academyHome')||doc.getElementById('siteHomeLogo'));
 }
 if(typeof document!=='undefined')mountSeasonalUI(document,window);
