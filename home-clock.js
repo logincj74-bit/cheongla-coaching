@@ -1,3 +1,4 @@
+import {renderCalendarEvents} from './calendar-events.js?v=20261028';
 import {koreanLunarDate} from './lunar-date.js';
 const dateFormat = new Intl.DateTimeFormat('ko-KR', {
   timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short',
@@ -65,8 +66,11 @@ if (typeof document !== 'undefined') {
     const solarDate=clock.querySelector('[data-clock-date]');
     let lunarDate=clock.querySelector('[data-clock-lunar]');
     if(solarDate&&!lunarDate){lunarDate=document.createElement('small');lunarDate.dataset.clockLunar='';lunarDate.style.cssText='display:block;font-size:11px;color:#657a6d;line-height:1.6';solarDate.after(lunarDate);}
+    let eventDay='';
+    const eventContainer=document.createElement('div');eventContainer.className='calendar-events';eventContainer.hidden=true;clock.querySelector('.home-clock-top').after(eventContainer);
     const update = () => {
       const state = koreaClockState();
+      if(eventDay!==state.localDate){eventDay=state.localDate;renderCalendarEvents(eventContainer,eventDay);}
       if(lunarDate){lunarDate.textContent=state.lunar;lunarDate.hidden=!state.lunar;}
       for (const key of ['period', 'hours', 'minutes', 'seconds', 'date', 'cheer']) {
         const element = clock.querySelector(`[data-clock-${key}]`);
