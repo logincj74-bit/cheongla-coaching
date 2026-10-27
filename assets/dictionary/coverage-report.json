@@ -1,6 +1,6 @@
 {
   "checked_on": "2026-10-27",
-  "baseline_headwords": 32714,
+  "baseline_headwords": 32720,
   "target_headwords": 200000,
   "target_complete": false,
   "note": "단어군 대표형과 문서에 명시된 형태의 검색 성공 여부 점검. 수능 전체 출제 어휘를 보장하지 않음.",
@@ -25,6 +25,14 @@
       "source": "https://www.newgeneralservicelist.com/new-academic-word-list",
       "checked": 957,
       "found": 957,
+      "missing": []
+    },
+    "moe2015": {
+      "label": "2015 개정 영어과 교육과정 기본 어휘",
+      "source": "https://padlet-uploads.storage.googleapis.com/2380002185/15a58dc007e4565261381188baccd01d/2015__________2020_255_____2020_04_14___.pdf",
+      "representatives": 3000,
+      "checked": 3050,
+      "found": 3050,
       "missing": []
     }
   }

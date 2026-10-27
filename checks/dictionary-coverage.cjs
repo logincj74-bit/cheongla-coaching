@@ -30,6 +30,6 @@ async function dataFetch(url){assert(url.startsWith('assets/dictionary/'));fetch
  for(let c=97;c<=122;c++)for(const [w,items]of Object.entries(JSON.parse(fs.readFileSync(path.join(root,'assets/dictionary/supplement',String.fromCharCode(c)+'.json'))).entries)){
   all.add(w);assert.equal(w[0],String.fromCharCode(c));assert(valid(w));assert(items.length);for(const item of items)for(const [pos,meaning]of item.s){assert(meaning.length&&meaning.length<=600);assert(/[가-힣]/.test(meaning));assert(!/[<>]/.test(meaning));}
  }
- for(const w of Object.keys(JSON.parse(fs.readFileSync(path.join(root,'assets/dictionary/coverage-core.json'))).entries))all.add(w);assert.equal(all.size,32714);
- console.log('PASS: 32,714 unique headwords; key missing vocabulary, Korean senses, plural/past/progressive lookup, unchanged 40 editorial entries, lazy cache, retry and partial-failure handling.');
+ for(const w of Object.keys(JSON.parse(fs.readFileSync(path.join(root,'assets/dictionary/coverage-core.json'))).entries))all.add(w);assert.equal(all.size,32720);
+ console.log('PASS: 32,720 unique headwords; key missing vocabulary, Korean senses, plural/past/progressive lookup, unchanged 40 editorial entries, lazy cache, retry and partial-failure handling.');
 })().catch(e=>{console.error(e);process.exit(1)});

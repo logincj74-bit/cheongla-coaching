@@ -56,7 +56,9 @@ https://ko.wiktionary.org/wiki/위키낱말사전:저작권
 Existing editorial-senses.json takes priority for its 40 entries.
 No affiliation or endorsement by Wiktionary or Kaikki.org is implied.
 
-Coverage supplement (2026-10-27): 250 additional original Korean learning entries by Cheongla, CC BY-SA 4.0. See coverage-additions.tsv and coverage-core.json.
+Coverage supplement (2026-10-27): 256 additional original Korean learning entries by Cheongla, CC BY-SA 4.0. See coverage-additions.tsv and coverage-core.json.
 Coverage audit references: Ministry of Education Notice 2022-33, Book 14, Appendix 3 (3,000 representative rows and their listed forms); https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&boardSeq=93458&lev=0&searchType=null&statusYN=W
 NGSL 1.2 and NAWL 1.2 by Charles Browne, Brent Culligan and Joseph Phillips. Word lists are CC BY-SA 4.0. https://www.newgeneralservicelist.com/new-general-service-list and https://www.newgeneralservicelist.com/new-academic-word-list
 The lists are used as audit references, not a guarantee of all future CSAT vocabulary. No endorsement by their authors is implied.
+
+Additional audit: Ministry of Education Notice 2020-255, Book 14 (2015 revised English curriculum), Appendix 3. The public PDF copy is linked in coverage-lists.json. Its listed forms were also checked.

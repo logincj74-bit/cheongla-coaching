@@ -21,7 +21,7 @@
    return cache.get(path);
   }
   async function bundle(word){
-   const results=await Promise.allSettled([get(bucket(word)+'.json?v=en-ko-v1.2.0-cheongla-2'),get('supplement/'+word[0]+'.json?v=20261027-1'),get('editorial-senses.json?v=20261024-1'),get('coverage-core.json?v=20261027-coverage-1')]);
+   const results=await Promise.allSettled([get(bucket(word)+'.json?v=en-ko-v1.2.0-cheongla-2'),get('supplement/'+word[0]+'.json?v=20261027-1'),get('editorial-senses.json?v=20261024-1'),get('coverage-core.json?v=20261027-coverage-2')]);
    if(results[0].status==='rejected'&&results[1].status==='rejected'&&results[3].status==='rejected')throw results[0].reason;
    const data=i=>results[i].status==='fulfilled'?results[i].value:{entries:{},aliases:{}};
    return {base:data(0),supp:data(1),extra:data(2),core:data(3),incomplete:results.some(x=>x.status==='rejected')};
@@ -70,7 +70,7 @@
   $('personalWordbook')?.remove();
   for(const item of doc.querySelectorAll('[data-public-page="dictionary"]'))item.textContent='영단어 찾기';
   if($('dictionaryHeading'))$('dictionaryHeading').textContent='영단어 찾기';
-  if($('dictionaryHelp'))$('dictionaryHelp').textContent='32,714개 기본 표제어 · 한국어 뜻과 제공된 품사·발음기호를 확인합니다. 복수형·과거형·진행형도 기본형을 찾아봅니다. 원장님이 추가한 단어도 함께 검색합니다. 뜻의 수는 단어마다 다릅니다.';
+  if($('dictionaryHelp'))$('dictionaryHelp').textContent='32,720개 기본 표제어 · 한국어 뜻과 제공된 품사·발음기호를 확인합니다. 복수형·과거형·진행형도 기본형을 찾아봅니다. 원장님이 추가한 단어도 함께 검색합니다. 뜻의 수는 단어마다 다릅니다.';
   const credit=doc.querySelector('#homeDictionary .dictionary-credit');if(credit){const note=doc.createElement('span');note.textContent=' 한국어 위키낱말사전·Kaikki 자료와 청라 검토 핵심 어휘 154개를 추가했습니다.';credit.prepend(note);}
   const description=doc.querySelector('#homeDictionary .dictionary-description');if(description)description.textContent='궁금한 영어 단어의 뜻·품사·발음기호를 찾아보세요.';
   function node(tag,text,cls){const n=doc.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
