@@ -1,0 +1,12 @@
+{
+  "version": "20261027-1",
+  "source": "https://kaikki.org/kowiktionary/%EC%98%81%EC%96%B4/kaikki.org-dictionary-%EC%98%81%EC%96%B4.jsonl",
+  "source_sha256": "1d264d2a8619c563c808d11200b8fdeed13cc7f49bdfb9eefe7e7996dea91c5a",
+  "source_dump": "Korean Wiktionary 2026-10-01; Kaikki extraction 2026-10-24",
+  "license": "CC-BY-SA-4.0",
+  "headwords": 15146,
+  "added_headwords": 7007,
+  "combined_headwords": 32464,
+  "reviewed_headwords": 154,
+  "changes": "English entries with Korean plain-text glosses only; POS inferred from explicit categories when necessary; IPA retained when supplied; form-only senses excluded; Cheongla reviewed core senses override selected sparse entries. Other original data and 40 editorial entries preserved."
+}

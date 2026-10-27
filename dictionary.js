@@ -5,29 +5,48 @@
  const normalize=value=>String(value||'').normalize('NFKC').replace(/[’‘]/g,"'").replace(/[–—]/g,'-').trim().replace(/\s+/g,' ').toLowerCase();
  const valid=word=>/^[a-z][a-z0-9 .'-]{0,79}$/.test(word);
  const bucket=word=>String(Math.floor((word.charCodeAt(0)-97)/4));
+ function inflectionCandidates(word){
+  const candidates=[];
+  if(word.endsWith('ies')&&word.length>4)candidates.push(word.slice(0,-3)+'y');
+  if(word.endsWith('es'))candidates.push(word.slice(0,-2));
+  if(word.endsWith('s')&&!word.endsWith('ss'))candidates.push(word.slice(0,-1));
+  if(word.endsWith('ied'))candidates.push(word.slice(0,-3)+'y');
+  for(const suffix of ['ed','ing'])if(word.endsWith(suffix)&&word.length>suffix.length+2){const stem=word.slice(0,-suffix.length);candidates.push(stem,stem+'e');if(/([b-df-hj-np-tv-z])\1$/.test(stem))candidates.push(stem.slice(0,-1));}
+  return [...new Set(candidates)].filter(valid);
+ }
  function createLookup(fetcher){
-  const cache=new Map();let editorialPromise;
-  async function editorial(){
-   if(!editorialPromise)editorialPromise=(async()=>{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);try{const r=await fetcher('assets/dictionary/editorial-senses.json?v=20261024-1',{signal:controller.signal,credentials:'omit'});if(!r.ok)throw Error('보강 사전 자료를 불러오지 못했습니다. 다시 찾아 주세요.');return (await r.json()).entries;}finally{clearTimeout(timer);}})().catch(e=>{editorialPromise=null;throw e;});return editorialPromise;
+  const cache=new Map();
+  function get(path){
+   if(!cache.has(path))cache.set(path,(async()=>{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);try{const r=await fetcher('assets/dictionary/'+path,{signal:controller.signal,credentials:'omit'});if(!r.ok)throw Error('사전 자료를 불러오지 못했습니다. 잠시 후 다시 찾아 주세요.');return await r.json();}finally{clearTimeout(timer);}})().catch(e=>{cache.delete(path);throw e;}));
+   return cache.get(path);
   }
-  async function shard(id){
-   if(!cache.has(id))cache.set(id,(async()=>{
-    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
-    try{const r=await fetcher('assets/dictionary/'+id+'.json?v=en-ko-v1.2.0-cheongla-2',{signal:controller.signal,credentials:'omit'});if(!r.ok)throw Error('사전 자료를 불러오지 못했습니다. 잠시 후 다시 찾아 주세요.');return await r.json();}
-    finally{clearTimeout(timer);}
-   })().catch(e=>{cache.delete(id);throw e;}));
-   return cache.get(id);
+  async function bundle(word){
+   const results=await Promise.allSettled([get(bucket(word)+'.json?v=en-ko-v1.2.0-cheongla-2'),get('supplement/'+word[0]+'.json?v=20261027-1'),get('editorial-senses.json?v=20261024-1')]);
+   if(results[0].status==='rejected'&&results[1].status==='rejected')throw results[0].reason;
+   const data=i=>results[i].status==='fulfilled'?results[i].value:{entries:{},aliases:{}};
+   return {base:data(0),supp:data(1),extra:data(2),incomplete:results.some(x=>x.status==='rejected')};
+  }
+  const has=(data,word)=>Object.hasOwn(data?.entries||{},word);
+  const owns=(b,word)=>has(b.base,word)||has(b.supp,word)||has(b.extra,word);
+  function itemsFor(b,word){
+   const base=has(b.base,word)?b.base.entries[word]:[],supp=has(b.supp,word)?b.supp.entries[word]:[];
+   if(has(b.extra,word))return [{w:base[0]?.w||word,p:base[0]?.p||supp[0]?.p||'',s:b.extra.entries[word],editorial:true}];
+   if(supp.some(x=>x.reviewed))return supp.map(x=>({...x,p:base[0]?.p||x.p,editorial:true}));
+   return [...base,...supp];
   }
   async function lookup(value){
    const word=normalize(value);if(!valid(word))throw Error('영어 단어나 짧은 표현을 입력해 주세요. (최대 80자)');
-   const [d,extra]=await Promise.all([shard(bucket(word)),editorial()]);const own=Object.hasOwn(d.entries,word)||Object.hasOwn(extra,word),refs=own?[word]:Object.hasOwn(d.aliases,word)?d.aliases[word].slice(0,4):[];
-   const results=[];
-   for(const ref of refs){const part=await shard(bucket(ref));let items=Object.hasOwn(part.entries,ref)?part.entries[ref]:[];if(Object.hasOwn(extra,ref))items=[{w:items[0]?.w||ref,p:items[0]?.p||'',s:extra[ref],editorial:true}];if(!items.length)continue;
+   const b=await bundle(word);let refs=[...new Set([...(owns(b,word)?[word]:[]),...(Object.hasOwn(b.base.aliases||{},word)?b.base.aliases[word]:[])])].slice(0,4);
+   if(!refs.length)refs=inflectionCandidates(word).filter(ref=>owns(b,ref)).slice(0,4);
+   const results=[];let incomplete=b.incomplete;
+   for(const ref of refs){const part=ref[0]===word[0]?b:await bundle(ref);incomplete ||= part.incomplete;const items=itemsFor(part,ref);if(!items.length)continue;
     const pronunciations=[...new Set(items.map(x=>x.p).filter(Boolean))];const senses=[],seen=new Set();
-    for(const item of items)for(const s of item.s){const k=JSON.stringify(s);if(!seen.has(k)){seen.add(k);senses.push({pos:posLabels[s[0]]||s[0],meaning:s[1]});}}
+    for(const item of items)for(const s of item.s){const k=s[0]+'|'+s[1].replace(/[。.,，;；\s]+$/g,'');if(!seen.has(k)){seen.add(k);senses.push({pos:posLabels[s[0]]||s[0],meaning:s[1]});}}
     results.push({word:ref,display:items[0].w,pronunciation:pronunciations.join(' · '),editorial:items.some(x=>x.editorial===true),senses});
    }
-   return {query:word,results,suggestions:refs.length?[]:Object.keys(d.entries).filter(x=>x.startsWith(word.slice(0,Math.min(3,word.length)))).slice(0,5)};
+   if(!results.length&&incomplete)throw Error('일부 사전 자료를 불러오지 못했습니다. 연결 상태를 확인하고 다시 찾아 주세요.');
+   const keys=[...new Set([...Object.keys(b.base.entries),...Object.keys(b.supp.entries),...Object.keys(b.extra.entries)])];
+   return {query:word,results,incomplete,suggestions:results.length?[]:keys.filter(x=>x.startsWith(word.slice(0,Math.min(3,word.length)))).sort().slice(0,5)};
   }
   return lookup;
  }
@@ -37,14 +56,16 @@
   $('personalWordbook')?.remove();
   for(const item of doc.querySelectorAll('[data-public-page="dictionary"]'))item.textContent='영단어 찾기';
   if($('dictionaryHeading'))$('dictionaryHeading').textContent='영단어 찾기';
+  if($('dictionaryHelp'))$('dictionaryHelp').textContent='32,464개 표제어 · 한국어 뜻과 제공된 품사·발음기호를 확인합니다. 복수형·과거형·진행형도 기본형을 찾아봅니다. 실제 뜻의 수는 단어마다 다릅니다.';
+  const credit=doc.querySelector('#homeDictionary .dictionary-credit');if(credit){const note=doc.createElement('span');note.textContent=' 한국어 위키낱말사전·Kaikki 자료와 청라 검토 핵심 어휘 154개를 추가했습니다.';credit.prepend(note);}
   const description=doc.querySelector('#homeDictionary .dictionary-description');if(description)description.textContent='궁금한 영어 단어의 뜻·품사·발음기호를 찾아보세요.';
   function node(tag,text,cls){const n=doc.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
   function errorText(e){return e?.name==='AbortError'?'연결이 지연되고 있습니다. 다시 찾아 주세요.':e?.message||'처리하지 못했습니다. 다시 시도해 주세요.';}
   function renderResults(result){
    const list=$('dictionaryResults');list.replaceChildren();current=result.results;
-   if(!current.length){$('dictionaryStatus').textContent='이 사전에 등록되지 않은 단어입니다. 철자나 기본형을 확인해 주세요.';
+   if(!current.length){$('dictionaryStatus').textContent='아직 수록되지 않은 단어입니다. 철자나 기본형을 확인해 주세요.';
     if(result.suggestions.length){const box=node('div','비슷한 시작의 단어: ','dictionary-actions');for(const word of result.suggestions){const b=node('button',word,'secondary');b.type='button';b.addEventListener('click',()=>{$('dictionaryWord').value=word;void search();});box.append(b);}list.append(box);}return;}
-   $('dictionaryStatus').textContent=result.query===current[0].word?'뜻을 찾았습니다.':'「'+result.query+'」의 기본형 뜻입니다.';
+   $('dictionaryStatus').textContent=(result.query===current[0].word?'뜻을 찾았습니다.':'「'+result.query+'」의 기본형 뜻입니다.')+(result.incomplete?' 일부 보강 자료는 연결 후 다시 확인해 주세요.':'');
    for(const entry of current){const card=node('article',undefined,'dictionary-card');card.append(node('h3',entry.display));card.append(node('p','뜻 '+entry.senses.length+'개'+(entry.editorial?' · 청라 학습용 대표 뜻':''),'dictionary-source-note'));if(entry.pronunciation)card.append(node('p',entry.pronunciation,'dictionary-pronunciation'));
     const senses=node('ol',undefined,'dictionary-senses');for(const sense of entry.senses){const li=node('li');if(sense.pos)li.append(node('span',sense.pos,'dictionary-pos'));li.append(node('span',sense.meaning));senses.append(li);}card.append(senses);
     list.append(card);}
@@ -63,6 +84,6 @@
   $('dictionaryClear').addEventListener('click',()=>{searchRequest++;$('dictionaryResultsWrap').hidden=true;$('dictionaryResults').replaceChildren();$('dictionaryStatus').textContent='';$('dictionarySearchButton').disabled=false;current=[];});
   return {accountChanged,search};
  }
- globalThis.CheonglaDictionaryFactory={mount,createLookup,normalize,valid};
- if(typeof module!=='undefined'&&module.exports)module.exports={createLookup,normalize,valid,mount};
+ globalThis.CheonglaDictionaryFactory={mount,createLookup,normalize,valid,inflectionCandidates};
+ if(typeof module!=='undefined'&&module.exports)module.exports={createLookup,normalize,valid,mount,inflectionCandidates};
 })();

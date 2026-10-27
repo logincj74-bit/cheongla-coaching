@@ -37,3 +37,21 @@ No affiliation or endorsement by source authors is implied.
 WordNet 3.0 license notice is included in WORDNET-LICENSE.txt in this directory.
 
 Cheongla editorial supplement (2026-10-24): 40 high-frequency headwords have original Korean learning definitions authored by Cheongla. These representative senses replace sparse source translations for those entries; not exhaustive. Editorial content also licensed CC BY-SA 4.0. See editorial-senses.json.
+
+
+Cheongla Korean-Wiktionary supplement (2026-10-27)
+Contributors to the Korean Wiktionary, English-language entries:
+https://ko.wiktionary.org/
+Original attribution and revision histories for each WORD:
+https://ko.wiktionary.org/w/index.php?title=WORD&action=history
+Machine-readable extraction by Tatu Ylonen / Wiktextract, distributed by Kaikki.org:
+https://kaikki.org/kowiktionary/%EC%98%81%EC%96%B4/index.html
+Source dump 2026-10-01; extraction 2026-10-24; retrieved 2026-10-27.
+SHA256: 1d264d2a8619c563c808d11200b8fdeed13cc7f49bdfb9eefe7e7996dea91c5a
+Changes: select English entries containing Korean glosses; retain plain-text glosses, part of speech and supplied IPA; infer POS only from explicit categories; omit examples, audio and form-only senses; split by initial letter and merge at lookup. See supplement/manifest.json.
+Source and adapted supplement are licensed CC BY-SA 4.0:
+https://creativecommons.org/licenses/by-sa/4.0/
+https://ko.wiktionary.org/wiki/위키낱말사전:저작권
+154 Cheongla-reviewed core entries are original Korean learning definitions under CC BY-SA 4.0; see reviewed-core.tsv.
+Existing editorial-senses.json takes priority for its 40 entries.
+No affiliation or endorsement by Wiktionary or Kaikki.org is implied.

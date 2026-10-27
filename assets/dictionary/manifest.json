@@ -7,5 +7,8 @@
   "forms": 72011,
   "changes": "HTML removed; Korean translations, part of speech, pronunciation and inflection references retained; Unicode and case normalization; split into seven JSON files.",
   "editorial_headwords": 40,
-  "editorial_note": "청라가 작성한 고빈도 다의어 대표 뜻. 각 보강 표제어의 뜻 5개 이상. 모든 표제어에 5개를 보장하지 않음."
+  "editorial_note": "청라가 작성한 고빈도 다의어 대표 뜻. 각 보강 표제어의 뜻 5개 이상. 모든 표제어에 5개를 보장하지 않음.",
+  "supplement": "supplement/manifest.json",
+  "combined_headwords": 32464,
+  "supplement_added_headwords": 7007
 }
