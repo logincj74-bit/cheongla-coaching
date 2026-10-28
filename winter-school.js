@@ -45,7 +45,7 @@ function install(){const doc=root.document;if(!doc?.getElementById||!root.Cheong
      try{
       if(!await appConfirm(name+' 학생의 이전 기록을 '+(trash?'복구하시겠습니까?':'휴지통으로 이동하시겠습니까? 삭제 후 복구할 수 있습니다.')))return;
       if(!await leave()||actor!==currentProfile||sequence!==request||!manager()||!isPrincipal())return;
-      await rpc('cheongla_trash_winter_legacy',{target_source_id:r.source_id,restore_record:trash,expected_deleted_at:r.deleted_at||null});
+      await rpc('cheongla_trash_winter_legacy',{target_source_id:r.source_id,restore_record:trash,expected_deleted_at:trash?(r.deleted_at||null):null});
       if(actor===currentProfile&&sequence===request)await manage();
      }catch(e){if(actor===currentProfile&&sequence===request)feedback.textContent=readable(e);}
      finally{action.disabled=false;}
