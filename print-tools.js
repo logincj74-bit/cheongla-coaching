@@ -11,7 +11,7 @@ function journals(title,records){const date=title.match(/^(\d{4})-(\d{2})(?:-(\d
 
 function mbti(code,guide,groups){
  if(!/^[IE][NS][TF][JP]$/.test(code)||!guide||!groups)throw Error('출력할 MBTI 유형을 선택해 주세요.');
- return open(code+' · 청라 MBTI 학습법',(body,doc)=>{
+ return open((guide.title&&guide.title!==code?code+' · '+guide.title:code)+' · 청라 MBTI 학습법',(body,doc)=>{
   const text=(parent,tag,value)=>{const n=doc.createElement(tag);n.textContent=value;parent.append(n);return n;};
   if(guide.subtitle)text(body,'p',guide.subtitle);
   for(const [key,group]of Object.entries(groups)){

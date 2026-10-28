@@ -1,0 +1,16 @@
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
+const base=path.join(__dirname,'..'),catalog=JSON.parse(fs.readFileSync(path.join(base,'assets/mbti-study-methods.json'),'utf8'));
+class N{constructor(tag){this.tag=tag;this.children=[];this.events={};this.value='';this.open=false;}append(...n){this.children.push(...n);}replaceChildren(...n){this.children=n;}addEventListener(k,f){this.events[k]=f;}reportValidity(){return true;}showModal(){this.open=true;}close(){this.open=false;this.events.close?.();}}
+const nodes={},$=id=>nodes[id]??=new N(),document={getElementById:$,createElement:t=>new N(t)},flat=n=>[n,...n.children.flatMap(flat)];
+const ctx=vm.createContext({document});vm.runInContext(fs.readFileSync(path.join(base,'mbti-editor.js'),'utf8'),ctx);
+let profile={role:'english_director'},choice=false,fail=false,calls=[],saved=[],current={code:'INTJ',group:'english',guide:catalog.types.INTJ,version:'v1'};
+const api={document,profile:()=>profile,canEdit:()=>profile?.role==='english_director',groups:{english:{title:'영어',subjects:[['english_reading','독해'],['english_listening','듣기']]},overview:{title:'유형 이해',sections:'overview'}},current:()=>current,confirm:async()=>choice,readable:e=>e.message,saved:r=>saved.push(r),client:async()=>({rpc:async(name,args)=>{calls.push({name,args});if(fail)return{error:Error('다른 원장이 변경했습니다')};return{data:{mbti:args.selected_mbti,guide:args.guide_content,updated_at:'v2'}};}})};
+const ui=ctx.CheonglaMBTIEditor.mount(api),field=name=>flat($('mbtiEditFields')).find(n=>n.name===name),submit=()=>$('mbtiEditForm').events.submit({preventDefault(){}});
+(async()=>{
+ ui.open();assert($('mbtiEditDialog').open);field('subjects.english_reading').value='수정 독해 본문 <script>plain text</script>';field('title').value='INTJ 수정 제목';$('mbtiEditForm').events.input();
+ await $('mbtiEditCancel').events.click();assert($('mbtiEditDialog').open);await Promise.all([submit(),submit()]);assert.equal(calls.length,1);assert.equal(calls[0].args.expected_updated_at,'v1');assert.equal(saved[0].guide.subjects.english_reading,'수정 독해 본문 <script>plain text</script>');assert.equal(saved[0].guide.subjects.math_common,catalog.types.INTJ.subjects.math_common);assert.equal(catalog.types.INTJ.title,'INTJ');assert(!$('mbtiEditDialog').open);
+ ui.open();fail=true;field('subjects.english_reading').value='보관할 초안';await submit();assert($('mbtiEditDialog').open);assert.equal(field('subjects.english_reading').value,'보관할 초안');assert($('mbtiEditStatus').textContent.includes('다른 원장'));assert(!$('mbtiEditSave').disabled);ui.reset();fail=false;
+ current={...current,group:'overview'};ui.open();assert(field('overview.0.body'));field('overview.0.body').value='수정 유형 이해';await submit();assert.equal(saved.at(-1).guide.overview[0].body,'수정 유형 이해');
+ for(const role of ['manager','student','parent']){profile={role};ui.open();assert(!$('mbtiEditDialog').open);const before=calls.length;await submit();assert.equal(calls.length,before);}
+ console.log('PASS MBTI editor: principal-only fields, section edits preserve other subjects/original, version passed, double-submit guard, conflict retains draft, cancel and role denial');
+})().catch(e=>{console.error(e);process.exit(1);});

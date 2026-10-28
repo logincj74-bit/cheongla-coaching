@@ -1,0 +1,35 @@
+begin;
+do $$
+declare principal uuid;staff uuid;student uuid:=gen_random_uuid();version timestamptz;result jsonb;content jsonb:=jsonb_build_object('title','INTJ 편집 검증','subtitle','수정 소개','overview',jsonb_build_array(jsonb_build_object('title','유형 이해','body','원장 수정 본문')),'coaching',jsonb_build_array(jsonb_build_object('title','학습 운영','body','운영 본문')),'subjects',jsonb_build_object('english_reading','독해 수정 본문'),'groupIntroductions',jsonb_build_object('english',jsonb_build_object('title','영어 소개','body','영어 설명')));
+begin
+ select id into principal from public.cheongla_profiles where role in('owner','english_director','math_director')and approval_status='approved'and membership_state='active'limit 1;
+ select id into staff from public.cheongla_profiles where role='manager'and approval_status='approved'and membership_state='active'limit 1;
+ assert principal is not null and staff is not null,'fixture staff missing';
+ insert into auth.users(id,email,raw_user_meta_data)values(student,'mbti-editor-'||student||'@example.invalid','{"full_name":"학습법 편집 검증","contact_phone":"01000000996"}');
+ update public.cheongla_profiles set role='student',approval_status='approved'where id=student;
+ assert not has_table_privilege('anon','public.cheongla_mbti_guides','select'),'anonymous read';
+ assert not has_table_privilege('authenticated','public.cheongla_mbti_guides','update'),'direct member write';
+ assert not has_function_privilege('anon','public.cheongla_save_mbti_guide(text,jsonb,timestamptz)','execute'),'anonymous save';
+ select updated_at into version from public.cheongla_mbti_guides where mbti='INTJ';
+ perform set_config('request.jwt.claim.sub',student::text,true);
+ begin perform public.cheongla_save_mbti_guide('INTJ',content,version);raise exception 'student saved';exception when insufficient_privilege then null;end;
+ perform set_config('request.jwt.claim.sub',staff::text,true);
+ begin perform public.cheongla_save_mbti_guide('INTJ',content,version);raise exception 'manager saved';exception when insufficient_privilege then null;end;
+ perform set_config('request.jwt.claim.sub',principal::text,true);
+ result:=public.cheongla_save_mbti_guide('INTJ',content,version);
+ assert result->'guide'=content and result->>'mbti'='INTJ','save content mismatch';
+ version:=(result->>'updated_at')::timestamptz;
+ assert exists(select 1 from cheongla_private.mbti_guide_history where mbti='INTJ'and actor_id=principal and after_guide=content),'history missing';
+ begin perform public.cheongla_save_mbti_guide('INTJ',content,null);raise exception 'stale overwrite accepted';exception when raise_exception then if sqlerrm='stale overwrite accepted'then raise;end if;end;
+ begin perform public.cheongla_save_mbti_guide('ZZZZ',content,null);raise exception 'invalid type accepted';exception when raise_exception then if sqlerrm='invalid type accepted'then raise;end if;end;
+ begin perform public.cheongla_save_mbti_guide('INTJ',jsonb_set(content,'{overview}','null'),version);raise exception 'invalid structure accepted';exception when raise_exception then if sqlerrm='invalid structure accepted'then raise;end if;end;
+ content:=jsonb_set(content,'{subjects,english_reading}','"수정 후 출력 본문"');
+ result:=public.cheongla_save_mbti_guide('INTJ',content,version);
+ assert exists(select 1 from cheongla_private.mbti_guide_history where mbti='INTJ'and before_guide->'subjects'->>'english_reading'='독해 수정 본문'and after_guide=content),'previous revision not preserved';
+ perform set_config('request.jwt.claim.sub',student::text,true);
+ execute 'set local role authenticated';
+ assert (select guide->'subjects'->>'english_reading'from public.cheongla_mbti_guides where mbti='INTJ')='수정 후 출력 본문','approved student cannot read saved guide';
+ execute 'reset role';
+end $$;
+rollback;
+select 'PASS: principal saves, student/manager/anonymous denial, student RLS read, edit history, stale-write and malformed-data rejection; tests rolled back' as result,count(*)as saved_guide_count from public.cheongla_mbti_guides;
