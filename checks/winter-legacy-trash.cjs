@@ -1,15 +1,15 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync(require('node:path').join(__dirname,'../winter-school.js'),'utf8');
 class Node{constructor(tag,text){this.tag=tag;this.textContent=text;this.children=[];this.disabled=false;}append(...items){this.children.push(...items);}setAttribute(){}}
-const el=(tag,text)=>new Node(tag,text),calls=[];let choice=false,fail=false,refreshes=0,afterConfirm=()=>{};
+const el=(tag,text)=>new Node(tag,text),calls=[];let choice=false,fail=false,refreshes=0,notices=[],afterConfirm=()=>{};
 const ctx=vm.createContext({currentProfile:{role:'owner'},request:1,el,
  button:(text,fn)=>{const b=el('button',text);b.click=fn;return b;},
  section:(parent,title,text)=>{const n=el('section',title);n.append(el('p',text));parent.append(n);return n;},
  isPrincipal:()=>['owner','english_director','math_director'].includes(ctx.currentProfile?.role),
  manager:()=>['owner','english_director','math_director','manager'].includes(ctx.currentProfile?.role),
  appConfirm:async()=>{afterConfirm();return choice;},leave:async()=>true,
- rpc:async(name,args)=>{calls.push({name,args});if(fail)throw Error('connection failed');},
- manage:async()=>{refreshes++;},readable:e=>e.message});
+ rpc:async(name,args)=>{calls.push({name,args});if(fail)throw Error('connection failed');if(name==='cheongla_empty_winter_legacy_trash')return args.expected_records.length;},
+ manage:async(...args)=>{refreshes++;notices.push(args[1]);},readable:e=>e.message});
 vm.runInContext(source.slice(source.indexOf(' function renderLegacy('),source.indexOf(' async function manage(')),ctx);
 const row={source_id:'fixture',student_name:'검증 학생',amount:100000,deleted_at:'2026-10-21T01:00:00Z'};
 function render(trash=false){const p=el('div');ctx.renderLegacy(p,[{...row,...(trash?{deleted_at:'version'}:{})}],trash);return p;}
@@ -22,5 +22,11 @@ function action(p){return p.children[0].children.find(n=>n.tag==='section').chil
  p=render();afterConfirm=()=>{ctx.currentProfile={role:'manager'};};await action(p).click();assert.equal(calls.length,3);afterConfirm=()=>{};
  assert.equal(action(render()),undefined);assert.equal(render(true).children.length,0);
  for(const role of ['english_director','math_director']){ctx.currentProfile={role};assert(action(render()));}
- console.log('PASS: principal delete/restore, cancellation, double-click, error display, account switch, manager denial');
+ const emptyButton=p=>p.children[0].children.find(n=>n.tag==='button');
+ let count=calls.length;choice=false;p=render(true);b=emptyButton(p);await b.click();assert.equal(calls.length,count);
+ choice=true;await Promise.all([b.click(),b.click()]);assert.equal(calls.length,count+1);assert.equal(calls.at(-1).name,'cheongla_empty_winter_legacy_trash');assert.equal(calls.at(-1).args.expected_records[0].source_id,'fixture');assert.equal(calls.at(-1).args.expected_records[0].deleted_at,'version');assert(notices.at(-1).includes('1건을 영구 삭제'));
+ const empty=el('div');ctx.renderLegacy(empty,[],true);assert.equal(emptyButton(empty).disabled,true);await emptyButton(empty).click();assert.equal(calls.length,count+1);
+ fail=true;p=render(true);b=emptyButton(p);await b.click();assert.equal(b.disabled,false);assert(p.children[0].children.some(n=>n.textContent==='connection failed'));fail=false;
+ p=render(true);count=calls.length;afterConfirm=()=>{ctx.currentProfile={role:'manager'};};await emptyButton(p).click();assert.equal(calls.length,count);afterConfirm=()=>{};
+ console.log('PASS: principal delete/restore, cancellation, double-click, error display, account switch, manager denial, empty-trash confirmation/cancel/count/double-click/error/empty list');
 })().catch(e=>{console.error(e);process.exit(1);});
