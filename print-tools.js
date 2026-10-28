@@ -9,5 +9,19 @@ function open(title,build,filename){clear();const doc=root.document,dialog=doc.c
 function node(title,target){return open(title,(body,doc)=>{const snapshot=visibleSnapshot(target,doc);if(snapshot)body.append(snapshot);});}
 function journals(title,records){const date=title.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?(?=\s|$)/);const filename=date?'청라근무일지'+date[1].slice(2)+date[2]+(date[3]||''):undefined;return open(title,(body,doc)=>{for(const r of records){const article=doc.createElement('article'),h=doc.createElement('h2');h.textContent=r.work_on+' · '+r.author_name;article.append(h);for(const[key,label]of[['duty','근무 내용'],['special','특이 사항'],['handover','신규 상담 · 전달 사항']]){const head=doc.createElement('h3'),text=doc.createElement('p');head.textContent=label;text.textContent=r[key]||'기록 없음';text.style.color=root.CheonglaStaffJournal?.inks[r.ink_color]?.[1]||'#203e42';article.append(head,text);for(const c of(r.comments||[]).filter(c=>(c.field_key||'handover')===key)){const h=doc.createElement('h4'),p=doc.createElement('p');h.textContent=c.author_name+' · '+new Date(c.created_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'});p.textContent=c.body;p.style.color=root.CheonglaStaffJournal?.inks[c.ink_color]?.[1]||'#203e42';article.append(h,p);}}body.append(article);}},filename);}
 
-root.CheonglaPrint={node,journals,clear,visibleSnapshot};
+function mbti(code,guide,groups){
+ if(!/^[IE][NS][TF][JP]$/.test(code)||!guide||!groups)throw Error('출력할 MBTI 유형을 선택해 주세요.');
+ return open(code+' · 청라 MBTI 학습법',(body,doc)=>{
+  const text=(parent,tag,value)=>{const n=doc.createElement(tag);n.textContent=value;parent.append(n);return n;};
+  if(guide.subtitle)text(body,'p',guide.subtitle);
+  for(const [key,group]of Object.entries(groups)){
+   const block=doc.createElement('section');text(block,'h2',group.title);
+   const section=s=>{if(!s?.title||typeof s.body!=='string'||!s.body.trim())return;text(block,'h3',s.title);text(block,'p',s.body);};
+   if(group.sections){for(const s of guide[group.sections]||[])section(s);}
+   else{section(guide.groupIntroductions?.[key]);for(const [subject,label]of group.subjects||[]){text(block,'h3',label);text(block,'p',guide.subjects?.[subject]||'학습법 준비 중');}}
+   body.append(block);
+  }
+ },'청라MBTI학습법_'+code);
+}
+root.CheonglaPrint={node,journals,mbti,clear,visibleSnapshot};
 })(globalThis);
