@@ -1,13 +1,14 @@
 /* Winter information and reservations share the existing academy identity and billing. */
 (function(root){'use strict';
 const states={received:'접수 완료',contacted:'상담 중',visit_scheduled:'방문 일정 확정',visited:'방문 완료',enrolled:'등록 완료',cancelled:'취소'},cards=['이번 겨울, 계획을 실력으로','생활 관리','학습 상담','교재·자료 활용','자기주도학습','공부 환경','청라 윈터스쿨 상담 안내'];
-function install(){const doc=root.document;if(!doc?.getElementById||!root.CheonglaStaffJournalUI||doc.getElementById('winterMenu'))return;
+function install(){const doc=root.document;if(!doc?.getElementById||!root.CheonglaStaffJournalUI||doc.getElementById('winterManagePanel'))return;
  const el=(tag,text,cls)=>{const n=doc.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;},button=(text,fn,cls='secondary')=>{const n=el('button',text,cls);n.type='button';n.addEventListener('click',fn);return n;};
  const manager=()=>currentProfile?.approval_status==='approved'&&currentProfile?.membership_state==='active'&&['owner','english_director','math_director','manager'].includes(currentProfile?.role);
  const rpc=async(name,args)=>{const c=await getClient(),r=await c.rpc(name,args);if(r.error)throw r.error;return r.data;};
  const dirtyForms=new Set(),bookingDrafts=new Map();let request=0;
  async function leave(){if(dirtyForms.size&&!await appConfirm('저장하지 않은 윈터 상담·예약 메모가 있습니다. 이동하시겠습니까?'))return false;dirtyForms.clear();bookingDrafts.clear();return true;}
- const menu=el('details',undefined,'site-menu');menu.id='winterMenu';const summary=el('summary','청라 윈터스쿨'),links=el('div');menu.append(summary,links);doc.getElementById('financeMenu').after(menu);
+ const menu=el('details',undefined,'site-menu');menu.id='winterMenu';const summary=el('summary','청라 윈터스쿨'),links=el('div');menu.append(summary,links);
+ // Winter School has a separate app. Keep this legacy navigation detached.
  const panel=el('section');panel.id='winterManagePanel';panel.hidden=true;panel.tabIndex=-1;doc.getElementById('accountPanel').prepend(panel);accountSectionLabels.winterManagePanel='윈터 상담 · 예약 관리';
  const oldAllowed=allowedAccountSection;root.allowedAccountSection=id=>id==='winterManagePanel'?manager():oldAllowed(id);const oldGroup=accountSectionGroup;root.accountSectionGroup=id=>id==='winterManagePanel'?'관리 업무':oldGroup(id);
  const style=el('style');style.textContent='.winter-hero{padding:28px;border-radius:20px;background:linear-gradient(130deg,#e9f3ec,#fff7e6);margin:16px 0 24px}.winter-hero h3{font-size:clamp(25px,5vw,39px);line-height:1.4}.winter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px}.winter-gallery{display:flex;gap:14px;overflow:auto;scroll-snap-type:x mandatory;padding:12px 0}.winter-gallery button{flex:0 0 min(75vw,300px);padding:0;background:transparent;scroll-snap-align:start}.winter-gallery img{width:100%;display:block;border-radius:14px}.winter-form{padding:20px;border:1px solid #d7e4d9;border-radius:16px;margin:18px 0}.winter-booking-card{padding:20px;border:1px solid #d9e3d9;border-radius:14px;margin:16px 0}.winter-booking-card>summary{font-weight:700;cursor:pointer}.winter-booking-card textarea{min-height:110px}';doc.head.append(style);
