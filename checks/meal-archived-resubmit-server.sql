@@ -1,0 +1,42 @@
+begin;
+do $$ declare student uuid;principal uuid;t uuid;f jsonb;before_bill jsonb;before_payments jsonb;after_payments jsonb;bill_id uuid;bill_stamp timestamptz;payment_stamp timestamptz;s public.cheongla_meal_submissions%rowtype;
+begin
+select id into student from public.cheongla_profiles where role='student' and approval_status='approved' and membership_state='active' limit 1;
+select id into principal from public.cheongla_profiles where approval_status='approved' and membership_state='active' and is_app_admin limit 1;
+if student is null or principal is null then raise exception 'Active student/principal fixture required';end if;
+insert into public.cheongla_meal_forms(month,deadline,unit_price)values('2098-11-01','2098-10-31',7500);
+insert into public.cheongla_meal_submissions(month,student_id,student_name,lunch,dinner)values('2098-11-01',student,'롤백 검증',array['2098-11-03'::date],array['2098-11-04'::date])returning *into s;
+perform set_config('request.jwt.claim.sub',principal::text,true);
+bill_id:=public.cheongla_save_meal_bill_v2(s.month,student,current_date+2,0,'검증',s.updated_at,null);
+select updated_at into bill_stamp from public.cheongla_meal_bills where id=bill_id;
+perform public.cheongla_publish_meal_bill(bill_id,'publish',bill_stamp);
+select updated_at into bill_stamp from public.cheongla_meal_bills where id=bill_id;
+perform public.cheongla_set_fee_payment('meal',bill_id,true,bill_stamp,null);
+select updated_at into payment_stamp from cheongla_private.fee_payments where notice_kind='meal' and notice_id=bill_id;
+perform public.cheongla_archive_meal_submission(s.month,student,s.updated_at,bill_stamp,payment_stamp,null);
+select x.*into s from public.cheongla_meal_submissions x where x.month='2098-11-01' and x.student_id=student;
+select id into t from cheongla_private.meal_submission_trash where month=s.month and student_id=student and restored_at is null and submission_snapshot->>'_soft_archive'='true' order by deleted_at desc limit 1;
+select to_jsonb(b) into before_bill from public.cheongla_meal_bills b where b.month=s.month and b.student_id=student;
+select coalesce(jsonb_agg(to_jsonb(p)),'[]') into before_payments from cheongla_private.fee_payments p where p.notice_kind='meal' and p.notice_id=(before_bill->>'id')::uuid;
+perform set_config('request.jwt.claim.sub',student::text,true);
+f:=public.cheongla_read_meal_form(s.month);
+if jsonb_array_length(f->'submissions')<>0 then raise exception 'FAIL archived visible';end if;
+begin
+perform public.cheongla_submit_student_meal(student,s.month,s.lunch,s.dinner,'',null,(f->'form'->>'updated_at')::timestamptz);
+raise exception 'FAIL archived save allowed';
+exception when raise_exception then if SQLERRM not like '원장이 삭제한 신청서가 휴지통%' then raise;end if;end;
+begin perform public.cheongla_restore_meal_submission(t);raise exception 'FAIL student restore';exception when insufficient_privilege then null;end;
+perform set_config('request.jwt.claim.sub',principal::text,true);
+perform public.cheongla_restore_meal_submission(t);
+perform set_config('request.jwt.claim.sub',student::text,true);
+f:=public.cheongla_read_meal_form(s.month);
+if jsonb_array_length(f->'submissions')<>1 then raise exception 'FAIL restored visibility';end if;
+perform public.cheongla_submit_student_meal(student,s.month,s.lunch,s.dinner,'복구 후 저장 검증',s.updated_at,(f->'form'->>'updated_at')::timestamptz);
+if not exists(select 1 from public.cheongla_meal_submissions x where x.month=s.month and x.student_id=student and x.archived_at is null and x.lunch=s.lunch and x.dinner=s.dinner and x.note='복구 후 저장 검증')then raise exception 'FAIL resubmit';end if;
+if not exists(select 1 from public.cheongla_meal_bills b where b.id=(before_bill->>'id')::uuid and b.amount=(before_bill->>'amount')::integer and b.archived_at is null)then raise exception 'FAIL bill preservation';end if;
+select coalesce(jsonb_agg(to_jsonb(p)),'[]') into after_payments from cheongla_private.fee_payments p where p.notice_kind='meal' and p.notice_id=(before_bill->>'id')::uuid;
+if before_payments is distinct from after_payments then raise exception 'FAIL payment changed';end if;
+end $$;
+rollback;
+select 'PASS: archived-state error, principal-only restore, student visibility and resubmit, original meals/bill/payment preserved. Rolled back.' result;
+
