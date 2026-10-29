@@ -5,7 +5,7 @@ async function run(scenario='success'){
  const s={student_id:'student',student_name:'검증학생',month:'2099-11-01',lunch:['2099-11-02'],dinner:[],updated_at:'s1'};
  const bill={id:'bill',student_id:'student',status:'published',updated_at:'b1'};
  const calls=[],messages=[],status={},nodes={mealStatus:{scrollIntoView(){}}};let confirmText='';
- const context=vm.createContext({mealBusy:false,currentProfile:{id:'owner'},mealData:{bills:[bill]},isPrincipal:()=>true,setMealControls(){},$:id=>nodes[id],appConfirm:async text=>{confirmText=text;return true},readable:e=>e.message,loadMealForm:async text=>messages.push(text),getClient:async()=>({rpc:async(name,args)=>{
+ const context=vm.createContext({mealBusy:false,currentProfile:{id:'owner'},mealData:{bills:[bill]},isPrincipal:()=>true,canManageLife:()=>true,setMealControls(){},$:id=>nodes[id],appConfirm:async text=>{confirmText=text;return true},readable:e=>e.message,loadMealForm:async text=>messages.push(text),getClient:async()=>({rpc:async(name,args)=>{
   calls.push({name,args});
   if(name==='cheongla_fee_collection_states')return {data:[{notice_id:'bill',paid_at:scenario==='paid'?'paid':null,payment_updated_at:null,report:null}]};
   if(name==='cheongla_publish_meal_bill')return scenario==='withdraw_error'?{error:new Error('동시 변경')}:{};
