@@ -11,7 +11,7 @@ function mount(api){
  function protectedSelection(e){const target=e.target?.nodeType===3?e.target.parentElement:e.target;const selection=doc.getSelection?.();return !!target?.closest?.('.director-protected')||!!selection?.anchorNode?.parentElement?.closest?.('.director-protected')||!!selection?.focusNode?.parentElement?.closest?.('.director-protected');}
  for(const event of ['copy','cut'])doc.addEventListener?.(event,e=>{if(protectedView()&&protectedSelection(e))deny(e);},true);
  doc.addEventListener?.('keydown',e=>{if(!protectedView()||!(e.ctrlKey||e.metaKey)||e.altKey)return;const key=e.key.toLowerCase();if(['s','p'].includes(key)||(['c','x'].includes(key)&&protectedSelection(e)))deny(e);},true);
- const protectionStyle=el('style');protectionStyle.textContent='.director-protected{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}.director-protected img{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-user-drag:none;pointer-events:none}.director-protected-photo{margin:18px 0;padding:0}.director-protected-photo figcaption,.director-copyright-note{font-size:12px;line-height:1.7;color:#526c62}.director-copyright-note{padding:12px 14px;border:1px solid #dce4d9;background:#f1f5ed;border-radius:10px}.director-protected-photo figcaption{text-align:center}.director-protected-print-note{display:none}@media print{.director-protected{display:none!important}.director-protected-print-note{display:block!important}}';doc.head?.append(protectionStyle);
+ const protectionStyle=el('style');protectionStyle.textContent='.director-protected{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}.director-protected img{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-user-drag:none;pointer-events:none}.director-protected-photo{margin:18px 0;padding:0}.director-protected-photo figcaption,.director-copyright-note{font-size:12px;line-height:1.7;color:#526c62}.director-copyright-note{padding:12px 14px;border:1px solid #dce4d9;background:#f1f5ed;border-radius:10px}.director-protected-photo figcaption{text-align:center}.director-file-tool{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:10px 0;padding:12px;border:1px solid #dce4d9;border-radius:10px}.director-file-tool span{overflow-wrap:anywhere}.director-protected-print-note{display:none}@media print{.director-file-tools{display:none!important}.director-protected{display:none!important}.director-protected-print-note{display:block!important}}';doc.head?.append(protectionStyle);
  let sequence=0,currentKey=null,editing=null,busy=false,dirty=false,trashView=false;
  const dialog=el('dialog');dialog.setAttribute('aria-label','원장 글 작성·수정');dialog.style.cssText='width:min(900px,96vw);max-height:92dvh;border:1px solid #cad9ce;border-radius:16px;padding:22px';
  const heading=el('h2'),form=el('form'),title=el('input'),body=el('textarea'),visibility=el('select'),files=el('input'),status=el('p'),save=el('button','저장하기'),cancel=button('취소 · 닫기',()=>void close());
@@ -57,6 +57,34 @@ function mount(api){
   try{await rpc('cheongla_trash_director_post',{target_post:post.id,expected_updated_at:post.updated_at,restore_post:restore});if(actor!==api.profile())return;if(currentKey===key)await show(key,restore?false:trashView);$('siteStatus').textContent=restore?'글을 임시저장으로 복구했습니다. 확인 후 공개로 저장해 주세요.':'글을 휴지통으로 이동했습니다. 휴지통에서 복구할 수 있습니다.';void api.notifyReload();}
   catch(e){$('siteStatus').textContent=api.readable(e);}finally{busy=false;}
  }
+ async function removePermanently(post,file=null){
+  if(busy||!api.principal()||!protectedCategories.has(post.category))return;
+  const actor=api.profile(),key=currentKey,inTrash=trashView,confirmation=file?'첨부파일 삭제':'글 영구삭제';
+  const message=file?'「'+file.filename+'」을 삭제할까요?\n이 파일은 복구할 수 없습니다. 글과 다른 첨부파일은 유지됩니다.':'「'+post.title+'」을 영구삭제할까요?\n이 글과 모든 사진·첨부파일, 수정 이력이 삭제되며 복구할 수 없습니다.';
+  if(!await api.confirm(message,confirmation))return;
+  if(busy||actor!==api.profile()||!api.principal())return;busy=true;$('siteStatus').textContent='첨부파일과 삭제 상태를 확인하는 중…';
+  let complete=false,error=null;
+  try{
+   const args={target_post:post.id,target_file:file?.id||null,expected_updated_at:post.updated_at,confirmation};
+   const job=await rpc('cheongla_begin_director_removal',args);
+   if(actor!==api.profile()||!api.principal())return;
+   if(job.post_id!==post.id||job.file_id!==(file?.id||null)||!Array.isArray(job.paths)||job.paths.some(path=>typeof path!=='string'||!path.startsWith(post.id+'/')||path.includes('..')))throw Error('삭제할 파일 목록을 확인해 주세요.');
+   const c=await api.client();
+   for(let i=0;i<job.paths.length;i+=1000){
+    if(actor!==api.profile()||!api.principal())return;
+    const r=await c.storage.from('cheongla-director').remove(job.paths.slice(i,i+1000));if(r.error)throw r.error;
+   }
+   if(actor!==api.profile()||!api.principal())return;
+   await rpc('cheongla_finish_director_removal',{...args,expected_updated_at:job.updated_at});complete=true;
+  }catch(e){error=api.readable(e);}
+  finally{
+   try{if(actor===api.profile()){
+    if(currentKey===key)await show(key,inTrash);
+    $('siteStatus').textContent=complete?(file?'선택한 첨부파일을 삭제했습니다. 글과 다른 첨부파일은 유지됩니다.':'글과 첨부파일을 영구삭제했습니다.'):error?'삭제를 완료하지 못했습니다. 삭제 버튼을 다시 눌러 마쳐 주세요. '+error:'삭제가 중단되었습니다. 다시 로그인한 뒤 삭제를 마쳐 주세요.';
+    if(complete)void api.notifyReload();
+   }}finally{busy=false;}
+  }
+ }
  async function attachment(parent,file,request,protectedContent=false){
   const imageFile=/\.(jpg|jpeg|png|webp|gif)$/i.test(file.filename);
   if(protectedContent&&!imageFile){parent.append(el('p','원본 파일 제공 제한 · '+file.filename));return;}
@@ -78,9 +106,19 @@ function mount(api){
    feedback.textContent=posts.length?'':category==='greeting'?'':trashView?'휴지통이 비어 있습니다.':'아직 등록된 글이 없습니다.';
    const visible=posts.filter(p=>!!p.archived_at===trashView&&(p.state==='published'||api.principal()));
    if(category==='greeting'&&!visible.some(p=>p.body)){for(const paragraph of api.greeting().paragraphs)list.append(el('p',paragraph));}
-   for(const post of visible){if(category==='greeting'&&!post.body)continue;const card=el('article');card.className='notice-form';const content=el('div');content.className='director-post-content';content.append(el('h3',post.title),el('small',new Date(post.updated_at).toLocaleDateString('ko-KR')+(post.state==='draft'?' · 임시저장':'')));const text=el('p',post.body);text.className='notice-body';content.append(text);if(protectedCategories.has(category))shield(content);card.append(content);if(api.principal()){if(!trashView)card.append(button('글 수정 · 첨부파일 추가',()=>edit(category,post)));if(protectedCategories.has(category))card.append(button(trashView?'글 복구':'글 삭제',()=>trash(post,trashView)));}list.append(card);
-    const f=await c.from('cheongla_director_files').select('id,filename,object_path').eq('post_id',post.id).eq('state','ready').order('created_at');if(request!==sequence)return;if(f.error){card.append(el('p','첨부파일을 불러오지 못했습니다. 다시 확인해 주세요.'));continue;}
-    for(const file of f.data||[])await attachment(content,file,request,protectedCategories.has(category));
+   for(const post of visible){if(category==='greeting'&&!post.body)continue;const card=el('article');card.className='notice-form';const content=el('div');content.className='director-post-content';content.append(el('h3',post.title),el('small',new Date(post.updated_at).toLocaleDateString('ko-KR')+(post.state==='draft'?' · 임시저장':'')));const text=el('p',post.body);text.className='notice-body';content.append(text);if(protectedCategories.has(category))shield(content);card.append(content);if(api.principal()){if(!trashView)card.append(button('글 수정 · 첨부파일 추가',()=>edit(category,post)));if(protectedCategories.has(category)){if(!post.purge_requested_at)card.append(button(trashView?'글 복구':'글 삭제',()=>trash(post,trashView)));if(trashView){const purge=button(post.purge_requested_at?'영구삭제 계속':'글 영구삭제',()=>removePermanently(post));purge.className='danger';card.append(purge);}}}list.append(card);
+    const f=await c.from('cheongla_director_files').select('id,filename,object_path,removal_requested_at').eq('post_id',post.id).eq('state','ready').order('created_at');if(request!==sequence)return;if(f.error){card.append(el('p','첨부파일을 불러오지 못했습니다. 다시 확인해 주세요.'));continue;}
+    const fileTools=el('div');fileTools.className='director-file-tools';
+    if(post.purge_requested_at){content.append(el('p','영구삭제 진행 중입니다. 영구삭제 계속 버튼으로 마쳐 주세요.'));continue;}
+    for(const file of f.data||[]){
+     if(file.removal_requested_at)content.append(el('p','첨부파일 삭제 진행 중 · '+file.filename));
+     else await attachment(content,file,request,protectedCategories.has(category));
+     if(request!==sequence)return;
+     if(api.principal()&&!trashView&&protectedCategories.has(category)){
+      const line=el('div');line.className='director-file-tool';const remove=button(file.removal_requested_at?'삭제 계속':'첨부 삭제',()=>removePermanently(post,file));remove.className='danger';remove.setAttribute('aria-label',file.filename+' '+(file.removal_requested_at?'삭제 계속':'첨부 삭제'));line.append(el('span',file.filename+' '),remove);fileTools.append(line);
+     }
+    }
+    if(fileTools.children.length){card.append(el('p','첨부파일 관리 · 원장 전용'),fileTools);} 
    }
   }catch(e){if(request===sequence){feedback.textContent=api.readable(e);if(category==='greeting'&&!list.children.length){feedback.textContent+=' 기본 인사말을 표시합니다.';for(const text of api.greeting().paragraphs)list.append(el('p',text));}}}
  }
