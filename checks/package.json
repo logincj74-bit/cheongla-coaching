@@ -1,0 +1,9 @@
+{
+  "name": "cheongla-dom-checks",
+  "private": true,
+  "scripts": {
+    "test:journal": "node journal-rich-dom.cjs",
+    "test:patrol": "node patrol-autosave-dom.cjs"
+  },
+  "devDependencies": { "jsdom": "26.1.0" }
+}
