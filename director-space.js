@@ -1,9 +1,9 @@
 /* Public reading, principal-only authoring. Attachments stay private until saved. */
 (function(root){'use strict';
 function mount(api){
- const doc=api.document,$=id=>doc.getElementById(id),names={greeting:'원장 인사말',thoughts:'이청지단상(以聽之斷想)',photos:'사진에게 말을 걸다',objects:'사물로 읽는 사람'},routes={greeting:'greeting',director_thoughts:'thoughts',director_photos:'photos',director_objects:'objects'};
+ const doc=api.document,$=id=>doc.getElementById(id),names={greeting:'원장 인사말',thoughts:'이청지단상(以聽之斷想)',photos:'사진에게 말을 걸다',objects:'사물로 읽는 사람',column:'칼럼'},routes={greeting:'greeting',director_thoughts:'thoughts',director_photos:'photos',director_objects:'objects',director_column:'column'};
  const el=(tag,text)=>{const n=doc.createElement(tag);if(text!==undefined)n.textContent=text;return n;},button=(text,fn)=>{const n=el('button',text);n.type='button';n.className='secondary';n.addEventListener('click',fn);return n;};
- const protectedCategories=new Set(['thoughts','photos','objects']);
+ const protectedCategories=new Set(['thoughts','photos','objects','column']);
  const copyright='저작권 보호 콘텐츠 · 무단 복제·저장·배포 금지';
  const deny=e=>{e.preventDefault();e.stopPropagation();};
  function shield(node){node.className+=' director-protected';for(const event of ['copy','cut','contextmenu','dragstart','selectstart'])node.addEventListener(event,deny);}
