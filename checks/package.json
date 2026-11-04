@@ -3,7 +3,9 @@
   "private": true,
   "scripts": {
     "test:journal": "node journal-rich-dom.cjs",
-    "test:patrol": "node patrol-autosave-dom.cjs"
+    "test:english": "node english-retirement-dom.cjs",
+    "test:menus": "node final-menu-dom.cjs",
+    "test:trash": "node content-trash-dom.cjs"
   },
   "devDependencies": { "jsdom": "26.1.0" }
 }

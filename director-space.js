@@ -57,11 +57,11 @@ function mount(api){
   try{await rpc('cheongla_trash_director_post',{target_post:post.id,expected_updated_at:post.updated_at,restore_post:restore});if(actor!==api.profile())return;if(currentKey===key)await show(key,restore?false:trashView);$('siteStatus').textContent=restore?'글을 임시저장으로 복구했습니다. 확인 후 공개로 저장해 주세요.':'글을 휴지통으로 이동했습니다. 휴지통에서 복구할 수 있습니다.';void api.notifyReload();}
   catch(e){$('siteStatus').textContent=api.readable(e);}finally{busy=false;}
  }
- async function removePermanently(post,file=null){
+ async function removePermanently(post,file=null,confirmed=false){
   if(busy||!api.principal()||!protectedCategories.has(post.category))return;
   const actor=api.profile(),key=currentKey,inTrash=trashView,confirmation=file?'첨부파일 삭제':'글 영구삭제';
   const message=file?'「'+file.filename+'」을 삭제할까요?\n이 파일은 복구할 수 없습니다. 글과 다른 첨부파일은 유지됩니다.':'「'+post.title+'」을 영구삭제할까요?\n이 글과 모든 사진·첨부파일, 수정 이력이 삭제되며 복구할 수 없습니다.';
-  if(!await api.confirm(message,confirmation))return;
+  if(!confirmed&&!await api.confirm(message,confirmation))return;
   if(busy||actor!==api.profile()||!api.principal())return;busy=true;$('siteStatus').textContent='첨부파일과 삭제 상태를 확인하는 중…';
   let complete=false,error=null;
   try{
@@ -84,6 +84,7 @@ function mount(api){
     if(complete)void api.notifyReload();
    }}finally{busy=false;}
   }
+  return complete;
  }
  async function attachment(parent,file,request,protectedContent=false){
   const imageFile=/\.(jpg|jpeg|png|webp|gif)$/i.test(file.filename);
@@ -104,6 +105,7 @@ function mount(api){
    if(api.principal()&&!trashView)controls.append(button(category==='greeting'?'원장 인사말 수정':'새 글 작성',()=>edit(category,category==='greeting'?posts[0]:null)));
    if(api.principal()&&protectedCategories.has(category))controls.append(button(trashView?'← 글 목록':'휴지통',()=>show(key,!trashView)));
    feedback.textContent=posts.length?'':category==='greeting'?'':trashView?'휴지통이 비어 있습니다.':'아직 등록된 글이 없습니다.';
+   if(trashView&&posts.length)controls.append(button('현재 목록 휴지통 비우기',async()=>{if(busy||!api.principal()||!await api.confirm('현재 휴지통 목록 '+posts.length+'건과 첨부파일을 영구삭제할까요? 복구할 수 없습니다.','글 영구삭제'))return;const actor=api.profile();let count=0;for(const post of posts){if(actor!==api.profile()||!await removePermanently(post,null,true))break;count++;}$('siteStatus').textContent=count+'건 영구삭제 완료'+(count<posts.length?' · 나머지는 휴지통에서 확인해 주세요.':'.');}));
    const visible=posts.filter(p=>!!p.archived_at===trashView&&(p.state==='published'||api.principal()));
    if(category==='greeting'&&!visible.some(p=>p.body)){for(const paragraph of api.greeting().paragraphs)list.append(el('p',paragraph));}
    for(const post of visible){if(category==='greeting'&&!post.body)continue;const card=el('article');card.className='notice-form';const content=el('div');content.className='director-post-content';content.append(el('h3',post.title),el('small',new Date(post.updated_at).toLocaleDateString('ko-KR')+(post.state==='draft'?' · 임시저장':'')));const text=el('p',post.body);text.className='notice-body';content.append(text);if(protectedCategories.has(category))shield(content);card.append(content);if(api.principal()){if(!trashView)card.append(button('글 수정 · 첨부파일 추가',()=>edit(category,post)));if(protectedCategories.has(category)){if(!post.purge_requested_at)card.append(button(trashView?'글 복구':'글 삭제',()=>trash(post,trashView)));if(trashView){const purge=button(post.purge_requested_at?'영구삭제 계속':'글 영구삭제',()=>removePermanently(post));purge.className='danger';card.append(purge);}}}list.append(card);
