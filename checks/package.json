@@ -2,6 +2,7 @@
   "name": "cheongla-dom-checks",
   "private": true,
   "scripts": {
+    "test:intro": "node intro-editor-dom.cjs",
     "test:journal": "node journal-rich-dom.cjs",
     "test:english": "node english-retirement-dom.cjs",
     "test:menus": "node final-menu-dom.cjs",

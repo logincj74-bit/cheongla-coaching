@@ -110,7 +110,7 @@ root.CheonglaStaffJournal={mount,today,inks};
   ask.addEventListener('toggle',()=>{if(ask.open)for(const menu of doc.querySelectorAll('details.site-menu'))if(menu!==ask)menu.open=false;});
   finance.addEventListener('toggle',()=>{if(finance.open)for(const menu of doc.querySelectorAll('details.site-menu'))if(menu!==finance)menu.open=false;});
   for(const menu of doc.querySelectorAll('details.site-menu'))if(menu!==finance)menu.addEventListener('toggle',()=>{if(menu.open)finance.open=false;});
-  const footer=doc.querySelector('footer');if(footer)for(const n of footer.childNodes)if(n.nodeType===3&&n.textContent.includes('웹앱 v'))n.textContent=n.textContent.replace(/웹앱 v[\d.]+/,'웹앱 v1.9.67');
+  const footer=doc.querySelector('footer');if(footer)for(const n of footer.childNodes)if(n.nodeType===3&&n.textContent.includes('웹앱 v'))n.textContent=n.textContent.replace(/웹앱 v[\d.]+/,'웹앱 v1.9.68');
   root.configureDeskMenu();root.configureAccountSections();root.configureStaffWorkspace();
  }
  if(root.document?.readyState==='loading')root.document.addEventListener('DOMContentLoaded',installJournalNavigation,{once:true});else installJournalNavigation();
