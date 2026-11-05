@@ -1,0 +1,47 @@
+begin;
+do $$
+declare manager uuid:=gen_random_uuid();director uuid:=gen_random_uuid();student uuid:=gen_random_uuid();second_manager uuid:=gen_random_uuid();op uuid:=gen_random_uuid();d date:=(clock_timestamp()at time zone'Asia/Seoul')::date;r jsonb;version bigint;fields jsonb:='{"duty":"전달해주세요\n-전달 완료","special":"","handover":""}';inks jsonb:='{"duty":[{"text":"전달해주세요\n","ink":"red"},{"text":"-전달 완료","ink":"green"}],"special":[],"handover":[]}';mv timestamptz;
+begin
+ insert into auth.users(id,email,raw_user_meta_data)select x,'shared-journal-'||x||'@example.invalid','{"full_name":"공동일지검증","contact_phone":"01000000994"}'::jsonb from unnest(array[manager,director,student,second_manager])x;
+ update public.cheongla_profiles set role='manager',approval_status='approved'where id in(manager,second_manager);
+ update public.cheongla_profiles set role='math_director',approval_status='approved',is_app_admin=true where id=director;
+ update public.cheongla_profiles set role='student',approval_status='approved'where id=student;
+ assert not has_function_privilege('anon','public.cheongla_daily_journal_get(date)','execute'),'anonymous journal access';
+ perform set_config('request.jwt.claim.sub',student::text,true);
+ begin perform public.cheongla_daily_journal_get(d);raise exception 'student read allowed';exception when insufficient_privilege then null;end;
+ perform set_config('request.jwt.claim.sub',manager::text,true);
+ r:=public.cheongla_daily_journal_get(d);version:=(r->>'revision')::bigint;
+ r:=public.cheongla_daily_journal_save(d,fields,inks,version);assert r->'field_inks'->'duty'->1->>'ink'='green','inline reply colours lost';
+ begin perform public.cheongla_daily_journal_save(d,fields,inks,version);raise exception 'stale write accepted';exception when serialization_failure then null;end;
+ version:=(r->>'revision')::bigint;
+ begin perform public.cheongla_daily_journal_save(d,fields,'{"duty":[],"special":[],"handover":[]}',version);raise exception 'invalid colour runs accepted';exception when raise_exception then if sqlerrm='invalid colour runs accepted'then raise;end if;end;
+ begin perform public.cheongla_daily_journal_action(d,'archive',version);raise exception 'staff delete allowed';exception when insufficient_privilege then null;end;
+ r:=public.cheongla_daily_journal_action(d,'close',version);
+ begin perform public.cheongla_daily_journal_save(d,fields,inks,(r->>'revision')::bigint);raise exception 'closed staff edited';exception when insufficient_privilege then null;end;
+ perform set_config('request.jwt.claim.sub',second_manager::text,true);
+ r:=public.cheongla_daily_journal_save(d,fields,inks,(r->>'revision')::bigint);assert r->>'updated_by'=second_manager::text,'one staff close locked everyone';
+ -- Staff target recovery is limited to directors; managers still recover students/parents only.
+ assert not cheongla_private.can_recover_target(manager,director),'manager can reset director';
+ assert public.cheongla_manual_account(director)is null,'manager sees director identity';
+ perform set_config('request.jwt.claim.sub',director::text,true);
+ assert cheongla_private.can_recover_target(director,manager),'director cannot recover manager';
+ assert public.cheongla_manual_account(manager)is not null,'staff target lookup missing';
+ assert not cheongla_private.can_recover_target(director,director),'self reset allowed';
+ select membership_updated_at into mv from public.cheongla_profiles where id=manager;
+ perform set_config('request.jwt.claim.role','service_role',true);
+ perform public.cheongla_manual_recovery_job(director,manager,op,'issue','등록 전화번호 대조 검증',mv);
+ perform public.cheongla_manual_recovery_job(director,manager,op,'issued');
+ perform set_config('request.jwt.claim.sub',manager::text,true);
+ assert public.cheongla_account_recovery_state(),'staff temporary password gate missing';
+ op:=gen_random_uuid();perform public.cheongla_manual_recovery_job(manager,manager,op,'finish_begin');perform public.cheongla_manual_recovery_job(manager,manager,op,'finish');
+ assert not public.cheongla_account_recovery_state(),'staff password finish failed';
+ assert(select approval_status='approved'and role='manager'from public.cheongla_profiles where id=manager),'staff role/status not restored';
+ perform set_config('request.jwt.claim.sub',director::text,true);
+ r:=public.cheongla_daily_journal_action(d,'archive',(r->>'revision')::bigint);
+ assert r->>'archived_at'is not null,'archive failed';r:=public.cheongla_daily_journal_action(d,'restore',(r->>'revision')::bigint);assert r->>'archived_at'is null,'restore failed';
+ r:=public.cheongla_daily_journal_action(d,'archive',(r->>'revision')::bigint);r:=public.cheongla_daily_journal_action(d,'purge',(r->>'revision')::bigint);assert r->'fields'='{}'::jsonb,'purged text retained';
+ r:=public.cheongla_daily_journal_get(d);assert r->>'purged_at'is not null and r->'fields'='{}'::jsonb,'purged legacy contents reappeared';
+ assert not exists(select 1 from cheongla_private.daily_journal_history where work_on=d),'purged history retained';
+end $$;
+rollback;
+select 'PASS: shared inline text/colour save, stale write rejection, student denial, per-user shift close, director-only trash/restore/purge, staff recovery authorization and finish, all rolled back' as result;
