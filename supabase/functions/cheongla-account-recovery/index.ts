@@ -10,7 +10,18 @@ export function createRecoveryHandler(env, fetcher=fetch, crypt=crypto) {
   if(req.method!=='POST')return reply({error:true},405);
   try{
    const text=await req.text();if(text.length>4096)return reply({error:true},413);let input;try{input=JSON.parse(text);}catch{return reply({error:true},400);}
-   if(input?.action==='status')return reply({ready:false,manual:true});
+   if(input?.action==='status')return reply({ready:false,manual:true,temporary_password_digits:6});
+   if(['rejoin-check','rejoin-confirm'].includes(input?.action)){
+    const email=typeof input.email==='string'?input.email.trim().toLowerCase():'';
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||email.endsWith('@withdrawn.cheongla.invalid'))return reply({error:true,message:'이메일이나 전화번호를 확인해 주세요.'},400);
+    const job=async(step)=>{const r=await fetcher(base+'/rest/v1/rpc/cheongla_rejoin_job',{method:'POST',headers:{apikey:service,Authorization:'Bearer '+service,'Content-Type':'application/json'},body:JSON.stringify({login_email:email,operation_id:input.operation||null,job_step:step}),redirect:'error',signal:AbortSignal.timeout(10000)});const d=await r.json();if(!r.ok)throw Error(d.message||'재가입 정보를 확인하지 못했습니다.');return d;};
+    if(input.action==='rejoin-check')return reply(await job('check'));
+    if(input.confirmed!==true||typeof input.operation!=='string'||!(/^[0-9a-f-]{36}$/i.test(input.operation)))return reply({error:true,message:'계속 가입 여부를 확인해 주세요.'},400);
+    const j=await job('begin');
+    if(!j.already_archived){const r=await fetcher(base+'/auth/v1/admin/users/'+j.member,{method:'PUT',headers:{apikey:service,Authorization:'Bearer '+service,'Content-Type':'application/json'},body:JSON.stringify({email:j.archive_email,email_confirm:true}),redirect:'error',signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error('이전 가입 정보를 보관하지 못했습니다. 잠시 후 다시 시도해 주세요.');}
+    await job('finish');return reply({ok:true,new_signup:true});
+   }
+
    if(!['issue','finish','change'].includes(input?.action))return reply({error:true,message:'문자 인증 대신 학원에 계정 복구를 문의해 주세요.'},400);
    const token=req.headers.get('Authorization')||'';if(!/^Bearer \S+$/.test(token))return reply({error:true,message:'로그인 후 이용해 주세요.'},401);
    const auth=await fetcher(base+'/auth/v1/user',{headers:{apikey:service,Authorization:token},redirect:'error',signal:AbortSignal.timeout(10000)});
@@ -51,7 +62,9 @@ export function createRecoveryHandler(env, fetcher=fetch, crypt=crypto) {
     const email=typeof input.email==='string'?input.email.trim().toLowerCase():'';
     if(email&&(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||email.endsWith('@phone.cheongla.invalid')))return reply({error:true,message:'새 이메일을 확인해 주세요.'},400);
     await job('issue');
-    const password='Cl!'+Array.from(crypt.getRandomValues(new Uint8Array(18)),x=>x.toString(16).padStart(2,'0')).join('');
+    // Preserve the live six-digit temporary-password format.
+    let value;do{value=crypt.getRandomValues(new Uint32Array(1))[0];}while(value>=4294000000);
+    const password=String(value%1000000).padStart(6,'0');
     await backend('/auth/v1/admin/users/'+target,{password,...(email?{email}:{} )},'PUT');
     await job('issued');
     return reply({ok:true,temporary_password:password});
