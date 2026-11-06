@@ -16,7 +16,7 @@ function install(){const doc=root.document;if(!doc?.getElementById||!root.Cheong
  const oldMenu=configureDeskMenu;root.configureDeskMenu=function(){oldMenu();request++;dirtyForms.clear();bookingDrafts.clear();panel.replaceChildren();panel.hidden=!manager();root.CheonglaPrint?.clear();wireMenus();};wireMenus();
  menu.addEventListener('toggle',()=>{if(menu.open)for(const n of doc.querySelectorAll('details.site-menu'))if(n!==menu)n.open=false;});for(const n of doc.querySelectorAll('details.site-menu'))if(n!==menu)n.addEventListener('toggle',()=>{if(n.open)menu.open=false;});
  const oldHome=showSiteHome;root.showSiteHome=function(){oldHome();};
- const oldOpen=openSiteDestination;root.openSiteDestination=async function(key){if(!await leave())return;if(key==='account_winterManagePanel'&&manager())await manage();return oldOpen(key);};
+ const oldOpen=openSiteDestination;root.openSiteDestination=async function(key,context){if(!await leave())return;if(key==='account_winterManagePanel'&&manager())await manage();return oldOpen(key,context);};
  function field(parent,label,type='text',value='',required=false,max=3000){const n=el(type==='textarea'?'textarea':'input');if(type!=='textarea')n.type=type;n.value=value;n.required=required;n.maxLength=max;const l=el('label',label);l.append(n);parent.append(l);return n;}
  function select(parent,label,choices,value){const n=el('select');for(const[k,text]of choices){const op=el('option',text);op.value=k;n.append(op);}n.value=value;const l=el('label',label);l.append(n);parent.append(l);return n;}
  function section(parent,title,text){const n=el('section',undefined,'winter-form');n.append(el('h3',title),el('p',text,'notice-body'));parent.append(n);return n;}
