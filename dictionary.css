@@ -68,9 +68,10 @@ main:has(#homePanel[hidden]) #homeAccountEntry{display:none}
 
 .billing-message>button,.billing-message .contact-link{display:block;width:100%;box-sizing:border-box;text-align:center;margin:10px 0;min-height:48px}.billing-message textarea{min-height:180px}.billing-message .contact-link{padding:14px;border-radius:10px;background:#183d47;color:white;text-decoration:none;font-weight:700}
 
-/* Pair MBTI and directions in the final row on phones. */
+/* Pack visible phone menus in document order, including role-specific menus. */
 @media(max-width:600px){
- .site-navigation>[data-member-page="mbti_study"]{grid-column:1}
- .site-navigation>[data-public-page="visit"]{grid-column:2}
- .site-navigation:not(:has(#financeMenu:not([hidden])))>#englishMenu{grid-column:1 / -1}
+ .site-navigation>.site-menu{grid-column:auto;min-width:0}
+ .site-navigation>.site-menu>summary{height:64px;min-height:64px;padding:12px 6px;line-height:1.4;font-size:clamp(12px,3.4vw,14px)}
+ .site-navigation>#directorLibrary>summary{font-size:clamp(12px,3.4vw,14px)}
+ .site-navigation>.site-direct{height:66px;min-height:66px;padding:12px 6px;line-height:1.4;font-size:clamp(12px,3.4vw,14px)}
 }
