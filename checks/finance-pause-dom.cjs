@@ -1,0 +1,23 @@
+process.chdir(require('node:path').join(__dirname,'..'));
+const fs=require('fs'),assert=require('node:assert/strict'),vm=require('vm'),{JSDOM}=require('jsdom'),html=fs.readFileSync('index.html','utf8');
+for(const m of html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)){if(!/src=|application\//.test(m[1])&&m[2].trim())new vm.Script(m[2]);}
+function line(name){return html.match(new RegExp('^(?:async )?function '+name+'\\([^\\n]+','m'))[0]}
+async function check(enabled){const dom=new JSDOM(html,{runScripts:'outside-only',url:'https://example.invalid'}),w=dom.window,d=w.document;w.eval(fs.readFileSync('feature-flags.js','utf8').replace('finance:false','finance:'+enabled));
+ w.eval(`var currentProfile=null,activeAccountSection=null;var $=id=>document.getElementById(id);var accountSectionLabels=${html.match(/const accountSectionLabels=(\{[^\n]+\});/)[1]};
+ var canManageLife=()=>currentProfile?.approval_status==='approved'&&['owner','english_director','math_director','manager'].includes(currentProfile.role);var canManageMealForms=canManageLife,canManageAccountRecovery=canManageLife,canManageTuition=canManageLife,canManageExams=canManageLife;var isPrincipal=()=>canManageLife()&&currentProfile.role!=='manager';var isAppAdmin=()=>false;var appConfirm=async()=>true,readable=e=>e.message;var getClient=async()=>({rpc:async()=>({data:[]})});var renderMealCancelContacts=()=>{},configureStaffWorkspace=()=>{},feeDepositInstructions=()=>'';var accountSectionGroup=()=> '내 계정',configureAccountSections=()=>{},useAccountSections=()=>false,applyAccountSection=()=>{},tuitionText=()=>{},openMemberBilling=()=>{},showSiteHome=()=>{window.homeOpened=true};`);
+ for(const name of ['financeEnabled','canUseTuition','canUseExamFees','canUseBilling','allowedAccountSection','canUseMealForms','canUseExams','attachFeePayments'])w.eval(line(name));
+ w.eval(html.slice(html.indexOf('function configureDeskMenu(){'),html.indexOf('async function loadApplicationStudents')));
+ w.eval(html.slice(html.indexOf('async function openSiteDestination(key){'),html.indexOf('function showContactRegistration')));
+ w.eval(fs.readFileSync('content-trash.js','utf8'));w.eval(fs.readFileSync('staff-journal.js','utf8'));d.dispatchEvent(new w.Event('DOMContentLoaded'));
+ const texts=id=>[...d.getElementById(id).querySelectorAll('button')].map(x=>x.textContent);
+ for(const role of ['owner','english_director','math_director','manager','student','parent']){w.currentProfile={id:role,role,approval_status:'approved',membership_state:'active'};w.configureDeskMenu();const staff=['owner','english_director','math_director','manager'].includes(role);
+ assert.equal(d.getElementById('financeMenu').hidden,!enabled||!staff);assert.equal(w.canUseBilling(),enabled&&(staff||role==='parent'));assert.equal(w.allowedAccountSection('examFeePanel'),enabled&&staff);assert.equal(w.allowedAccountSection('tuitionPanel'),enabled&&staff);assert.equal(w.allowedAccountSection('billingPanel'),enabled&&(staff||role==='parent'));
+ if(staff){assert(texts('deskMenuItems').includes('청라 근무일지'));assert(texts('deskMenuItems').includes('도시락 신청 현황'));assert(texts('deskMenuItems').includes('모의고사 공지등록 · 신청명단'));assert(texts('askMenuItems').includes('문의 확인 · 답변'));}
+ if(role==='student'){assert(texts('deskMenuItems').includes('도시락 신청'));assert(texts('deskMenuItems').includes('모의고사 신청'));}
+ assert.equal(texts('deskMenuItems').includes('납부 · 입금 확인'),enabled&&role==='parent');assert.equal(w.canUseMealForms(),staff||role==='student');assert.equal(w.canUseExams(),staff||role==='student');
+ if(!enabled)for(const route of ['desk_tuition','desk_fees','billing_dashboard','account_tuitionPanel','account_examFeePanel','account_billingPanel']){w.homeOpened=false;await w.openSiteDestination(route);assert(w.homeOpened);assert(d.getElementById('siteStatus').textContent.includes('별도로 관리'));}
+ }
+ let calls=0;await w.attachFeePayments('meal',[{id:'one'}],{rpc:async()=>{calls++;return{data:[]}}});assert.equal(calls,enabled?1:0);
+ if(!enabled){w.eval(line('renderMealBill'));const box=d.createElement('div');w.renderMealBill(box,{});assert.equal(box.childElementCount,0);for(const id of ['financeMenu','billingPanel','tuitionPanel','examFeePanel','staffGoTuition','staffGoExamFee','parentTuitionNotice','parentExamFeeNotice','mealPrice','mealPriceHelp'])assert.equal(w.getComputedStyle(d.getElementById(id)).display,'none',id);}
+ dom.window.close();}
+(async()=>{await check(false);await check(true);console.log('PASS six role menus/permissions, hidden shortcuts/prices, stale finance routes blocked, meal/exam operations retained, no finance lookup in paused meals, restore switch restores finance access, inline scripts parse');})().catch(e=>{console.error(e);process.exit(1)});

@@ -59,8 +59,8 @@ root.CheonglaStaffJournal={mount,today,inks};
   const trashPanel=doc.createElement('section');trashPanel.id='contentTrashPanel';trashPanel.hidden=true;trashPanel.tabIndex=-1;account.append(trashPanel);root.CheonglaContentTrashUI=root.CheonglaContentTrash.mount({document:doc,profile:()=>currentProfile,client:getClient,allowed:canManageLife,confirm:appConfirm,readable});
   const previousMenu=configureDeskMenu;
   root.configureDeskMenu=function(){previousMenu();root.CheonglaStaffJournalUI.reset();root.CheonglaContentTrashUI.reset();financeItems.replaceChildren();askItems.replaceChildren();const items=doc.getElementById('deskMenuItems'),financial=new Set(['학원비 안내','응시료 안내','청구 · 입금 관리','납부 · 입금 확인']);for(const b of Array.from(items.children)){if(financial.has(b.textContent)&&canManageMealForms())financeItems.append(b);else if(canManageMealForms()&&['아이디·비밀번호 복구','내 전화번호 등록 · 수정','문의 확인 · 답변'].includes(b.textContent))askItems.append(b);}ask.hidden=!askItems.children.length;
-   if(canManageMealForms()){const meal=doc.createElement('button');meal.type='button';meal.textContent='도시락비 안내';meal.addEventListener('click',()=>openMemberBilling('meal'));financeItems.append(meal);}
-   finance.hidden=!canManageMealForms()||!financeItems.children.length;if(canManageLife()){const trash=doc.createElement('button');trash.type='button';trash.textContent='휴지통 관리';trash.addEventListener('click',()=>openSiteDestination('account_contentTrashPanel'));items.append(trash);}
+   if(root.CheonglaFeatures?.finance===true&&canManageMealForms()){const meal=doc.createElement('button');meal.type='button';meal.textContent='도시락비 안내';meal.addEventListener('click',()=>openMemberBilling('meal'));financeItems.append(meal);}
+   finance.hidden=root.CheonglaFeatures?.finance!==true||!canManageMealForms()||!financeItems.children.length;if(canManageLife()){const trash=doc.createElement('button');trash.type='button';trash.textContent='휴지통 관리';trash.addEventListener('click',()=>openSiteDestination('account_contentTrashPanel'));items.append(trash);}
    if(root.CheonglaStaffJournalUI.allowed()){const journal=doc.createElement('button');journal.type='button';journal.textContent='청라 근무일지';journal.addEventListener('click',()=>openSiteDestination('account_staffJournalPanel'));items.prepend(journal);}
   };
   const permitted=allowedAccountSection;root.allowedAccountSection=id=>id==='contentTrashPanel'?canManageLife():id==='staffJournalPanel'?root.CheonglaStaffJournalUI.allowed():permitted(id);
@@ -75,7 +75,7 @@ root.CheonglaStaffJournal={mount,today,inks};
   ask.addEventListener('toggle',()=>{if(ask.open)for(const menu of doc.querySelectorAll('details.site-menu'))if(menu!==ask)menu.open=false;});
   finance.addEventListener('toggle',()=>{if(finance.open)for(const menu of doc.querySelectorAll('details.site-menu'))if(menu!==finance)menu.open=false;});
   for(const menu of doc.querySelectorAll('details.site-menu'))if(menu!==finance)menu.addEventListener('toggle',()=>{if(menu.open)finance.open=false;});
-  const footer=doc.querySelector('footer');if(footer)for(const n of footer.childNodes)if(n.nodeType===3&&n.textContent.includes('웹앱 v'))n.textContent=n.textContent.replace(/웹앱 v[\d.]+/,'웹앱 v1.9.74');
+  const footer=doc.querySelector('footer');if(footer)for(const n of footer.childNodes)if(n.nodeType===3&&n.textContent.includes('웹앱 v'))n.textContent=n.textContent.replace(/웹앱 v[\d.]+/,'웹앱 v1.9.75');
   root.configureDeskMenu();root.configureAccountSections();root.configureStaffWorkspace();
  }
  if(root.document?.readyState==='loading')root.document.addEventListener('DOMContentLoaded',installJournalNavigation,{once:true});else installJournalNavigation();
