@@ -1241,6 +1241,15 @@ async function navigateNotification(id){
  try{
   const c=await getClient(),r=await c.from('cheongla_notifications').select('id,source_kind,source_id,route,student_id,event_key,archived_at,inbox_until').eq('id',id).maybeSingle();if(r.error)throw r.error;if(actor!==currentProfile)return;if(!r.data)throw Error('알림을 찾을 수 없거나 현재 계정에서 볼 수 없습니다.');const n=r.data;if(n.archived_at||Date.parse(n.inbox_until)<=Date.now())throw Error('이 알림은 휴지통으로 이동했습니다. 나의 알림함의 알림 휴지통에서 복구한 후 열어 주세요.');
   let route=n.route,kind=n.source_kind,row=null;
+  if(kind==='staff_journal'){
+   const ui=globalThis.CheonglaStaffJournalUI;if(!ui?.allowed())throw Error('승인된 근무자만 근무일지 알림을 열 수 있습니다.');
+   const result=await c.rpc('cheongla_journal_notification_context',{target_event:n.source_id});if(result.error)throw result.error;if(actor!==currentProfile)return;
+   const context=result.data;if(!/^\d{4}-\d{2}-\d{2}$/.test(context?.work_on||''))throw Error('근무일지 날짜를 확인할 수 없습니다.');
+   if(ui.dirty&&!await ui.leave())return;if(actor!==currentProfile)return;
+   globalThis.CheonglaNotificationNavigation.target=null;
+   await openSiteDestination('account_staffJournalPanel',{work_date:context.work_on});if(actor!==currentProfile)return;
+   const read=await c.rpc('cheongla_read_notification',{target_notification:id});if(read.error)throw read.error;void loadInbox();return;
+  }
   if(kind==='notice'){const q=await c.from('cheongla_notices').select('*').eq('id',n.source_id).maybeSingle();if(q.error)throw q.error;row=q.data;if(!row)throw Error('이 공지는 삭제되었거나 공개 대상이 변경되었습니다.');if(row.title.startsWith(informationPrefix('news')))route='admissions_news';else if(row.title.startsWith(informationPrefix('resource')))route='resources';else{if(!await setNoticeChannel(row.channel||'director'))return;activeNoticeAudience=row.audience;route=row.channel==='desk'?'desk_notice_'+row.audience:row.audience;}}
   if(kind==='information'||['admissions_news','resources'].includes(route)){const q=await c.from('cheongla_information_posts').select(informationSelect()).eq('id',n.source_id).is('deleted_at',null).maybeSingle();if(q.error)throw q.error;row=q.data;if(!row)throw Error('이 글은 삭제되었거나 공개 상태가 변경되었습니다.');kind='information';route=row.kind==='news'?'admissions_news':'resources';}
   if(kind==='board'){const q=await c.from('cheongla_board_posts').select('*').eq('id',n.source_id).maybeSingle();if(q.error)throw q.error;row=q.data;if(!row)throw Error('문의가 삭제되었거나 조회 권한이 변경되었습니다.');route='question_board';}

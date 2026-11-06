@@ -8,5 +8,8 @@
     "test:menus": "node final-menu-dom.cjs",
     "test:trash": "node content-trash-dom.cjs"
   },
-  "devDependencies": { "jsdom": "26.1.0" }
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.14",
+    "jsdom": "26.1.0"
+  }
 }
