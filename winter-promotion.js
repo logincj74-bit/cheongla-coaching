@@ -34,6 +34,42 @@
       return node;
     }
 
+    let openingWinter = false;
+    async function openWinter(event, link) {
+      const actor = profile();
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ||
+          actor?.approval_status !== 'approved' || actor.membership_state !== 'active' ||
+          !['student', 'parent'].includes(actor.role)) return;
+      event.preventDefault();
+      if (openingWinter) return;
+      openingWinter = true;
+      link.setAttribute('aria-busy', 'true');
+      try {
+        const c = await client();
+        if (actor !== profile()) return;
+        const result = await c.rpc('cheongla_issue_winter_signin');
+        if (actor !== profile()) return;
+        if (result.error || !/^[0-9a-f]{64}$/.test(result.data)) throw Error('Winter sign-in unavailable');
+        const form = element('form');
+        form.method = 'post';
+        form.action = new URL('api/student/cheongla', guide).href;
+        form.hidden = true;
+        const code = element('input');
+        code.type = 'hidden';
+        code.name = 'code';
+        code.value = result.data;
+        form.append(code);
+        document.body.append(form);
+        form.submit();
+        root.setTimeout(() => form.remove(), 1000);
+      } catch {
+        if (actor === profile()) root.location.assign(guide);
+      } finally {
+        openingWinter = false;
+        link.removeAttribute('aria-busy');
+      }
+    }
+
     function showCard(row) {
       root.clearTimeout(expiryTimer);
       card.replaceChildren();
@@ -58,6 +94,7 @@
       }
       const link = element('a', row.button_text + ' →');
       link.href = guide;
+      link.addEventListener('click', event => void openWinter(event, link));
       card.append(heading);
       if (row.message) card.append(element('p', row.message));
       card.append(dates, link);
