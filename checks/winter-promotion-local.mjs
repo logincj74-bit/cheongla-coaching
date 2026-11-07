@@ -12,7 +12,7 @@ const suspendedId = '10000000-0000-0000-0000-000000000003';
 
 try {
   await db.exec(read('./journal-notifications-local-bootstrap.sql'));
-  await db.exec(read('../supabase/migrations/20261107124512_winter_school_promotions.sql'));
+  await db.exec(read('../supabase/migrations/20261107125442_winter_school_promotions.sql'));
   const [{ rows: [seed] }] = await db.exec('select * from ' + table);
   assert.equal(seed.title, '2027 청라 윈터스쿨');
   assert.equal(seed.ends_at.toISOString(), '2026-12-27T15:00:00.000Z');
