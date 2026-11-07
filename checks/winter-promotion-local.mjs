@@ -114,7 +114,8 @@ try {
   await refresh();
   assert.equal(card.hidden, false);
   assert.equal(admin.hidden, true);
-  assert.equal(card.nextElementSibling.className, 'home-tour');
+  assert(card.previousElementSibling.classList.contains('academy-topbar'));
+  assert(card.nextElementSibling.classList.contains('home-today'));
   assert.equal(card.querySelectorAll('time').length, 2);
   assert.equal(card.querySelector('p').textContent, '<b>겨울 준비</b>');
   assert.equal(card.querySelector('a').href, 'https://cheongla-winter-2027.logincj.chatgpt.site/');

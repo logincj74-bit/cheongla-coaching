@@ -61,7 +61,7 @@
       card.append(heading);
       if (row.message) card.append(element('p', row.message));
       card.append(dates, link);
-      card.hidden = false;
+      card.hidden = home.hidden;
       if (Number.isFinite(remaining)) expiryTimer = root.setTimeout(() => showCard(row), Math.min(remaining, 2147483647));
     }
 
@@ -255,6 +255,10 @@
       if (!home.hidden && !document.hidden) void refreshCard();
     }
 
+    new root.MutationObserver(() => {
+      card.hidden = home.hidden || !card.childElementCount;
+      if (!home.hidden) refresh();
+    }).observe(home, { attributes: true, attributeFilter: ['hidden'] });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
     root.setInterval(() => { if (!home.hidden && !document.hidden) void refreshCard(); }, 60000);
     return { refresh };
