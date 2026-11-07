@@ -1,0 +1,47 @@
+.winter-promotion {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: .85rem;
+  padding: clamp(1rem, 4vw, 1.65rem);
+  border: 1px solid #9dc8bc;
+  border-radius: 1rem;
+  background: #e8f3ee;
+  color: #123f42;
+}
+.winter-promotion[hidden] { display: none; }
+.winter-promotion::after {
+  content: '❄';
+  position: absolute;
+  top: .5rem;
+  right: .85rem;
+  font-size: 2rem;
+  color: #488a7b;
+  pointer-events: none;
+}
+.winter-promotion h2 { margin: 0 2rem 0 0; font-size: clamp(1.2rem, 5vw, 1.9rem); }
+.winter-promotion p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.winter-promotion-dates { display: flex; flex-wrap: wrap; }
+.winter-promotion-dates > div { flex: 1 1 8rem; padding: .25rem .4rem; }
+.winter-promotion-dates span, .winter-promotion-dates time { display: block; }
+.winter-promotion-dates time { font-size: clamp(1.08rem, 4vw, 1.5rem); font-weight: 800; }
+.winter-promotion a {
+  display: block;
+  background: #143e45;
+  color: #fff;
+  border-radius: .65rem;
+  padding: .7rem;
+  text-decoration: none;
+  text-align: center;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+.winter-promotion-admin { padding: .9rem; border: 1px solid #c9dbd3; border-radius: .75rem; }
+.winter-promotion-admin .qa-item { overflow-wrap: anywhere; }
+.winter-promotion-admin button { margin: .25rem; }
+.winter-promotion-admin fieldset { min-width: 0; margin: .5rem 0; }
+.winter-promotion-admin label { display: block; margin: .4rem 0; }
+.winter-promotion-admin input:not([type="checkbox"]), .winter-promotion-admin textarea { width: 100%; }
+.winter-promotion-admin input[type="checkbox"] { width: auto; }
+.winter-promotion, .winter-promotion-admin { grid-column: 1 / -1; margin: .75rem; }
+.winter-promotion h2 { overflow-wrap: anywhere; }
