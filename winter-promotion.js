@@ -3,7 +3,6 @@
 
   const table = 'cheongla_winter_promotions';
   const guide = 'https://cheongla-winter-2027.logincj.chatgpt.site/';
-  const kstOffset = 9 * 60 * 60 * 1000;
   const formatDate = new Intl.DateTimeFormat('ko-KR', {
     month: 'long', day: 'numeric', weekday: 'short', timeZone: 'Asia/Seoul'
   });
@@ -40,7 +39,7 @@
       card.replaceChildren();
       card.hidden = true;
       if (!row) return;
-      const remaining = Date.parse(row.ends_at) - Date.now();
+      const remaining = row.ends_at == null ? Infinity : Date.parse(row.ends_at) - Date.now();
       if (!(remaining > 0) || !(row.first_open || row.second_open)) return;
       const heading = element('h2', row.title);
       heading.id = 'winterPromotionTitle';
@@ -63,7 +62,7 @@
       if (row.message) card.append(element('p', row.message));
       card.append(dates, link);
       card.hidden = false;
-      expiryTimer = root.setTimeout(() => showCard(row), Math.min(remaining, 2147483647));
+      if (Number.isFinite(remaining)) expiryTimer = root.setTimeout(() => showCard(row), Math.min(remaining, 2147483647));
     }
 
     async function refreshCard() {
@@ -73,7 +72,7 @@
         if (request !== publicRequest) return;
         const result = await c.from(table).select('title,message,button_text,first_open,second_open,first_date,second_date,ends_at')
           .eq('enabled', true).is('deleted_at', null).or('first_open.eq.true,second_open.eq.true')
-          .gt('ends_at', new Date().toISOString()).maybeSingle();
+          .or('ends_at.is.null,ends_at.gt.' + new Date().toISOString()).maybeSingle();
         if (request !== publicRequest) return;
         if (result.error) throw result.error;
         showCard(result.data);
@@ -88,7 +87,6 @@
       if (row) {
         for (const key of ['title', 'message', 'button_text', 'first_date', 'second_date']) fields[key].value = row[key];
         for (const key of ['enabled', 'first_open', 'second_open']) fields[key].checked = row[key];
-        fields.ends_at.value = new Date(Date.parse(row.ends_at) + kstOffset).toISOString().slice(0, 16);
       }
       editor.querySelector('legend').textContent = row ? '모집 카드 수정' : '새 모집 카드';
       editor.hidden = false;
@@ -115,7 +113,7 @@
             button('영구 삭제', () => change('purge', row), 'danger'));
           trash.append(item);
         } else {
-          const open = row.enabled && Date.parse(row.ends_at) > Date.now() && (row.first_open || row.second_open);
+          const open = row.enabled && (row.ends_at == null || Date.parse(row.ends_at) > Date.now()) && (row.first_open || row.second_open);
           item.append(element('p', open ? '홈에 게시 중' : '숨김'),
             button('수정', () => showEditor(row)));
           if (row.enabled) item.append(button('홈에서 숨기기', () => change('hide', row)));
@@ -218,18 +216,13 @@
     editor.addEventListener('submit', event => {
       event.preventDefault();
       if (!editor.reportValidity()) return;
-      const end = new Date(fields.ends_at.value + ':00+09:00');
-      if (!Number.isFinite(end.getTime())) {
-        status.textContent = '자동 숨김 날짜와 시각을 확인해 주세요.';
-        return;
-      }
       const payload = {
         title: fields.title.value.trim(), message: fields.message.value.trim(),
         button_text: fields.button_text.value.trim(),
         first_date: fields.first_date.value, second_date: fields.second_date.value,
         first_open: fields.first_open.checked, second_open: fields.second_open.checked,
         enabled: fields.enabled.checked,
-        ends_at: end.toISOString()
+        ends_at: null
       };
       if (!payload.title || !payload.button_text || payload.first_date > payload.second_date) {
         status.textContent = '제목과 버튼 문구를 입력하고 1차·2차 개강일 순서를 확인해 주세요.';

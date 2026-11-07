@@ -13,6 +13,7 @@ const suspendedId = '10000000-0000-0000-0000-000000000003';
 try {
   await db.exec(read('./journal-notifications-local-bootstrap.sql'));
   await db.exec(read('../supabase/migrations/20261107125442_winter_school_promotions.sql'));
+  await db.exec(read('../supabase/migrations/20261107134414_winter_promotion_manual_hide.sql'));
   const [{ rows: [seed] }] = await db.exec('select * from ' + table);
   assert.equal(seed.title, '2027 청라 윈터스쿨');
   assert.equal(seed.ends_at.toISOString(), '2026-12-27T15:00:00.000Z');
@@ -62,6 +63,12 @@ try {
   });
   await as('anon', '', async () => {
     assert.equal((await rows('select * from ' + table)).length, 0);
+  });
+  await as('authenticated', principalId, async () => {
+    await db.exec('update ' + table + ' set ends_at = null');
+  });
+  await as('anon', '', async () => {
+    assert.equal((await rows('select title from ' + table)).length, 1);
   });
   await as('authenticated', principalId, async () => {
     await db.exec('update ' + table + ' set enabled = false, deleted_at = now()');
@@ -119,6 +126,10 @@ try {
   assert.equal(card.querySelectorAll('time').length, 1);
   assert.match(card.textContent, /2차 모집 중/);
   assert.doesNotMatch(card.textContent, /21일/);
+  row.ends_at = null;
+  await refresh();
+  assert.equal(card.hidden, false);
+  assert.equal(admin.querySelector('[name="ends_at"]'), null);
   actor = { role: 'manager' };
   row.ends_at = new Date(Date.now() - 1).toISOString();
   await refresh();
