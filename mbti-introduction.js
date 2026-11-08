@@ -5,6 +5,7 @@ globalThis.CheonglaMBTIIntroduction = {
     const status = section.querySelector('[role="status"]');
     const content = section.querySelector('article');
     const controls = section.querySelector('fieldset');
+    const exports = section.querySelector('[data-mbti-intro-export]');
     const form = controls.querySelector('form');
     const trash = controls.querySelector('details');
     const trashList = trash.querySelector('ul');
@@ -72,6 +73,7 @@ globalThis.CheonglaMBTIIntroduction = {
       const published = rows.find(row => !row.archived_at);
       const editable = canEdit();
       section.hidden = !published && !editable;
+      exports.hidden = !published;
       summary.textContent = published?.title || 'MBTI 학습법 소개글 관리';
       content.replaceChildren();
       for (const paragraph of (published?.body || '').split(/\n\s*\n/).filter(Boolean)) {
@@ -137,6 +139,36 @@ globalThis.CheonglaMBTIIntroduction = {
         render();
       }, '소개글을 불러오지 못했습니다. 소개글을 닫았다가 다시 열어 주세요.');
     }
+
+    function exportPublished(action) {
+      const published = rows.find(row => !row.archived_at);
+      if (busy || !published) return;
+      try {
+        action(published.title);
+        status.textContent = '';
+      } catch (error) {
+        status.textContent = readable(error);
+      }
+    }
+
+    exports.querySelector('[data-mbti-intro-print]').addEventListener('click', () => exportPublished(title => {
+      if (!globalThis.CheonglaPrint?.node) throw new Error('인쇄 기능을 준비 중입니다. 잠시 후 다시 눌러 주세요.');
+      globalThis.CheonglaPrint.node(title, content);
+    }));
+    exports.querySelector('[data-mbti-intro-pdf]').addEventListener('click', () => exportPublished(title => {
+      const pdf = globalThis.CheonglaMBTIIntroductionPDF.create(document, title, content.children);
+      const url = URL.createObjectURL(pdf);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = '청라_MBTI학습법_소개글.pdf';
+      document.body.append(link);
+      try {
+        link.click();
+      } finally {
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      }
+    }));
 
     section.addEventListener('toggle', () => {
       if (section.open && !section.hidden && !rows.length && controls.hidden) void load();

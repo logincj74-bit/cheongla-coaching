@@ -82,12 +82,38 @@ try {
   assert.equal(intro.querySelectorAll('article h3').length, 6);
   assert.equal(intro.querySelector('article img'), null);
   assert(intro.querySelector('fieldset').hidden);
+  const printButton = intro.querySelector('[data-mbti-intro-print]');
+  const pdfButton = intro.querySelector('[data-mbti-intro-pdf]');
+  let printed;
+  dom.window.CheonglaPrint = { node: (title, content) => { printed = { title, content }; } };
+  printButton.click();
+  assert.equal(printed.title, seed.title);
+  assert.equal(printed.content.tagName, 'ARTICLE');
+  assert.match(printed.content.textContent, /※ 안내/);
+  const pdf = new dom.window.Blob([], { type: 'application/pdf' });
+  dom.window.CheonglaMBTIIntroductionPDF = {
+    create: (_, title, paragraphs) => {
+      assert.equal(title, seed.title);
+      assert.equal([...paragraphs].filter(node => node.tagName === 'H3').length, 6);
+      return pdf;
+    }
+  };
+  let filename;
+  dom.window.URL.createObjectURL = blob => {
+    assert.equal(blob, pdf);
+    return 'blob:mbti-introduction';
+  };
+  dom.window.URL.revokeObjectURL = () => {};
+  dom.window.HTMLAnchorElement.prototype.click = function () { filename = this.download; };
+  pdfButton.click();
+  assert.equal(filename, '청라_MBTI학습법_소개글.pdf');
   canEdit = true;
   await ui.load();
   intro.querySelector('[data-mbti-intro-actions] button').click();
   assert.equal(intro.querySelector('textarea').value.startsWith('MBTI로 시작하는'), true);
   ui.reset();
   assert.equal(intro.querySelector('textarea').value, '');
+  assert(intro.querySelector('[data-mbti-intro-export]').hidden);
   dom.window.close();
   console.log('PASS MBTI introduction: seed, role restrictions, stale edits, archive, restore, purge, safe rendering, sign-out reset');
 } finally {
