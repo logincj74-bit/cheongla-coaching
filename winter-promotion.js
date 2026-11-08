@@ -153,7 +153,16 @@
           const open = row.enabled && (row.ends_at == null || Date.parse(row.ends_at) > Date.now()) && (row.first_open || row.second_open);
           item.append(element('p', open ? '홈에 게시 중' : '숨김'),
             button('수정', () => showEditor(row)));
-          if (row.enabled) item.append(button('홈에서 숨기기', () => change('hide', row)));
+          if (row.enabled) {
+            item.append(button('홈에서 숨기기', () => change('hide', row)));
+          } else {
+            const publish = button('홈에 다시 보이기', () => change('publish', row));
+            if (!row.first_open && !row.second_open) {
+              publish.disabled = true;
+              item.append(element('p', '다시 게시하려면 수정 화면에서 모집 차수를 한 개 이상 열어 주세요.'));
+            }
+            item.append(publish);
+          }
           item.append(button('삭제 · 휴지통으로', () => change('trash', row), 'danger'));
           list.append(item);
         }
@@ -191,8 +200,8 @@
       empty: ['휴지통 비우기', '윈터스쿨 카드 휴지통을 모두 비울까요? 복원할 수 없습니다.']
     };
     const messages = {
-      save: '카드를 저장했습니다.', hide: '홈에서 카드를 숨겼습니다.',
-      trash: '카드를 휴지통으로 이동했습니다.', restore: '숨김 상태로 복원했습니다. 다시 게시하려면 수정 화면에서 홈 게시를 선택하세요.',
+      save: '카드를 저장했습니다.', hide: '홈에서 카드를 숨겼습니다.', publish: '홈에 카드를 다시 게시했습니다.',
+      trash: '카드를 휴지통으로 이동했습니다.', restore: '숨김 상태로 복원했습니다. 다시 게시하려면 홈에 다시 보이기를 누르세요.',
       purge: '카드를 영구 삭제했습니다.', empty: '카드 휴지통을 비웠습니다.'
     };
 
@@ -215,7 +224,7 @@
           operation = data.insert(payload).select('id').single();
         } else {
           const values = {
-            save: payload, hide: { enabled: false },
+            save: payload, hide: { enabled: false }, publish: { enabled: true, ends_at: null },
             trash: { deleted_at: new Date().toISOString(), enabled: false },
             restore: { deleted_at: null, enabled: false }
           };
@@ -240,7 +249,7 @@
       } catch (error) {
         if (owner !== profile() || !principal()) return;
         status.textContent = error.code === '23505'
-          ? '이미 게시가 설정된 카드가 있습니다. 기존 카드를 숨긴 뒤 저장해 주세요.'
+          ? '이미 게시가 설정된 카드가 있습니다. 기존 카드를 숨긴 뒤 다시 시도해 주세요.'
           : readable(error);
       } finally {
         if (owner === profile()) {
