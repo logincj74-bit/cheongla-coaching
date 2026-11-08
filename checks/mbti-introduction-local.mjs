@@ -32,6 +32,27 @@ try {
     ('${principal}', 'english_director', 'approved', 'active'),
     ('${member}', 'student', 'approved', 'active'),
     ('${suspended}', 'math_director', 'approved', 'suspended');`);
+  const articlesMigration = readdirSync(migrations).find(name => name.endsWith('_mbti_learning_articles.sql'));
+  await db.exec(read('../supabase/migrations/' + articlesMigration));
+  const articlesTable = 'public.cheongla_mbti_learning_articles';
+  const articles = await rows('select * from ' + articlesTable + ' order by category');
+  assert.deepEqual(articles.map(row => row.category), ['groups', 'parent_nf', 'parent_nt', 'parent_sj', 'parent_sp']);
+  assert(articles.every(row => !/최상위 1%의 비밀|제공된 도서 사진|사용자 제공 사진/.test(row.body)));
+  await as('authenticated', member, async () => {
+    assert.equal((await rows('select * from ' + articlesTable)).length, 5);
+    assert.equal((await rows(`update ${articlesTable} set title = '변조' returning id`)).length, 0);
+  });
+  await as('authenticated', principal, async () => {
+    assert.equal((await rows(`delete from ${articlesTable} returning id`)).length, 0);
+    await rows(`update ${articlesTable} set archived_at = now() where category = 'parent_nt'`);
+  });
+  await as('authenticated', member, async () => assert.equal((await rows('select * from ' + articlesTable)).length, 4));
+  await as('authenticated', principal, async () => {
+    await rows(`update ${articlesTable} set archived_at = null where category = 'parent_nt'`);
+    await rows(`update ${articlesTable} set archived_at = now() where category = 'parent_sp'`);
+    assert.equal((await rows(`delete from ${articlesTable} where category = 'parent_sp' returning id`)).length, 1);
+    assert.equal((await rows('select * from ' + articlesTable)).length, 4);
+  });
   const [seed] = await rows('select * from ' + table);
   assert.equal(seed.title, '나를 이해하는 공부, 나에게 맞는 학습법');
   assert.equal(seed.body.match(/^[1-6]\. /gm)?.length, 6);
@@ -114,6 +135,20 @@ try {
   ui.reset();
   assert.equal(intro.querySelector('textarea').value, '');
   assert(intro.querySelector('[data-mbti-intro-export]').hidden);
+  const pages = dom.window.CheonglaMBTIIntroduction.mountPages({
+    document, canEdit: () => false, confirm: () => true, readable: String,
+    client: async () => ({ from: () => ({
+      select: () => ({ eq: async (_, category) => ({ data: articles.filter(row => row.category === category) }) })
+    }) })
+  });
+  pages.open('mbti_parents');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual([...document.querySelectorAll('[data-mbti-page="mbti_parents"] > details > summary')]
+    .map(node => node.textContent), ['SJ 기질의 부모', 'SP 기질의 부모', 'NF 기질의 부모', 'NT 기질의 부모']);
+  assert.deepEqual([...document.querySelectorAll('[data-mbti-page]:not([hidden])')].map(node => node.dataset.mbtiPage), ['mbti_parents']);
+  pages.open('mbti_study');
+  assert.equal(document.querySelector('#mbtiStudyForm').closest('[data-mbti-page]').hidden, false);
+  assert.equal(document.querySelector('#mbtiArticle-parent_nt').closest('[data-mbti-page]').hidden, true);
   dom.window.close();
   console.log('PASS MBTI introduction: seed, role restrictions, stale edits, archive, restore, purge, safe rendering, sign-out reset');
 } finally {
