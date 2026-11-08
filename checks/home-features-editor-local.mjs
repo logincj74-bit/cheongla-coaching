@@ -16,8 +16,9 @@ async function as(role, id, action) {
   await db.exec('begin');
   try {
     await db.exec(`set local role ${role}; set local request.jwt.claim.sub = '${id}';`);
-    await action();
+    const result = await action();
     await db.exec('commit');
+    return result;
   } catch (error) {
     await db.exec('rollback');
     throw error;
@@ -38,6 +39,8 @@ try {
     values ('${principal}','english_director','approved','active'), ('${student}','student','approved','active');
   `);
   await db.exec(read('../supabase/migrations/' + migration));
+  const extension = readdirSync(migrations).find(name => name.endsWith('_home_content_management.sql'));
+  await db.exec(read('../supabase/migrations/' + extension));
   const seed = await rows('select * from ' + table);
   assert.equal(seed.length, 2);
   assert.equal(seed.find(row => row.kind === 'tour').original_video, true);
@@ -66,19 +69,77 @@ try {
     assert.equal((await rows('delete from storage.objects returning name')).length, 1);
   });
 
+  const videoTrash = 'public.cheongla_home_video_trash';
+  const additional = await as('authenticated', principal, async () => {
+    await db.exec(`insert into ${table} (kind,title,sort_order) values ('tour','새 동영상',1)`);
+    const [second] = await rows(`insert into ${table} (kind,title,target_date,sort_order)
+      values ('countdown','모의평가','2027-06-03',1) returning *`);
+    await db.exec(`select public.cheongla_set_featured_home_countdown('${second.id}', ${second.revision})`);
+    assert.equal((await rows(`select * from ${table} where featured`))[0].id, second.id);
+    const [newTour] = await rows(`select * from ${table} where kind = 'tour'`);
+    await db.exec(`insert into storage.objects values ('cheongla-home-videos','${path}')`);
+    await db.exec(`delete from public.cheongla_home_video_cleanup where path = '${path}'`);
+    await db.exec(`update ${table} set video_path = '${path}', video_hidden = true where id = '${newTour.id}'`);
+    assert.equal((await rows(`select * from ${videoTrash} where original_video`)).length, 1);
+    return second;
+  });
+  await as('anon', '', async () => assert.equal((await rows('select * from storage.objects')).length, 0));
+  await as('authenticated', principal, async () => {
+    const [tour] = await rows(`update ${table} set video_path = null, video_hidden = false where kind = 'tour' returning *`);
+    const [trashed] = await rows(`select * from ${videoTrash} where path = '${path}'`);
+    assert.equal((await rows('delete from storage.objects returning name')).length, 0);
+    await db.exec(`select public.cheongla_manage_home_video_trash('${trashed.id}', '${tour.id}', ${tour.revision})`);
+    await db.exec(`update ${table} set hidden = true where featured`);
+    assert.equal((await rows(`select * from ${table} where featured`)).length, 0);
+  });
+  await as('anon', '', async () => {
+    assert.equal((await rows('select * from storage.objects')).length, 1);
+    assert.equal((await rows(`select * from ${table} where kind = 'countdown'`)).length, 1);
+  });
+  await as('authenticated', principal, async () => {
+    await db.exec(`update ${table} set video_path = null where kind = 'tour'`);
+    const [trashed] = await rows(`select * from ${videoTrash} where path = '${path}'`);
+    await db.exec(`select public.cheongla_manage_home_video_trash('${trashed.id}')`);
+    assert.equal((await rows('delete from storage.objects returning name')).length, 1);
+  });
+
   const dom = new JSDOM(read('../index.html'), { runScripts: 'outside-only' });
   const { document } = dom.window;
   dom.window.eval(read('../home-features-editor.js'));
-  let records = seed;
+  const apiRows = data => data.map(row => ({ ...row, target_date: row.target_date?.toISOString().slice(0, 10) || null }));
+  let records = apiRows(seed);
+  let manager = false;
   const ui = dom.window.CheonglaHomeFeatures.mount({
-    document, client: async () => ({ from: () => ({ select: async () => ({ data: records }) }) }),
-    profile: () => null, principal: () => false, confirm: async () => false, readable: String
+    document, client: async () => ({ from: name => ({ select: () => name === 'cheongla_home_features'
+      ? Promise.resolve({ data: records })
+      : { order: async () => ({ data: [] }), limit: async () => ({ data: [] }) } }) }),
+    profile: () => null, principal: () => manager, confirm: async () => false, readable: String
   });
   await ui.refresh();
   assert.equal(document.getElementById('homeTourSection').hidden, false);
   assert.equal(document.getElementById('homeFeaturesManage').hidden, true);
-  assert.match((await ui.video('tour')).url, /cheongla-tour\.mp4$/);
+  assert.match((await ui.video(seed.find(row => row.kind === 'tour').id)).url, /cheongla-tour\.mp4$/);
   assert.equal(ui.countdown().title, '2027학년도 수능까지');
+  records = apiRows([...seed, { ...additional, featured: true }, { ...seed.find(row => row.kind === 'tour'), id: 'hidden-video', hidden: true }]);
+  await ui.refresh();
+  assert.equal(document.querySelectorAll('#homeDailyCountdown article').length, 2);
+  assert.equal(document.querySelectorAll('#homeTourSection article').length, 1);
+  assert.equal(ui.countdown().title, '모의평가');
+  manager = true;
+  await ui.refresh();
+  const dialog = document.getElementById('homeFeaturesDialog');
+  dialog.showModal = () => { dialog.open = true; };
+  dialog.close = () => { dialog.open = false; };
+  document.getElementById('homeFeaturesManage').click();
+  await new Promise(resolve => setImmediate(resolve));
+  const select = document.getElementById('homeFeaturesItem');
+  assert.equal(select.options.length, 3);
+  select.value = '';
+  select.dispatchEvent(new dom.window.Event('change'));
+  assert.equal(document.getElementById('homeFeaturesNewVisibility').hidden, false);
+  assert.equal(document.querySelector('[name="publishNow"]').checked, false);
+  dialog.close();
+  manager = false;
   records = [];
   await ui.refresh();
   assert.equal(document.getElementById('homeTourSection').hidden, true);

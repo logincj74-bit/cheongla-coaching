@@ -8,6 +8,7 @@ const timeFormat = new Intl.DateTimeFormat('en-GB', {
   hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
 });
 const examDay = Date.UTC(2026, 10, 19);
+const countdownText = days => days === 0 ? 'D-DAY' : days > 0 ? `D-${days}` : `D+${Math.abs(days)}`;
 
 export function koreaClockState(now = new Date(), target = examDay) {
   const parts = Object.fromEntries(timeFormat.formatToParts(now).map(p => [p.type, p.value]));
@@ -16,7 +17,7 @@ export function koreaClockState(now = new Date(), target = examDay) {
   return {
     hours: String(Number(parts.hour)%12||12).padStart(2,'0'), period:Number(parts.hour)<12?'오전':'오후', minutes: parts.minute, seconds: parts.second,
     date: dateFormat.format(now),lunar: koreanLunarDate(now),localDate:`${parts.year}-${parts.month}-${parts.day}`, iso: now.toISOString(), days,
-    countdown: days === 0 ? 'D-DAY' : days > 0 ? `D-${days}` : `D+${Math.abs(days)}`,
+    countdown: countdownText(days),
     cheer: days === 0 ? '차분하게, 자신 있게. 청라가 응원합니다.' : days < 0
       ? '수고했어요. 여러분의 새로운 시작을 응원합니다.' : '오늘의 한 걸음, 더 나은 내일로.',
   };
@@ -71,7 +72,8 @@ if (typeof document !== 'undefined') {
     const update = () => {
       const countdownConfig = globalThis.CheonglaHomeFeaturesUI?.countdown();
       const target = countdownConfig ? Date.parse(countdownConfig.target_date + 'T00:00:00Z') : examDay;
-      const state = koreaClockState(new Date(), target);
+      const now = new Date();
+      const state = koreaClockState(now, target);
       if(eventDay!==state.localDate){eventDay=state.localDate;renderCalendarEvents(eventContainer,eventDay);}
       if(lunarDate){lunarDate.textContent=state.lunar;lunarDate.hidden=!state.lunar;}
       for (const key of ['period', 'hours', 'minutes', 'seconds', 'date', 'cheer']) {
@@ -79,7 +81,12 @@ if (typeof document !== 'undefined') {
         const text = key === 'cheer' && countdownConfig?.description ? countdownConfig.description : state[key];
         if (element.textContent !== text) element.textContent = text;
       }
-      for(const badge of document.querySelectorAll('[data-daily-dday]'))if(badge.textContent!==state.countdown)badge.textContent=state.countdown;
+      for (const badge of document.querySelectorAll('[data-daily-dday]')) {
+        const date = badge.dataset.dailyDday;
+        const days = (Date.parse(date) - Date.parse(state.localDate)) / 86400000;
+        const countdown = date ? countdownText(days) : state.countdown;
+        if (badge.textContent !== countdown) badge.textContent = countdown;
+      }
       const countdown = clock.querySelector('[data-clock-dday]');
       if (countdown.textContent !== state.countdown) countdown.textContent = state.countdown;
       clock.querySelector('[data-clock-time]').setAttribute('aria-label', `한국시간 ${state.period} ${state.hours}시 ${state.minutes}분 ${state.seconds}초`);
