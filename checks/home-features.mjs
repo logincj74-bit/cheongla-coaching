@@ -36,9 +36,9 @@ const doc={hidden:false,handlers:{},getElementById:id=>elements[id],addEventList
 const sources={tour:{url:'https://example.test/cheongla-tour.mp4',title:'내부투어'},countdown:{url:'https://example.test/cheer.mp4',title:'응원 영상'}};
 vm.runInNewContext(fs.readFileSync(new URL('../home-tour.js',import.meta.url),'utf8'),{document:doc,window:{addEventListener(){}},CheonglaHomeFeaturesUI:{video:async kind=>sources[kind]}});
 assert.equal(video.src,undefined);
-await tour.handlers.click({currentTarget:tour});assert.equal(dialog.open,true);assert.equal(plays,1);assert.equal(video.src,sources.tour.url);
+doc.handlers.click({target:{closest:()=>tour}});await new Promise(resolve=>setImmediate(resolve));assert.equal(dialog.open,true);assert.equal(plays,1);assert.equal(video.src,sources.tour.url);
 elements.homeTourClose.handlers.click();assert.equal(dialog.open,false);assert.equal(pauses,2);
-await countdown.handlers.click({currentTarget:countdown});assert.equal(video.src,sources.countdown.url);
+doc.handlers.click({target:{closest:()=>countdown}});await new Promise(resolve=>setImmediate(resolve));assert.equal(video.src,sources.countdown.url);
 doc.hidden=true;doc.handlers.visibilitychange();assert.equal(pauses,4);
 video.handlers.error();assert.match(elements.homeTourStatus.textContent,/불러오지 못/);
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length);assert.match(html,/home-clock\.js\?v=/);assert.match(html,/controls muted playsinline preload="none"/);

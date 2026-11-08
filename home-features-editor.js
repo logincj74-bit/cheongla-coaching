@@ -3,7 +3,6 @@ globalThis.CheonglaHomeFeatures = {
     const bucket = 'cheongla-home-videos';
     const table = 'cheongla_home_features';
     const original = 'https://cheongla-winter-2027.logincj.chatgpt.site/videos/cheongla-tour.mp4';
-    const labels = { tour: '청라 내부투어', countdown: '수능 D-day' };
     const $ = id => document.getElementById(id);
     const dialog = $('homeFeaturesDialog');
     const form = $('homeFeaturesForm');
@@ -12,36 +11,81 @@ globalThis.CheonglaHomeFeatures = {
     const status = $('homeFeaturesStatus');
     const close = $('homeFeaturesClose');
     const list = $('homeFeaturesTrash');
+    const originalPoster = $('homeTourVideo').poster;
     let rows = [];
+    let videoTrash = [];
+    let selectedId = null;
     let busy = false;
     let kind = 'tour';
     let editing;
     let request = 0;
 
-    const published = type => rows.find(row => row.kind === type && !row.archived_at);
+    const ordered = items => [...items].sort((a, b) =>
+      a.sort_order - b.sort_order || a.title.localeCompare(b.title, 'ko') || a.id.localeCompare(b.id));
+    const published = type => ordered(rows.filter(row => row.kind === type && !row.archived_at && !row.hidden));
+    const representative = () => {
+      const countdowns = published('countdown');
+      return countdowns.find(row => row.featured) || countdowns[0];
+    };
+    const hasVideo = row => Boolean(row?.video_path || row?.original_video);
+    const dateFormat = new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeZone: 'Asia/Seoul' });
+    const formatDate = date => dateFormat.format(new Date(date + 'T12:00:00+09:00'));
 
     function renderPublic() {
-      const tour = published('tour');
-      const countdown = published('countdown');
-      $('homeTourSection').hidden = !tour;
-      $('homeTourOpen').hidden = !tour?.video_path && !tour?.original_video;
-      if (tour) {
-        $('homeTourTitle').textContent = tour.title;
-        $('homeTourDescription').textContent = tour.description;
+      const videos = $('homeTourSection');
+      const schedules = $('homeDailyCountdown');
+      const clock = $('homeClockExam');
+      const countdown = representative();
+      videos.replaceChildren();
+      schedules.replaceChildren();
+
+      function appendCard(container, template, row) {
+        const card = $(template).content.firstElementChild.cloneNode(true);
+        const play = card.querySelector('button');
+        play.dataset.homeFeatureVideo = row.id;
+        play.hidden = !hasVideo(row) || row.video_hidden;
+        play.setAttribute('aria-label', row.title + ' 동영상 보기');
+        container.append(card);
+        return card;
       }
-      $('homeClockExam').hidden = !countdown;
-      $('homeDailyCountdown').hidden = !countdown;
-      $('homeCountdownVideo').hidden = !countdown?.video_path;
+
+      for (const row of published('tour')) {
+        const card = appendCard(videos, 'homeVideoCard', row);
+        card.querySelector('h3').textContent = row.title;
+        card.querySelector('p').textContent = row.description;
+        card.querySelector('p').hidden = !row.description;
+        if (row.original_video && !row.video_hidden) {
+          const play = card.querySelector('button');
+          play.classList.add('home-tour-open');
+          const photo = document.createElement('img');
+          photo.src = originalPoster;
+          photo.alt = '';
+          photo.loading = 'lazy';
+          photo.width = 960;
+          photo.height = 640;
+          const caption = document.createElement('span');
+          const title = document.createElement('strong');
+          title.textContent = row.title + ' ▶';
+          caption.append(title);
+          play.replaceChildren(photo, caption);
+        }
+      }
+      for (const row of published('countdown')) {
+        const card = appendCard(schedules, 'homeCountdownCard', row);
+        card.querySelector('[data-daily-dday]').dataset.dailyDday = row.target_date;
+        card.querySelector('[data-countdown-title]').textContent = row.title;
+        card.querySelector('[data-countdown-date]').textContent = formatDate(row.target_date);
+        const description = card.querySelector('[data-countdown-description]');
+        description.textContent = row.description;
+        description.hidden = !row.description;
+      }
+      videos.hidden = !videos.children.length;
+      schedules.hidden = !schedules.children.length;
+      clock.hidden = !countdown;
       if (countdown) {
-        const date = new Intl.DateTimeFormat('ko-KR', {
-          dateStyle: 'full', timeZone: 'Asia/Seoul'
-        }).format(new Date(countdown.target_date + 'T12:00:00+09:00'));
-        $('homeCountdownTitle').textContent = countdown.title;
-        $('homeCountdownDate').textContent = date;
-        $('homeCountdownDescription').textContent = countdown.description;
-        $('homeCountdownDescription').hidden = !countdown.description;
-        $('homeClockExam').title = countdown.title + ' · ' + date;
-        $('homeClockExamDetail').textContent = countdown.title + ' · ' + date;
+        clock.title = countdown.title + ' · ' + formatDate(countdown.target_date);
+        clock.querySelector('.home-clock-label').textContent = countdown.title;
+        $('homeClockExamDetail').textContent = formatDate(countdown.target_date);
       }
       document.dispatchEvent(new Event('cheongla-home-countdown'));
     }
@@ -55,8 +99,13 @@ globalThis.CheonglaHomeFeatures = {
         const db = await client();
         const { data, error } = await db.from(table).select('*');
         if (error) throw error;
+        const trash = dialog.open && principal()
+          ? await db.from('cheongla_home_video_trash').select('*').order('archived_at', { ascending: false })
+          : { data: [] };
+        if (trash.error) throw trash.error;
         if (token !== request || actor !== profile()) return false;
         rows = data;
+        videoTrash = trash.data;
         renderPublic();
         return true;
       } catch (error) {
@@ -75,17 +124,37 @@ globalThis.CheonglaHomeFeatures = {
     }
 
     function renderEditor() {
-      editing = published(kind);
+      const available = ordered(rows.filter(row => row.kind === kind && !row.archived_at));
+      editing = selectedId === '' ? null : available.find(row => row.id === selectedId) || available[0] || null;
+      selectedId = editing?.id || '';
       form.reset();
       form.elements.kind.value = kind;
+      const chooser = $('homeFeaturesItem');
+      chooser.replaceChildren();
+      for (const [value, title] of [['', '새 콘텐츠 등록'], ...available.map(row =>
+        [row.id, row.title + (row.hidden ? ' · 숨김' : row.featured ? ' · 대표 D-day' : '')])]) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = title;
+        chooser.append(option);
+      }
+      chooser.value = selectedId;
+      $('homeFeaturesNewVisibility').hidden = Boolean(editing);
       form.elements.title.value = editing?.title || '';
       form.elements.description.value = editing?.description || '';
+      form.elements.sortOrder.value = editing?.sort_order ?? 100;
       form.elements.targetDate.value = editing?.target_date || '';
       form.elements.targetDate.required = kind === 'countdown';
       $('homeFeaturesDateField').hidden = kind !== 'countdown';
-      $('homeFeaturesCurrentVideo').textContent = editing?.video_path ? '현재 업로드한 영상이 있습니다.'
-        : editing?.original_video ? '현재 기본 내부투어 영상이 연결되어 있습니다.' : '현재 연결된 영상이 없습니다.';
-      $('homeFeaturesRemoveVideo').hidden = !editing?.video_path && !editing?.original_video;
+      $('homeFeaturesCurrentVideo').textContent = hasVideo(editing)
+        ? (editing.video_hidden ? '현재 영상은 숨김 상태입니다.' : '현재 연결된 영상이 있습니다.')
+        : '현재 연결된 영상이 없습니다.';
+      $('homeFeaturesHide').hidden = !editing;
+      $('homeFeaturesHide').textContent = editing?.hidden ? '다시 공개' : '콘텐츠 숨기기';
+      $('homeFeaturesFeatured').hidden = !editing || kind !== 'countdown' || editing.hidden || editing.featured;
+      $('homeFeaturesHideVideo').hidden = !hasVideo(editing);
+      $('homeFeaturesHideVideo').textContent = editing?.video_hidden ? '영상 다시 공개' : '영상 숨기기';
+      $('homeFeaturesRemoveVideo').hidden = !hasVideo(editing);
       $('homeFeaturesArchive').hidden = !editing;
       list.replaceChildren();
       for (const row of rows.filter(item => item.kind === kind && item.archived_at)
@@ -93,15 +162,27 @@ globalThis.CheonglaHomeFeatures = {
         const item = document.createElement('li');
         const title = document.createElement('p');
         title.textContent = row.title + ' · ' + new Date(row.archived_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
-        const restore = button('복원', () => change(row, { archived_at: null }, '홈 화면에 복원했습니다.'));
-        restore.disabled = Boolean(editing);
-        item.append(title, restore, button('영구삭제', () => change(row, null, '영구삭제했습니다.',
-          '이 항목과 업로드한 영상을 영구삭제할까요?')));
+        item.append(title, button('복원', () => change(row, { archived_at: null }, '콘텐츠를 복원했습니다.')),
+          button('영구삭제', () => change(row, null, '영구삭제했습니다.', '이 콘텐츠와 연결된 영상을 영구삭제할까요?')));
         list.append(item);
       }
-      $('homeFeaturesTrashHelp').textContent = list.children.length
-        ? (editing ? '현재 게시된 항목을 휴지통으로 옮긴 뒤 복원할 수 있습니다.' : '복원하거나 영구삭제할 항목을 선택해 주세요.')
-        : '휴지통이 비어 있습니다.';
+      $('homeFeaturesTrashHelp').textContent = list.children.length ? '복원하거나 영구삭제할 항목을 선택해 주세요.' : '휴지통이 비어 있습니다.';
+      const videos = $('homeFeaturesVideoTrash');
+      videos.replaceChildren();
+      for (const row of videoTrash.filter(item => item.kind === kind)) {
+        const item = document.createElement('li');
+        const title = document.createElement('p');
+        title.textContent = row.title + ' · ' + new Date(row.archived_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
+        const restore = button('선택한 콘텐츠에 복원', () => {
+          if (editing) rpc('cheongla_manage_home_video_trash',
+            { target: row.id, restore_to: editing.id, expected_revision: editing.revision },
+            '영상을 복원했습니다.', '선택한 콘텐츠에 이 영상을 복원할까요? 기존 영상은 휴지통으로 이동합니다.');
+        });
+        restore.disabled = !editing;
+        item.append(title, restore, button('영상 영구삭제', () => rpc('cheongla_manage_home_video_trash',
+          { target: row.id }, '영상을 영구삭제했습니다.', '이 영상을 영구삭제할까요?')));
+        videos.append(item);
+      }
     }
 
     async function cleanup(db) {
@@ -137,7 +218,7 @@ globalThis.CheonglaHomeFeatures = {
           (cleaned ? '' : ' 이전 영상 파일 정리가 대기 중입니다. 관리 화면을 다시 열면 재시도합니다.');
       } catch (error) {
         if (current()) status.textContent = error?.code === '23505'
-          ? '이미 게시된 항목이 있습니다. 현재 항목을 휴지통으로 옮긴 뒤 복원해 주세요.'
+          ? '다른 곳에서 변경되었습니다. 관리 화면을 다시 열어 주세요.'
           : readable(error);
       } finally {
         busy = false;
@@ -164,6 +245,16 @@ globalThis.CheonglaHomeFeatures = {
       });
     }
 
+    function rpc(name, args, message, prompt) {
+      void run(async (db, current) => {
+        if (prompt && !await confirm(prompt, '홈 화면 콘텐츠 관리')) return;
+        if (!current()) return;
+        const { error } = await db.rpc(name, args);
+        if (error) throw error;
+        return message;
+      });
+    }
+
     entry.addEventListener('click', async () => {
       if (!principal() || busy) return;
       dialog.showModal();
@@ -184,19 +275,34 @@ globalThis.CheonglaHomeFeatures = {
     dialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); });
     form.elements.kind.addEventListener('change', event => {
       kind = event.target.value;
+      selectedId = null;
       renderEditor();
       status.textContent = '';
+    });
+    $('homeFeaturesItem').addEventListener('change', event => {
+      selectedId = event.target.value;
+      renderEditor();
+      status.textContent = '';
+    });
+    $('homeFeaturesHide').addEventListener('click', () => change(editing,
+      { hidden: !editing?.hidden }, editing?.hidden ? '다시 공개했습니다.' : '콘텐츠를 숨겼습니다.'));
+    $('homeFeaturesHideVideo').addEventListener('click', () => change(editing,
+      { video_hidden: !editing?.video_hidden }, editing?.video_hidden ? '영상을 다시 공개했습니다.' : '영상을 숨겼습니다.'));
+    $('homeFeaturesFeatured').addEventListener('click', () => {
+      if (editing) rpc('cheongla_set_featured_home_countdown',
+        { target: editing.id, expected_revision: editing.revision }, '대표 D-day를 지정했습니다.');
     });
     $('homeFeaturesArchive').addEventListener('click', () => change(editing,
       { archived_at: new Date().toISOString() }, '휴지통으로 옮겼습니다.', '이 항목을 홈 화면에서 내리고 휴지통으로 옮길까요?'));
     $('homeFeaturesRemoveVideo').addEventListener('click', () => change(editing,
-      { video_path: null, original_video: false }, '영상 연결을 삭제했습니다.', '이 항목의 영상만 삭제할까요?'));
+      { video_path: null, original_video: false, video_hidden: false }, '영상을 휴지통으로 옮겼습니다.', '이 항목의 영상을 휴지통으로 옮길까요?'));
     form.addEventListener('submit', event => {
       event.preventDefault();
       const row = editing;
       const file = form.elements.video.files[0];
       const values = {
         title: form.elements.title.value.trim(),
+        sort_order: Number(form.elements.sortOrder.value),
         description: form.elements.description.value.trim(),
         target_date: kind === 'countdown' ? form.elements.targetDate.value : null
       };
@@ -219,12 +325,16 @@ globalThis.CheonglaHomeFeatures = {
             if (error) throw error;
             if (!current()) throw new Error('로그인 상태가 변경되었습니다.');
             values.video_path = path;
-            if (row) values.original_video = false;
+            if (row) {
+              values.original_video = false;
+              values.video_hidden = false;
+            }
           }
           if (row) await update(db, row, values);
           else {
-            const { error } = await db.from(table).insert({ ...values, kind });
+            const { data, error } = await db.from(table).insert({ ...values, kind, hidden: !form.elements.publishNow.checked }).select('id').single();
             if (error) throw error;
+            if (current()) selectedId = data.id;
           }
           return '홈 화면에 저장했습니다.';
         } catch (error) {
@@ -239,7 +349,10 @@ globalThis.CheonglaHomeFeatures = {
       refresh,
       reset() {
         request++;
-        rows = rows.filter(row => !row.archived_at);
+        rows = rows.filter(row => !row.archived_at && !row.hidden);
+        videoTrash = [];
+        selectedId = null;
+        $('homeFeaturesVideoTrash').replaceChildren();
         entry.hidden = true;
         if (dialog.open) dialog.close();
         editing = null;
@@ -248,16 +361,16 @@ globalThis.CheonglaHomeFeatures = {
         fields.disabled = true;
         status.textContent = '';
       },
-      countdown: () => published('countdown'),
-      async video(type) {
-        const row = published(type);
+      countdown: representative,
+      async video(id) {
+        const row = rows.find(item => item.id === id && !item.archived_at && !item.hidden && !item.video_hidden);
         if (!row) return null;
-        if (row.original_video) return { url: original, title: labels[type] };
+        if (row.original_video) return { url: original, title: row.title, original: true };
         if (!row.video_path) return null;
         const db = await client();
         const { data, error } = await db.storage.from(bucket).createSignedUrl(row.video_path, 900);
         if (error) throw error;
-        if (published(type) !== row) return null;
+        if (!rows.some(item => item.id === id && item.revision === row.revision && !item.archived_at && !item.hidden && !item.video_hidden)) return null;
         return { url: data.signedUrl, title: row.title };
       }
     };
