@@ -3,12 +3,12 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {forecastSummary,localDate} from '../supabase/functions/cheongla-weather/forecast.mjs';
 // Date boundaries use Korea's calendar even on a phone set to another timezone.
-const code=fs.readFileSync(new URL('../home-clock.js',import.meta.url),'utf8');
-const {koreaClockState,weatherAdvice,weatherAppearance}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+const {koreaClockState,weatherAdvice,weatherAppearance}=await import('../home-clock.js');
 assert.equal(koreaClockState(new Date('2026-10-22T00:00:00Z')).countdown,'D-28');
 assert.equal(koreaClockState(new Date('2026-11-18T14:59:59Z')).countdown,'D-1');
 assert.equal(koreaClockState(new Date('2026-11-18T15:00:00Z')).countdown,'D-DAY');
 assert.equal(koreaClockState(new Date('2026-11-19T15:00:00Z')).countdown,'D+1');
+assert.equal(koreaClockState(new Date('2026-11-19T15:00:00Z'),Date.UTC(2026,10,22)).countdown,'D-2');
 assert.equal(koreaClockState(new Date('2026-10-22T15:00:00Z')).period,'오전');
 assert.equal(weatherAdvice({date:'2026-10-22',kind:'rain'},'2026-10-23'),'');
 assert.match(weatherAdvice({date:'2026-10-22',kind:'snow'},'2026-10-22'),/눈/);
@@ -20,10 +20,26 @@ const fixture={properties:{meta:{updated_at:now.toISOString()},timeseries:[row('
 const summary=forecastSummary(fixture,now);assert.equal(summary.temperature,14);assert.equal(summary.daily[0].temperature,20);assert.equal(summary.advice.kind,'rain');assert.equal(localDate(new Date('2026-10-22T15:00:00Z')),'2026-10-23');
 assert.throws(()=>forecastSummary(fixture,new Date('2026-11-22T08:00:00Z')),/Outdated/);
 // Open, close, Escape, hidden-page playback and error behavior use actual module code.
-const elements=Object.fromEntries(['homeTourDialog','homeTourVideo','homeTourOpen','homeTourClose','homeTourStatus'].map(id=>[id,{handlers:{},addEventListener(n,f){this.handlers[n]=f;},hasAttribute(){return !!this.src;},focus(){},getBoundingClientRect(){return {left:0,top:0,right:100,bottom:100};}}]));
-const dialog=elements.homeTourDialog,video=elements.homeTourVideo;let plays=0,pauses=0;dialog.showModal=()=>dialog.open=true;dialog.close=()=>{dialog.open=false;dialog.handlers.close();};video.play=async()=>{plays++;};video.pause=()=>pauses++;
+const elements=Object.fromEntries(['homeTourDialog','homeTourVideo','homeTourOpen','homeTourClose','homeTourStatus','homeCountdownVideo','homeTourExternal','homeTourDialogTitle'].map(id=>[id,{
+  handlers:{},dataset:{},addEventListener(n,f){this.handlers[n]=f;},hasAttribute(){return Boolean(this.src);},
+  removeAttribute(name){delete this[name];},setAttribute(name,value){this[name]=value;},focus(){},load(){},
+  getBoundingClientRect(){return {left:0,top:0,right:100,bottom:100};}
+}]));
+const dialog=elements.homeTourDialog,video=elements.homeTourVideo;
+const tour=elements.homeTourOpen,countdown=elements.homeCountdownVideo;
+tour.dataset.homeFeatureVideo='tour';countdown.dataset.homeFeatureVideo='countdown';
+let plays=0,pauses=0;
+dialog.showModal=()=>dialog.open=true;
+dialog.close=()=>{dialog.open=false;dialog.handlers.close();};
+video.play=async()=>{plays++;};video.pause=()=>pauses++;
 const doc={hidden:false,handlers:{},getElementById:id=>elements[id],addEventListener(n,f){this.handlers[n]=f;}};
-vm.runInNewContext(fs.readFileSync(new URL('../home-tour.js',import.meta.url),'utf8'),{document:doc,window:{addEventListener(){}}});
-assert.equal(video.src,undefined);await elements.homeTourOpen.handlers.click();assert.equal(dialog.open,true);assert.equal(plays,1);assert.match(video.src,/cheongla-tour.mp4$/);elements.homeTourClose.handlers.click();assert.equal(dialog.open,false);assert.equal(pauses,1);await elements.homeTourOpen.handlers.click();doc.hidden=true;doc.handlers.visibilitychange();assert.equal(pauses,2);video.handlers.error();assert.match(elements.homeTourStatus.textContent,/불러오지 못/);
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length);assert.match(html,/home-clock.js\?v=1.9.5/);assert.match(html,/controls muted playsinline preload="none"/);
+const sources={tour:{url:'https://example.test/cheongla-tour.mp4',title:'내부투어'},countdown:{url:'https://example.test/cheer.mp4',title:'응원 영상'}};
+vm.runInNewContext(fs.readFileSync(new URL('../home-tour.js',import.meta.url),'utf8'),{document:doc,window:{addEventListener(){}},CheonglaHomeFeaturesUI:{video:async kind=>sources[kind]}});
+assert.equal(video.src,undefined);
+await tour.handlers.click({currentTarget:tour});assert.equal(dialog.open,true);assert.equal(plays,1);assert.equal(video.src,sources.tour.url);
+elements.homeTourClose.handlers.click();assert.equal(dialog.open,false);assert.equal(pauses,2);
+await countdown.handlers.click({currentTarget:countdown});assert.equal(video.src,sources.countdown.url);
+doc.hidden=true;doc.handlers.visibilitychange();assert.equal(pauses,4);
+video.handlers.error();assert.match(elements.homeTourStatus.textContent,/불러오지 못/);
+const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length);assert.match(html,/home-clock\.js\?v=/);assert.match(html,/controls muted playsinline preload="none"/);
 console.log('Home clock, Korea date boundaries, weather validation and video lifecycle checks passed.');
