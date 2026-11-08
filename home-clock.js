@@ -9,10 +9,10 @@ const timeFormat = new Intl.DateTimeFormat('en-GB', {
 });
 const examDay = Date.UTC(2026, 10, 19);
 
-export function koreaClockState(now = new Date()) {
+export function koreaClockState(now = new Date(), target = examDay) {
   const parts = Object.fromEntries(timeFormat.formatToParts(now).map(p => [p.type, p.value]));
   const today = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
-  const days = Math.round((examDay - today) / 86400000);
+  const days = Math.round((target - today) / 86400000);
   return {
     hours: String(Number(parts.hour)%12||12).padStart(2,'0'), period:Number(parts.hour)<12?'오전':'오후', minutes: parts.minute, seconds: parts.second,
     date: dateFormat.format(now),lunar: koreanLunarDate(now),localDate:`${parts.year}-${parts.month}-${parts.day}`, iso: now.toISOString(), days,
@@ -69,12 +69,15 @@ if (typeof document !== 'undefined') {
     let eventDay='';
     const eventContainer=document.createElement('div');eventContainer.className='calendar-events';eventContainer.hidden=true;clock.querySelector('.home-clock-top').after(eventContainer);
     const update = () => {
-      const state = koreaClockState();
+      const countdownConfig = globalThis.CheonglaHomeFeaturesUI?.countdown();
+      const target = countdownConfig ? Date.parse(countdownConfig.target_date + 'T00:00:00Z') : examDay;
+      const state = koreaClockState(new Date(), target);
       if(eventDay!==state.localDate){eventDay=state.localDate;renderCalendarEvents(eventContainer,eventDay);}
       if(lunarDate){lunarDate.textContent=state.lunar;lunarDate.hidden=!state.lunar;}
       for (const key of ['period', 'hours', 'minutes', 'seconds', 'date', 'cheer']) {
         const element = clock.querySelector(`[data-clock-${key}]`);
-        if (element.textContent !== state[key]) element.textContent = state[key];
+        const text = key === 'cheer' && countdownConfig?.description ? countdownConfig.description : state[key];
+        if (element.textContent !== text) element.textContent = text;
       }
       for(const badge of document.querySelectorAll('[data-daily-dday]'))if(badge.textContent!==state.countdown)badge.textContent=state.countdown;
       const countdown = clock.querySelector('[data-clock-dday]');
@@ -123,6 +126,7 @@ if (typeof document !== 'undefined') {
     const stop=()=>{clearInterval(timer);clearInterval(weatherTimer);};
     const start = () => { stop(); update(); timer = setInterval(update, 1000);refreshWeather();weatherTimer=setInterval(refreshWeather,15*60000+Math.random()*60000); };
     start();
+    document.addEventListener('cheongla-home-countdown', update);
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) stop(); else start();
     });
