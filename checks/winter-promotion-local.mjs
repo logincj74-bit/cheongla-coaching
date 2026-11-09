@@ -120,10 +120,12 @@ try {
   assert.equal(card.querySelector('p').textContent, '<b>겨울 준비</b>');
   assert.equal(card.querySelector('a').href, 'https://cheongla-winter-2027.logincj.chatgpt.site/');
   assert(!card.textContent.includes('기간 한정'));
+  assert.equal(card.querySelector('a').textContent, '모집 안내 · 상담 신청 →');
   actor = { role: 'owner' };
   row.first_open = false;
   await refresh();
   assert.equal(admin.hidden, false);
+  assert.equal(card.querySelector('a').textContent, '청라윈터스쿨 관리 →');
   assert.equal(card.querySelectorAll('time').length, 1);
   assert.match(card.textContent, /2차 모집 중/);
   assert.doesNotMatch(card.textContent, /21일/);
@@ -131,7 +133,16 @@ try {
   await refresh();
   assert.equal(card.hidden, false);
   assert.equal(admin.querySelector('[name="ends_at"]'), null);
-  actor = { role: 'manager' };
+  for (const role of ['student', 'parent', 'manager']) {
+    actor = { role, approval_status: 'approved', membership_state: 'active' };
+    await refresh();
+    assert.equal(card.querySelector('a').textContent, role === 'manager' ? '청라윈터스쿨 관리 →' : '모집 안내 · 상담 신청 →');
+    assert.equal(card.querySelector('a').href, 'https://cheongla-winter-2027.logincj.chatgpt.site/');
+    assert.equal(admin.hidden, true);
+  }
+  actor = { role: 'manager', approval_status: 'pending', membership_state: 'active' };
+  await refresh();
+  assert.equal(card.querySelector('a').textContent, '모집 안내 · 상담 신청 →');
   row.ends_at = new Date(Date.now() - 1).toISOString();
   await refresh();
   assert.equal(admin.hidden, true);
