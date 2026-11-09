@@ -840,7 +840,7 @@ function configureDeskMenu(){
  const entries=staff?[
    ['account_registrationPanel','상담 · 신규 등록카드'],
    ['account_learningPanel','일일 학습계획표 확인'],
-   ...(principal?[['account_notificationPanel','알림 · 휴지통 관리']]:[])
+   ...(principal?[['account_notificationPanel','알림 · 푸시 설정']]:[])
  ]:[['account_learningPanel','일일 학습계획표']];
  for(const [key,label] of entries){
   const button=document.createElement('button');button.type='button';button.textContent=label;
