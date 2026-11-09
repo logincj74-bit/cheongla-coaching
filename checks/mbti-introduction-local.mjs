@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
 import { readFileSync, readdirSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 import { JSDOM } from 'jsdom';
@@ -10,6 +11,8 @@ const db = new PGlite();
 const table = 'public.cheongla_mbti_introductions';
 const principal = '10000000-0000-0000-0000-000000000001';
 const member = '10000000-0000-0000-0000-000000000002';
+const parent = '10000000-0000-0000-0000-000000000004';
+const manager = '10000000-0000-0000-0000-000000000005';
 const suspended = '10000000-0000-0000-0000-000000000003';
 const rows = async (sql, args) => (await db.query(sql, args)).rows;
 
@@ -31,22 +34,32 @@ try {
   await db.exec(`insert into public.cheongla_profiles (id, role, approval_status, membership_state) values
     ('${principal}', 'english_director', 'approved', 'active'),
     ('${member}', 'student', 'approved', 'active'),
-    ('${suspended}', 'math_director', 'approved', 'suspended');`);
+    ('${suspended}', 'math_director', 'approved', 'suspended'),
+    ('${parent}', 'parent', 'approved', 'active'),
+    ('${manager}', 'manager', 'approved', 'active');`);
   const articlesMigration = readdirSync(migrations).find(name => name.endsWith('_mbti_learning_articles.sql'));
   await db.exec(read('../supabase/migrations/' + articlesMigration));
+  const accessMigration = readdirSync(migrations).find(name => name.endsWith('_mbti_parent_guide_access.sql'));
+  await db.exec(read('../supabase/migrations/' + accessMigration));
   const articlesTable = 'public.cheongla_mbti_learning_articles';
   const articles = await rows('select * from ' + articlesTable + ' order by category');
   assert.deepEqual(articles.map(row => row.category), ['groups', 'parent_nf', 'parent_nt', 'parent_sj', 'parent_sp']);
   assert(articles.every(row => !/최상위 1%의 비밀|제공된 도서 사진|사용자 제공 사진/.test(row.body)));
   await as('authenticated', member, async () => {
-    assert.equal((await rows('select * from ' + articlesTable)).length, 5);
+    assert.deepEqual((await rows('select category from ' + articlesTable)).map(row => row.category), ['groups']);
     assert.equal((await rows(`update ${articlesTable} set title = '변조' returning id`)).length, 0);
   });
+  for (const reader of [parent, manager]) {
+    await as('authenticated', reader, async () => {
+      assert.equal((await rows('select * from ' + articlesTable)).length, 5);
+      assert.equal((await rows(`update ${articlesTable} set title = '변조' returning id`)).length, 0);
+    });
+  }
   await as('authenticated', principal, async () => {
     assert.equal((await rows(`delete from ${articlesTable} returning id`)).length, 0);
     await rows(`update ${articlesTable} set archived_at = now() where category = 'parent_nt'`);
   });
-  await as('authenticated', member, async () => assert.equal((await rows('select * from ' + articlesTable)).length, 4));
+  await as('authenticated', parent, async () => assert.equal((await rows('select * from ' + articlesTable)).length, 4));
   await as('authenticated', principal, async () => {
     await rows(`update ${articlesTable} set archived_at = null where category = 'parent_nt'`);
     await rows(`update ${articlesTable} set archived_at = now() where category = 'parent_sp'`);
@@ -90,6 +103,20 @@ try {
 
   const dom = new JSDOM(read('../index.html'), { runScripts: 'outside-only' });
   const { document } = dom.window;
+  const menu = document.getElementById('mbtiParentsMenu');
+  assert(menu.hidden);
+  const html = read('../index.html');
+  const context = vm.createContext({ $: id => document.getElementById(id), currentProfile: null });
+  vm.runInContext(html.slice(html.indexOf('function canUseMBTIStudy()'), html.indexOf('function resetMBTIStudy()')), context);
+  for (const role of ['student', 'parent', 'owner', 'english_director', 'math_director', 'manager']) {
+    context.currentProfile = { role, approval_status: 'approved', membership_state: 'active' };
+    context.configureMBTIParentMenu();
+    assert.equal(menu.hidden, role === 'student');
+  }
+  context.currentProfile = null;
+  context.configureMBTIParentMenu();
+  assert(menu.hidden);
+  assert.match(html, /key==='mbti_parents'&&!canReadMBTIParentGuide\(\)/);
   dom.window.eval(read('../mbti-introduction.js'));
   const intro = document.getElementById('mbtiIntroduction');
   let canEdit = false;
