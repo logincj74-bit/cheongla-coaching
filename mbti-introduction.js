@@ -40,7 +40,9 @@ globalThis.CheonglaMBTIIntroduction = {
   },
 
   mount({ document, client, canEdit, confirm, readable,
-    section = document.getElementById('mbtiIntroduction'), category, label = 'MBTI 학습법 소개' }) {
+    section = document.getElementById('mbtiIntroduction'), category, label = 'MBTI 학습법 소개',
+    scope = () => category ? { category } : {}, table = category ? 'cheongla_mbti_learning_articles' : 'cheongla_mbti_introductions',
+    noun = category ? '자료' : '소개글', documentTitle = title => title }) {
     const summary = section.querySelector('summary');
     const status = section.querySelector('[role="status"]');
     const content = section.querySelector('article');
@@ -53,10 +55,8 @@ globalThis.CheonglaMBTIIntroduction = {
     let request = 0;
     let busy = false;
     let rows = [];
-    const table = category ? 'cheongla_mbti_learning_articles' : 'cheongla_mbti_introductions';
     const columns = 'id,title,body,archived_at,revision';
-    const noun = category ? '자료' : '소개글';
-    const objectLabel = category ? '자료를' : '소개글을';
+    const objectLabel = noun + (noun === '소개글' ? '을' : '를');
 
     function button(label, action) {
       const element = document.createElement('button');
@@ -179,8 +179,9 @@ globalThis.CheonglaMBTIIntroduction = {
 
     function load() {
       return run(async (source, current) => {
-        const query = source.select(columns);
-        const { data, error } = await (category ? query.eq('category', category) : query);
+        let query = source.select(columns);
+        for (const [key, value] of Object.entries(scope())) query = query.eq(key, value);
+        const { data, error } = await query;
         if (!current()) return;
         if (error) throw error;
         rows = data;
@@ -192,7 +193,7 @@ globalThis.CheonglaMBTIIntroduction = {
       const published = rows.find(row => !row.archived_at);
       if (busy || !published) return;
       try {
-        await action(published.title, () => rows.find(row => !row.archived_at) === published);
+        await action(documentTitle(published.title), () => rows.find(row => !row.archived_at) === published);
         status.textContent = '';
       } catch (error) {
         status.textContent = readable(error);
@@ -208,7 +209,7 @@ globalThis.CheonglaMBTIIntroduction = {
       pdfButton.disabled = true;
       try {
         const pdf = await globalThis.CheonglaMBTIIntroductionPDF.create(document, title, [...content.children]);
-        const filename = category ? '청라_' + title.replace(/[\\/:*?"<>|]/g, '_') + '.pdf' : '청라_MBTI학습법_소개글.pdf';
+        const filename = noun !== '소개글' ? '청라_' + title.replace(/[\\/:*?"<>|]/g, '_') + '.pdf' : '청라_MBTI학습법_소개글.pdf';
         if (current()) globalThis.CheonglaDocumentBrand.download(pdf, filename);
       } finally {
         pdfButton.disabled = false;
@@ -228,7 +229,7 @@ globalThis.CheonglaMBTIIntroduction = {
       }
       const row = rows.find(item => !item.archived_at);
       const values = { title, body };
-      void write(row ? update(row, values) : source => source.insert(category ? { ...values, category } : values), objectLabel + ' 저장했습니다.');
+      void write(row ? update(row, values) : source => source.insert({ ...values, ...scope() }), objectLabel + ' 저장했습니다.');
     });
     form.querySelector('[data-mbti-intro-cancel]').addEventListener('click', () => {
       form.hidden = true;

@@ -5,13 +5,13 @@ const allText=n=>[n.textContent,...n.children.map(allText)].join('\n');let resul
 const c=vm.createContext({open:(title,build,filename)=>{const body=new N('body');build(body,{createElement:tag=>new N(tag)});result={title,filename,body};return result;}});
 vm.runInContext(h.slice(h.indexOf('const mbtiGroups='),h.indexOf('function canUseMBTIStudy(')),c);
 vm.runInContext(p.slice(p.indexOf('function mbti('),p.indexOf('root.CheonglaPrint=')),c);
-const groups=vm.runInContext('mbtiGroups',c);
+const {coaching,...groups}=vm.runInContext('mbtiGroups',c);
 for(const [code,guide]of Object.entries(catalog.types)){
- c.mbti(code,guide,groups);assert.equal(result.filename,'청라MBTI학습법_'+code);assert(result.title.includes(code));assert.equal(result.body.children.filter(x=>x.tag==='section').length,7);
+ c.mbti(code,guide,groups);assert.equal(result.filename,'청라MBTI학습법_'+code);assert(result.title.includes(code));assert.equal(result.body.children.filter(x=>x.tag==='section').length,6);
  const output=allText(result.body);if(guide.subtitle)assert(output.includes(guide.subtitle));
- for(const item of [...guide.overview,...guide.coaching,...Object.values(guide.groupIntroductions||{})]){assert(output.includes(item.title));assert(output.includes(item.body));}
+ for(const item of [...guide.overview,...Object.values(guide.groupIntroductions||{})]){assert(output.includes(item.title));assert(output.includes(item.body));}
  for(const [key,body]of Object.entries(guide.subjects))assert(output.includes(body),code+' missing '+key);
  assert(!['button','input','select','details'].some(tag=>JSON.stringify(result.body).includes('"tag":"'+tag+'"')));
 }
 assert.throws(()=>c.mbti('',catalog.types.INTJ,groups));
-console.log('PASS MBTI print: 16 types, all 7 groups, every overview/coaching/introduction/subject body, no collapsed content or form controls, type-specific filename');
+console.log('PASS MBTI print: 16 types, all 6 shareable groups, every overview/introduction/subject body, no collapsed content or form controls, type-specific filename');
