@@ -973,7 +973,7 @@ function bindExclusiveSiteMenus(menus){for(const menu of menus){menu.setAttribut
 bindExclusiveSiteMenus(Array.from(document.querySelectorAll('details.site-menu')));
 function staffAccount(){return !!currentProfile&&(isAppAdmin()||['owner',...staffRoles].includes(currentProfile.role)||staffRoles.includes(currentProfile.requested_staff_role));}
 
-function updateHomeAccount(){configureDeskMenu();configureMBTIParentMenu();void globalThis.CheonglaHomeFeaturesUI?.refresh();globalThis.CheonglaWinterPromotionUI?.refresh();globalThis.CheonglaDictionary?.accountChanged();void loadDailyWord();void loadHomeSchedule();$('guestInquiryEntry').hidden=staffAccount();const active=!!currentProfile;$('memberEntryLabel').textContent=active?'내 계정 · 학원 서비스':'로그인하기';$('homeAccountStatus').textContent=active?(currentProfile.full_name||'회원')+'님 · '+(statuses[currentProfile.approval_status]||'상태 확인 필요'):'공지 확인, 상담문의와 모의고사 신청을 이용하세요.';}
+function updateHomeAccount(){configureMBTIParentMenu();void globalThis.CheonglaHomeFeaturesUI?.refresh();globalThis.CheonglaWinterPromotionUI?.refresh();globalThis.CheonglaDictionary?.accountChanged();void loadDailyWord();void loadHomeSchedule();$('guestInquiryEntry').hidden=staffAccount();const active=!!currentProfile;$('memberEntryLabel').textContent=active?'내 계정 · 학원 서비스':'로그인하기';$('homeAccountStatus').textContent=active?(currentProfile.full_name||'회원')+'님 · '+(statuses[currentProfile.approval_status]||'상태 확인 필요'):'공지 확인, 상담문의와 모의고사 신청을 이용하세요.';}
 function showDictionaryPage(){
  recordSiteView('public','dictionary');siteDestination=null;closeSiteMenus();
  for(const id of ['homePanel','informationPanel','newInquiryPanel','publicContentPanel','authPanel','accountPanel'])$(id).hidden=true;
