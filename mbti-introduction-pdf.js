@@ -34,7 +34,9 @@
     return lines;
   }
 
-  function createPdf(document, title, paragraphs) {
+  async function createPdf(document, title, paragraphs) {
+    const brand = root.CheonglaDocumentBrand;
+    const logo = await brand.loadLogo();
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(pageWidth * scale);
     canvas.height = Math.round(pageHeight * scale);
@@ -52,8 +54,9 @@
       context.fillRect(0, 0, canvas.width / scale, canvas.height / scale);
       context.font = 'bold 10px ' + font;
       context.fillStyle = '#31524d';
-      context.fillText('청라학원  |  나의 MBTI 학습법', margin, 34);
-      y = 59;
+      context.drawImage(logo, margin, 27, 29, 29);
+      context.fillText(brand.name, margin + 38, 35);
+      y = 67;
     }
 
     function finishPage() {

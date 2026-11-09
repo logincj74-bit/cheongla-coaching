@@ -188,11 +188,11 @@ globalThis.CheonglaMBTIIntroduction = {
       }, '글을 불러오지 못했습니다. 닫았다가 다시 열어 주세요.');
     }
 
-    function exportPublished(action) {
+    async function exportPublished(action) {
       const published = rows.find(row => !row.archived_at);
       if (busy || !published) return;
       try {
-        action(published.title);
+        await action(published.title, () => rows.find(row => !row.archived_at) === published);
         status.textContent = '';
       } catch (error) {
         status.textContent = readable(error);
@@ -203,18 +203,15 @@ globalThis.CheonglaMBTIIntroduction = {
       if (!globalThis.CheonglaPrint?.node) throw new Error('인쇄 기능을 준비 중입니다. 잠시 후 다시 눌러 주세요.');
       globalThis.CheonglaPrint.node(title, content);
     }));
-    exports.querySelector('[data-mbti-intro-pdf]').addEventListener('click', () => exportPublished(title => {
-      const pdf = globalThis.CheonglaMBTIIntroductionPDF.create(document, title, content.children);
-      const url = URL.createObjectURL(pdf);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = category ? '청라_' + title.replace(/[\\/:*?"<>|]/g, '_') + '.pdf' : '청라_MBTI학습법_소개글.pdf';
-      document.body.append(link);
+    const pdfButton = exports.querySelector('[data-mbti-intro-pdf]');
+    pdfButton.addEventListener('click', () => exportPublished(async (title, current) => {
+      pdfButton.disabled = true;
       try {
-        link.click();
+        const pdf = await globalThis.CheonglaMBTIIntroductionPDF.create(document, title, [...content.children]);
+        const filename = category ? '청라_' + title.replace(/[\\/:*?"<>|]/g, '_') + '.pdf' : '청라_MBTI학습법_소개글.pdf';
+        if (current()) globalThis.CheonglaDocumentBrand.download(pdf, filename);
       } finally {
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        pdfButton.disabled = false;
       }
     }));
 
