@@ -21,7 +21,10 @@ function mount(api){
     try{
      const raw=await rpc('cheongla_english_wordbook');if(request!==epoch||actor!==profile())return;
      const binary=root.atob(raw);if(!binary.startsWith('%PDF-'))throw Error('단어장 파일을 읽지 못했습니다. 다시 불러오기를 눌러 주세요.');
-     const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));if(bookURL)root.URL.revokeObjectURL(bookURL);bookURL=root.URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
+     const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
+     const pdf=await root.CheonglaDocumentBrand.coverPdf(bytes,'청라 수능 기출 단어장');
+     if(request!==epoch||actor!==profile())return;
+     if(bookURL)root.URL.revokeObjectURL(bookURL);bookURL=root.URL.createObjectURL(pdf);
      english.querySelector('[data-wordbook-document]')?.remove();const documentBox=el('div');documentBox.dataset.wordbookDocument='true';
      const actions=el('div',undefined,'row'),view=el('a','단어장 크게 열기 ↗','contact-link');view.href=bookURL;view.target='_blank';view.rel='noopener noreferrer';
      const download=el('a','PDF 내려받기','contact-link');download.href=bookURL;download.download='청라_수능기출단어.pdf';actions.append(view,download);documentBox.append(actions,el('p','아이폰에서 미리보기가 비어 있으면 ‘단어장 크게 열기’를 누르세요. 열린 PDF의 공유 메뉴에서 파일에 저장할 수 있습니다.','muted'));

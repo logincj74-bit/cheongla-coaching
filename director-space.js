@@ -94,7 +94,7 @@ function mount(api){
    const r=await c.storage.from('cheongla-director').createSignedUrl(file.object_path,300);if(!r.error&&request===sequence){const img=el('img');img.src=r.data.signedUrl;img.alt=file.filename;img.loading='lazy';img.style.cssText='display:block;max-width:100%;max-height:70vh;object-fit:contain;margin:16px auto';if(protectedContent){img.draggable=false;img.setAttribute('draggable','false');const figure=el('figure');figure.className='director-protected-photo';figure.append(img,el('figcaption',copyright));parent.append(figure);}else parent.append(img);}
   }
   if(request!==sequence||protectedContent)return;
-  parent.append(button('첨부파일 내려받기 · '+file.filename,async()=>{try{const r=await c.storage.from('cheongla-director').createSignedUrl(file.object_path,60,{download:file.filename});if(r.error)throw r.error;const url=new URL(r.data.signedUrl);if(url.protocol!=='https:')throw Error('파일 주소를 확인해 주세요.');root.location.assign(url.href);}catch(e){$('siteStatus').textContent=api.readable(e);}}));
+  parent.append(button('첨부파일 내려받기 · '+file.filename,async()=>{try{await root.CheonglaDocumentBrand.downloadAttachment(c.storage.from('cheongla-director'),file);}catch(e){$('siteStatus').textContent=api.readable(e);}}));
  }
  const originalShow=root.showPublicPage,originalHome=root.showSiteHome;
  async function show(key,inTrash=false){

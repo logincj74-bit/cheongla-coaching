@@ -120,13 +120,12 @@ try {
     }
   };
   let filename;
-  dom.window.URL.createObjectURL = blob => {
+  dom.window.CheonglaDocumentBrand = { download: (blob, name) => {
     assert.equal(blob, pdf);
-    return 'blob:mbti-introduction';
-  };
-  dom.window.URL.revokeObjectURL = () => {};
-  dom.window.HTMLAnchorElement.prototype.click = function () { filename = this.download; };
+    filename = name;
+  } };
   pdfButton.click();
+  await new Promise(resolve => setImmediate(resolve));
   assert.equal(filename, '청라_MBTI학습법_소개글.pdf');
   canEdit = true;
   await ui.load();
