@@ -92,7 +92,9 @@
         slot.append(element('span', label), when);
         dates.append(slot);
       }
-      const link = element('a', row.button_text + ' →');
+      const viewer = profile();
+      const manager = viewer?.role === 'manager' && viewer.approval_status === 'approved' && viewer.membership_state === 'active';
+      const link = element('a', (principal() || manager ? '청라윈터스쿨 관리' : row.button_text) + ' →');
       link.href = guide;
       link.addEventListener('click', event => void openWinter(event, link));
       card.append(heading);
