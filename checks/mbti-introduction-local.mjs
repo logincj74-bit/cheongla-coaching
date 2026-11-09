@@ -103,19 +103,22 @@ try {
 
   const dom = new JSDOM(read('../index.html'), { runScripts: 'outside-only' });
   const { document } = dom.window;
-  const menu = document.getElementById('mbtiParentsMenu');
-  assert(menu.hidden);
+  const parentMenu = () => document.querySelector('[data-member-page="mbti_parents"]');
+  assert.equal(parentMenu(), null);
   const html = read('../index.html');
-  const context = vm.createContext({ $: id => document.getElementById(id), currentProfile: null });
+  const context = vm.createContext({ document, $: id => document.getElementById(id), currentProfile: null });
   vm.runInContext(html.slice(html.indexOf('function canUseMBTIStudy()'), html.indexOf('function resetMBTIStudy()')), context);
   for (const role of ['student', 'parent', 'owner', 'english_director', 'math_director', 'manager']) {
     context.currentProfile = { role, approval_status: 'approved', membership_state: 'active' };
     context.configureMBTIParentMenu();
-    assert.equal(menu.hidden, role === 'student');
+    assert.equal(Boolean(parentMenu()), role !== 'student');
   }
+  context.currentProfile = { role:'student', approval_status:'approved', membership_state:'active' };
+  context.configureMBTIParentMenu();
+  assert.equal(parentMenu(), null);
   context.currentProfile = null;
   context.configureMBTIParentMenu();
-  assert(menu.hidden);
+  assert.equal(parentMenu(), null);
   assert.match(html, /key==='mbti_parents'&&!canReadMBTIParentGuide\(\)/);
   dom.window.eval(read('../mbti-introduction.js'));
   const intro = document.getElementById('mbtiIntroduction');
