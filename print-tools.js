@@ -23,5 +23,5 @@ function mbti(code,guide,groups){
   }
  },'청라MBTI학습법_'+code);
 }
-root.CheonglaPrint={node,journals,mbti,clear,visibleSnapshot};
+root.CheonglaPrint={open,node,journals,mbti,clear,visibleSnapshot};
 })(globalThis);
