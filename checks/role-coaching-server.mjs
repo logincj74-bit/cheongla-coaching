@@ -103,6 +103,35 @@ try {
     "select public.cheongla_save_score_coaching(null,$1,current_date,$2,$3,$4,null)",
     [ids.student, "시험", JSON.stringify(score), "학습코칭"],
   );
+  assert.equal(report.exam_kind, "mock");
+  assert.equal(report.scores[0].raw, 80);
+  await denied(() =>
+    db.query(
+      "select public.cheongla_save_score_coaching(null,$1,current_date,$2,$3,$4,null,'csat')",
+      [ids.student, "수능", JSON.stringify(score), "코칭"],
+    ),
+  );
+  const csat = await scalar(
+    "select public.cheongla_save_score_coaching(null,$1,current_date,$2,$3,$4,null,'csat')",
+    [
+      ids.student,
+      "수능",
+      JSON.stringify([
+        { subject: "국어", raw: null, standard: 120, percentile: 87, grade: 3 },
+        {
+          subject: "영어",
+          raw: null,
+          standard: null,
+          percentile: null,
+          grade: 2,
+        },
+      ]),
+      "코칭",
+    ],
+  );
+  assert.equal(csat.exam_kind, "csat");
+  assert.equal(csat.scores[0].raw, null);
+  assert.equal(csat.scores[1].grade, 2);
   await denied(() =>
     db.query("select public.cheongla_score_coaching_action($1,$2,99)", [
       report.id,
@@ -296,8 +325,17 @@ try {
   );
   await db.exec("reset role");
   await db.exec(fs.readFileSync("recovery/20261111/rollback.sql", "utf8"));
-  assert.equal((await db.query("select count(*)::int as n from pg_policies where policyname='principal_only_role_release'")).rows[0].n, 0);
-  console.log("PASS rollback restores baseline function definitions and removes role-release policies without deleting new records");
+  assert.equal(
+    (
+      await db.query(
+        "select count(*)::int as n from pg_policies where policyname='principal_only_role_release'",
+      )
+    ).rows[0].n,
+    0,
+  );
+  console.log(
+    "PASS rollback restores baseline function definitions and removes role-release policies without deleting new records",
+  );
   console.log(
     "PASS role access, private/frozen publication, score revision/trash/restore/purge, linked parent confirmation, seven-day retention, restored-record exemption, selective journal push mute",
   );

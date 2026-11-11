@@ -109,7 +109,8 @@ for (const role of [
       },
     ],
   );
-  assert(summary.includes("10 개선"));
+  assert(summary.includes("+10"));
+  assert(summary.includes("등급 개선"));
   dom.window.close();
   console.log(
     "PASS six role menus, deep-link restrictions, common help, manager-only embedded fees, principal-only MBTI/trash, score coaching entry and trend analysis",

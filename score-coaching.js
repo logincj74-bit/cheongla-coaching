@@ -6,36 +6,113 @@
     percentile: "백분위",
     grade: "등급",
   };
+  const examKinds = { mock: "학원 모의고사", csat: "수능" };
+  const subjectKey = (value) =>
+    String(value).normalize("NFKC").replace(/\s+/g, "").replace(/[·ㆍ]/g, "");
+  const examKind = (record) => (record?.exam_kind === "csat" ? "csat" : "mock");
+  function previousMonth(month) {
+    const date = new Date(month + "-01T00:00:00Z");
+    date.setUTCMonth(date.getUTCMonth() - 1);
+    return date.toISOString().slice(0, 7);
+  }
+  function changeText(before, after, metric) {
+    if (before == null || after == null) return "비교 자료 없음";
+    const change = Math.round((after - before) * 100) / 100;
+    if (change === 0) return "동일";
+    return (
+      (change > 0 ? "+" : "") +
+      change +
+      (metric === "grade" ? (change < 0 ? " · 등급 개선" : " · 등급 하락") : "")
+    );
+  }
+  function monthlyComparison(records, currentId, previousId) {
+    const current = records.find(
+      (record) =>
+        record.id === currentId &&
+        !record.archived_at &&
+        examKind(record) === "mock",
+    );
+    if (!current) return null;
+    const month = previousMonth(current.exam_on.slice(0, 7));
+    const candidates = records
+      .filter(
+        (record) =>
+          !record.archived_at &&
+          record.student_id === current.student_id &&
+          examKind(record) === "mock" &&
+          record.exam_on.slice(0, 7) === month,
+      )
+      .sort(
+        (a, b) =>
+          b.exam_on.localeCompare(a.exam_on) || b.id.localeCompare(a.id),
+      );
+    const previous =
+      candidates.find((record) => record.id === previousId) ||
+      candidates[0] ||
+      null;
+    const before = new Map(
+      (previous?.scores || []).map((score) => [
+        subjectKey(score.subject),
+        score,
+      ]),
+    );
+    const after = new Map(
+      current.scores.map((score) => [subjectKey(score.subject), score]),
+    );
+    const subjects = [...new Set([...after.keys(), ...before.keys()])];
+    return {
+      current,
+      previous,
+      candidates,
+      month,
+      rows: subjects.map((key) => ({
+        subject: (after.get(key) || before.get(key)).subject,
+        metrics: Object.keys(metrics).map((metric) => ({
+          metric,
+          before: before.get(key)?.[metric] ?? null,
+          after: after.get(key)?.[metric] ?? null,
+          change: changeText(
+            before.get(key)?.[metric],
+            after.get(key)?.[metric],
+            metric,
+          ),
+        })),
+      })),
+    };
+  }
   function analyze(scores, history) {
     const lines = ["과목별 학습 점검"];
     for (const score of scores) {
       const previous = history.find((r) =>
-        r.scores?.some((s) => s.subject === score.subject),
+        r.scores?.some(
+          (s) => subjectKey(s.subject) === subjectKey(score.subject),
+        ),
       );
-      const before = previous?.scores.find((s) => s.subject === score.subject);
-      const metric = ["percentile", "grade", "standard", "raw"].find(
-        (k) => score[k] != null && before?.[k] != null,
+      const before = previous?.scores.find(
+        (s) => subjectKey(s.subject) === subjectKey(score.subject),
       );
       const results = Object.entries(metrics)
         .filter(([k]) => score[k] != null)
         .map(([k, label]) => label + " " + score[k])
         .join(" · ");
       lines.push("\n" + score.subject + " — " + results);
-      if (metric) {
-        const delta = score[metric] - before[metric],
-          better = metric === "grade" ? delta < 0 : delta > 0;
-        lines.push(
-          previous.exam_on +
-            " " +
-            previous.title +
-            " 대비 " +
+      const sharedMetrics = Object.keys(metrics).filter(
+        (key) => score[key] != null && before?.[key] != null,
+      );
+      if (sharedMetrics.length) {
+        lines.push(previous.exam_on + " " + previous.title + " 대비");
+        for (const metric of sharedMetrics) {
+          lines.push(
             metrics[metric] +
-            " " +
-            (delta === 0
-              ? "동일"
-              : Math.abs(delta) + (better ? " 개선" : " 하락")) +
-            ".",
-        );
+              " " +
+              before[metric] +
+              " → " +
+              score[metric] +
+              " (" +
+              changeText(before[metric], score[metric], metric) +
+              ")",
+          );
+        }
       } else
         lines.push(
           "비교할 이전 성적이 부족합니다. 다음 시험부터 변화 추이를 확인합니다.",
@@ -182,7 +259,7 @@
       for (const r of own) {
         const line = e("tr");
         line.append(
-          e("td", r.exam_on + " · " + r.title),
+          e("td", r.exam_on + " · " + examKinds[examKind(r)] + " · " + r.title),
           e(
             "td",
             r.scores
@@ -201,6 +278,7 @@
         trend.append(line);
       }
       box.append(trend);
+      comparisonPanel(own);
       if (api.principal()) {
         box.append(
           b("＋ 새 성적표 등록", async () => {
@@ -297,6 +375,142 @@
         box.append(trash);
       }
     }
+    function renderComparison(parent, comparison, printDocument = doc) {
+      const node = (tag, text) => {
+        const element = printDocument.createElement(tag);
+        if (text !== undefined) element.textContent = text;
+        return element;
+      };
+      parent.append(node("h3", "전월·당월 모의고사 성적 비교"));
+      const name =
+        students.find((student) => student.id === comparison.current.student_id)
+          ?.name || "";
+      parent.append(
+        node(
+          "p",
+          name +
+            " · 당월 " +
+            comparison.current.exam_on +
+            " " +
+            comparison.current.title,
+        ),
+      );
+      parent.append(
+        node(
+          "p",
+          comparison.previous
+            ? "전월 " +
+                comparison.previous.exam_on +
+                " " +
+                comparison.previous.title
+            : comparison.month + " 모의고사 자료가 없습니다.",
+        ),
+      );
+      const table = node("table"),
+        head = node("tr");
+      table.style.cssText =
+        "width:100%;border-collapse:collapse;white-space:pre-wrap";
+      for (const label of ["과목", "지표", "전월", "당월", "변화"])
+        head.append(node("th", label));
+      table.append(head);
+      for (const row of comparison.rows) {
+        for (const value of row.metrics) {
+          const line = node("tr");
+          for (const text of [
+            row.subject,
+            metrics[value.metric],
+            value.before ?? "—",
+            value.after ?? "—",
+            value.change,
+          ]) {
+            const cell = node("td", String(text));
+            cell.style.cssText =
+              "padding:8px;border:1px solid #cbd5d3;overflow-wrap:anywhere";
+            line.append(cell);
+          }
+          table.append(line);
+        }
+      }
+      parent.append(
+        table,
+        node(
+          "p",
+          "같은 과목·선택과목의 수치를 비교합니다. 시험의 난도와 응시 집단 차이를 함께 살펴주세요. 등급은 숫자가 낮아질수록 개선입니다.",
+        ),
+      );
+    }
+    function comparisonPanel(records) {
+      const mocks = records.filter((record) => examKind(record) === "mock");
+      if (!mocks.length) return;
+      const section = e("section");
+      section.className = "lr-card";
+      section.dataset.monthlyComparison = "";
+      const month = field(
+        section,
+        "비교할 당월",
+        "month",
+        mocks[0].exam_on.slice(0, 7),
+        true,
+      );
+      const currentLabel = e("label", "당월 모의고사"),
+        current = e("select"),
+        previousLabel = e("label", "전월 모의고사"),
+        previous = e("select"),
+        result = e("div");
+      currentLabel.append(current);
+      previousLabel.append(previous);
+      section.append(currentLabel, previousLabel, result);
+      function show() {
+        const comparison = monthlyComparison(
+          records,
+          current.value,
+          previous.value,
+        );
+        result.replaceChildren();
+        if (!comparison) {
+          result.append(e("p", "선택한 달의 모의고사 자료가 없습니다."));
+          return;
+        }
+        renderComparison(result, comparison);
+        result.append(
+          b("비교표 인쇄 / PDF 저장", () =>
+            root.CheonglaPrint.open(
+              "전월·당월 모의고사 성적 비교",
+              (body, printDocument) =>
+                renderComparison(body, comparison, printDocument),
+              "청라성적비교_" + month.value,
+            ),
+          ),
+        );
+      }
+      function choosePrevious() {
+        const comparison = monthlyComparison(records, current.value);
+        previous.replaceChildren();
+        for (const record of comparison?.candidates || []) {
+          const option = e("option", record.exam_on + " · " + record.title);
+          option.value = record.id;
+          previous.append(option);
+        }
+        previousLabel.hidden = !previous.options.length;
+        show();
+      }
+      function chooseMonth() {
+        current.replaceChildren();
+        for (const record of mocks.filter(
+          (record) => record.exam_on.slice(0, 7) === month.value,
+        )) {
+          const option = e("option", record.exam_on + " · " + record.title);
+          option.value = record.id;
+          current.append(option);
+        }
+        choosePrevious();
+      }
+      month.addEventListener("change", chooseMonth);
+      current.addEventListener("change", choosePrevious);
+      previous.addEventListener("change", show);
+      chooseMonth();
+      box.append(section);
+    }
     function editor(history) {
       const form = e("form");
       form.className = "lr-card";
@@ -319,6 +533,19 @@
         ),
         title = field(form, "시험명", "text", editing?.title || "", true);
       title.maxLength = 150;
+      const typeLabel = e("label", "시험 구분"),
+        type = e("select");
+      for (const [value, label] of Object.entries(examKinds)) {
+        const option = e("option", label);
+        option.value = value;
+        type.append(option);
+      }
+      type.value = examKind(editing);
+      typeLabel.append(type);
+      form.append(typeLabel);
+      const typeHelp = e("p");
+      form.append(typeHelp);
+
       const file = field(form, "성적표 사진 선택 · 카메라 촬영", "file");
       file.accept = "image/jpeg,image/png,image/webp";
       form.append(
@@ -349,6 +576,8 @@
             n.min = key === "grade" ? 1 : 0;
             n.max = key === "grade" ? 9 : key === "standard" ? 200 : 100;
             n.step = key === "percentile" ? "0.01" : "1";
+            n.disabled = key === "raw" && type.value === "csat";
+            if (n.disabled) n.value = "";
             inputs[key] = n;
           }
           readers.push({ subject, inputs });
@@ -366,7 +595,7 @@
         readers.map((x) => {
           const s = { subject: x.subject.value.trim() };
           for (const [key, n] of Object.entries(x.inputs))
-            s[key] = n.value === "" ? null : Number(n.value);
+            s[key] = n.disabled || n.value === "" ? null : Number(n.value);
           return s;
         });
       fill(
@@ -375,6 +604,31 @@
             (subject) => ({ subject }),
           ),
       );
+      function explainType() {
+        typeHelp.textContent =
+          type.value === "csat"
+            ? "수능 성적표는 원점수가 공개되지 않아 표준점수·백분위·등급을 기록합니다."
+            : "학원 모의고사는 원점수·표준점수·백분위·등급을 기록하고 전월과 비교합니다.";
+      }
+      explainType();
+      type.addEventListener("change", async () => {
+        if (
+          type.value === "csat" &&
+          readers.some((reader) => reader.inputs.raw.value !== "")
+        ) {
+          if (
+            !(await api.confirm(
+              "수능으로 바꾸면 입력한 원점수를 비웁니다. 변경할까요?",
+            ))
+          ) {
+            type.value = "mock";
+            return;
+          }
+        }
+        fill(read());
+        explainType();
+        dirty = true;
+      });
       const report = field(
         form,
         "학습 방향 · 원장 코칭",
@@ -396,7 +650,8 @@
             ))
           )
             return;
-          const actor = who();
+          const actor = who(),
+            extractionType = type.value;
           busy = true;
           status.textContent = "성적표 확인 중…";
           try {
@@ -404,7 +659,7 @@
               c = await api.client();
             if (actor !== who()) return;
             const r = await c.functions.invoke("cheongla-score-extract", {
-              body: { image },
+              body: { image, exam_type: extractionType },
             });
             if (r.error)
               throw Error(
@@ -415,6 +670,11 @@
               throw Error(
                 "읽을 수 있는 점수가 없습니다. 선명한 사진으로 다시 시도해 주세요.",
               );
+            if (extractionType !== type.value) {
+              status.textContent =
+                "시험 구분이 변경되었습니다. 사진 읽기를 다시 실행해 주세요.";
+              return;
+            }
             fill(r.data.scores);
             dirty = true;
             status.textContent =
@@ -437,7 +697,13 @@
           report.value = analyze(
             read(),
             history.filter(
-              (r) => r.id !== editing?.id && r.exam_on < date.value,
+              (r) =>
+                r.id !== editing?.id &&
+                examKind(r) === type.value &&
+                (type.value === "mock"
+                  ? r.exam_on.slice(0, 7) ===
+                    previousMonth(date.value.slice(0, 7))
+                  : r.exam_on < date.value),
             ),
           );
           dirty = true;
@@ -464,6 +730,7 @@
               subject_scores: values,
               coaching_text: report.value.trim(),
               expected_revision: editing?.revision || null,
+              exam_type: type.value,
             });
             if (actor !== who()) return;
             dirty = false;
@@ -542,7 +809,7 @@
     }
     function print(r) {
       root.CheonglaPrint.open(
-        "학습코칭 · " + r.exam_on,
+        examKinds[examKind(r)] + " · 학습코칭 · " + r.exam_on,
         (body) => {
           body.append(
             e(
@@ -606,5 +873,11 @@
     canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL("image/jpeg", 0.88);
   }
-  root.CheonglaScoreCoaching = { mount, analyze };
+  root.CheonglaScoreCoaching = {
+    mount,
+    analyze,
+    monthlyComparison,
+    previousMonth,
+    changeText,
+  };
 })(globalThis);

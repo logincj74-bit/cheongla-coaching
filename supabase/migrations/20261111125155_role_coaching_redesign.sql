@@ -175,6 +175,7 @@ create policy principal_only_role_release on public.cheongla_mbti_prescriptions 
 create table cheongla_private.score_coaching (
  id uuid primary key default gen_random_uuid(),
  student_id uuid not null references public.cheongla_profiles(id) on delete cascade,
+ exam_kind text not null default 'mock' check(exam_kind in('mock','csat')),
  exam_on date not null, title text not null check(length(btrim(title))between 1 and 150),
  scores jsonb not null, report text not null default '' check(length(report)<=20000),
  revision integer not null default 1, published_revision integer,
@@ -203,15 +204,17 @@ begin
  from cheongla_private.score_coaching r where cheongla_private.is_principal()or cheongla_private.can_read_score_coaching(r.id);
  return jsonb_build_object('students',people,'items',items);
 end;$$;
-create function public.cheongla_save_score_coaching(target_report uuid,target_student uuid,exam_date date,exam_title text,subject_scores jsonb,coaching_text text,expected_revision integer)
+create function public.cheongla_save_score_coaching(target_report uuid,target_student uuid,exam_date date,exam_title text,subject_scores jsonb,coaching_text text,expected_revision integer,exam_type text default 'mock')
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare r cheongla_private.score_coaching%rowtype;s jsonb;k text;value numeric;
 begin
  if not cheongla_private.is_principal()then raise insufficient_privilege;end if;
+ if exam_type is null or exam_type not in('mock','csat')then raise exception '시험 구분을 선택해 주세요.';end if;
  if not exists(select 1 from public.cheongla_profiles where id=target_student and role='student'and approval_status='approved'and membership_state='active')then raise exception '승인된 학생을 선택해 주세요.';end if;
  if exam_date is null or exam_date<date'2000-01-01'or exam_date>(clock_timestamp()at time zone'Asia/Seoul')::date or exam_title is null or length(btrim(exam_title))not between 1 and 150 or coaching_text is null or length(coaching_text)>20000 then raise exception '시험일·시험명·코칭 내용을 확인해 주세요.';end if;
  if subject_scores is null or jsonb_typeof(subject_scores)<>'array'or jsonb_array_length(subject_scores)not between 1 and 10 then raise exception '과목별 점수를 확인해 주세요.';end if;
  for s in select *from jsonb_array_elements(subject_scores)loop
+  if exam_type='csat'and s->'raw' is not null and s->'raw'<>'null'::jsonb then raise exception '수능 성적에는 원점수를 입력할 수 없습니다.';end if;
   if jsonb_typeof(s)<>'object'or length(btrim(coalesce(s->>'subject','')))not between 1 and 60 or not(s ?| array['raw','standard','percentile','grade'])then raise exception '과목명을 확인해 주세요.';end if;
   if not exists(select 1 from jsonb_each(s)e where e.key in('raw','standard','percentile','grade')and jsonb_typeof(e.value)='number')then raise exception '과목별 점수를 하나 이상 입력해 주세요.';end if;
   foreach k in array array['raw','standard','percentile','grade']loop
@@ -224,11 +227,11 @@ begin
  if(select count(distinct btrim(x->>'subject'))from jsonb_array_elements(subject_scores)x)<>jsonb_array_length(subject_scores)then raise exception '과목명이 중복되었습니다.';end if;
  if target_report is null then
   if expected_revision is not null then raise exception '새 성적표를 다시 열어 주세요.';end if;
-  insert into cheongla_private.score_coaching(student_id,exam_on,title,scores,report,created_by)values(target_student,exam_date,btrim(exam_title),subject_scores,coaching_text,auth.uid())returning *into r;
+  insert into cheongla_private.score_coaching(student_id,exam_kind,exam_on,title,scores,report,created_by)values(target_student,exam_type,exam_date,btrim(exam_title),subject_scores,coaching_text,auth.uid())returning *into r;
  else
   select *into r from cheongla_private.score_coaching where id=target_report for update;
   if not found or r.student_id<>target_student or r.archived_at is not null or r.revision is distinct from expected_revision then raise exception '성적표가 변경되었습니다. 새로고침해 주세요.';end if;
-  update cheongla_private.score_coaching set exam_on=exam_date,title=btrim(exam_title),scores=subject_scores,report=coaching_text,revision=revision+1,updated_at=clock_timestamp()where id=r.id returning *into r;
+  update cheongla_private.score_coaching set exam_kind=exam_type,exam_on=exam_date,title=btrim(exam_title),scores=subject_scores,report=coaching_text,revision=revision+1,updated_at=clock_timestamp()where id=r.id returning *into r;
  end if;
  return to_jsonb(r);
 end;$$;
@@ -245,7 +248,7 @@ begin
  elsif action='unpublish'and r.archived_at is null then update cheongla_private.score_coaching set published_snapshot=null,published_revision=null,revision=revision+1 where id=r.id;
  elsif action='publish'and r.archived_at is null and length(btrim(r.report))>0 then
   if r.published_revision=r.revision then return;end if;
-  snapshot:=jsonb_build_object('id',r.id,'student_id',r.student_id,'exam_on',r.exam_on,'title',r.title,'scores',r.scores,'report',r.report);
+  snapshot:=jsonb_build_object('id',r.id,'student_id',r.student_id,'exam_kind',r.exam_kind,'exam_on',r.exam_on,'title',r.title,'scores',r.scores,'report',r.report);
   update cheongla_private.score_coaching set published_snapshot=snapshot,published_revision=revision where id=r.id;
   select array_agg(p.id)into people from public.cheongla_profiles p where p.id=r.student_id or(p.role='parent'and exists(select 1 from public.cheongla_parent_students l where l.parent_id=p.id and l.student_id=r.student_id));
   perform cheongla_private.send_notification(people,'score_coaching',r.id,r.student_id,'새 학습코칭이 도착했습니다.','account_scoreCoachingPanel','score:'||r.id||':'||r.revision);
@@ -282,8 +285,8 @@ end;$$;
 revoke all on function public.cheongla_claim_score_extraction()from public,anon;
 grant execute on function public.cheongla_claim_score_extraction()to authenticated;
 -- Restrict every new RPC, including read RPCs, to authenticated callers.
-revoke all on function public.cheongla_journal_push_preference(),public.cheongla_set_journal_push_preference(text),public.cheongla_acknowledge_study(uuid,timestamptz),public.cheongla_score_coaching_list(),public.cheongla_save_score_coaching(uuid,uuid,date,text,jsonb,text,integer),public.cheongla_score_coaching_action(uuid,text,integer)from public,anon;
-grant execute on function public.cheongla_journal_push_preference(),public.cheongla_set_journal_push_preference(text),public.cheongla_acknowledge_study(uuid,timestamptz),public.cheongla_score_coaching_list(),public.cheongla_save_score_coaching(uuid,uuid,date,text,jsonb,text,integer),public.cheongla_score_coaching_action(uuid,text,integer)to authenticated;
+revoke all on function public.cheongla_journal_push_preference(),public.cheongla_set_journal_push_preference(text),public.cheongla_acknowledge_study(uuid,timestamptz),public.cheongla_score_coaching_list(),public.cheongla_save_score_coaching(uuid,uuid,date,text,jsonb,text,integer,text),public.cheongla_score_coaching_action(uuid,text,integer)from public,anon;
+grant execute on function public.cheongla_journal_push_preference(),public.cheongla_set_journal_push_preference(text),public.cheongla_acknowledge_study(uuid,timestamptz),public.cheongla_score_coaching_list(),public.cheongla_save_score_coaching(uuid,uuid,date,text,jsonb,text,integer,text),public.cheongla_score_coaching_action(uuid,text,integer)to authenticated;
 revoke all on function cheongla_private.archive_confirmed_study(),cheongla_private.can_read_score_coaching(uuid)from public,anon,authenticated;
 select cron.schedule('cheongla-confirmed-study-retention','5 * * * *','select cheongla_private.archive_confirmed_study()');
 notify pgrst,'reload schema';

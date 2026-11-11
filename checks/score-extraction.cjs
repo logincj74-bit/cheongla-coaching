@@ -192,6 +192,38 @@ const call = async (
   assert.equal(partial.scores.length, 2);
   assert.equal(partial.scores[0].subject, "수학(나형)");
   assert.equal(partial.scores[1].standard, null);
+  output = {
+    scores: [
+      { subject: "국어", raw: 80, standard: 120, percentile: 85, grade: 3 },
+    ],
+  };
+  assert.equal(
+    (await call({ image: "data:image/jpeg;base64,YWJj", exam_type: "csat" }))
+      .status,
+    502,
+  );
+  output = {
+    scores: [
+      {
+        subject: "영어",
+        raw: null,
+        standard: null,
+        percentile: null,
+        grade: 2,
+      },
+    ],
+  };
+  const csatResponse = await call({
+    image: "data:image/jpeg;base64,YWJj",
+    exam_type: "csat",
+  });
+  assert.equal(csatResponse.status, 200);
+  assert.equal((await csatResponse.json()).scores[0].raw, null);
+  assert.equal(
+    (await call({ image: "data:image/jpeg;base64,YWJj", exam_type: "unknown" }))
+      .status,
+    400,
+  );
   for (const [field, value] of [
     ["raw", 101],
     ["grade", 0],
