@@ -163,6 +163,35 @@ const call = async (
     ],
   };
   assert.equal((await (await call()).json()).scores[0].raw, null);
+  output = {
+    scores: [
+      {
+        subject: "수학(나형)",
+        raw: null,
+        standard: 118,
+        percentile: 74,
+        grade: 4,
+      },
+      {
+        subject: "영어",
+        raw: null,
+        standard: null,
+        percentile: null,
+        grade: 3,
+      },
+      {
+        subject: "미응시 과목",
+        raw: null,
+        standard: null,
+        percentile: null,
+        grade: null,
+      },
+    ],
+  };
+  const partial = await (await call()).json();
+  assert.equal(partial.scores.length, 2);
+  assert.equal(partial.scores[0].subject, "수학(나형)");
+  assert.equal(partial.scores[1].standard, null);
   for (const [field, value] of [
     ["raw", 101],
     ["grade", 0],
