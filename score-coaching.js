@@ -548,10 +548,14 @@
 
       const file = field(form, "성적표 사진 선택 · 카메라 촬영", "file");
       file.accept = "image/jpeg,image/png,image/webp";
+      const ocrEnabled = root.CheonglaFeatures?.scoreOcr === true;
+      file.disabled = !ocrEnabled;
       form.append(
         e(
           "p",
-          "이름·수험번호 등 개인정보는 가리고 촬영해 주세요. 사진은 점수를 읽는 데 사용하며, 저장할 과목별 점수는 원본과 대조해 확인해 주세요.",
+          ocrEnabled
+            ? "이름·수험번호 등 개인정보는 가리고 촬영해 주세요. 사진은 점수를 읽는 데 사용하며, 저장할 과목별 점수는 원본과 대조해 확인해 주세요."
+            : "사진 자동 읽기는 연결 준비 중입니다. 과목별 점수를 직접 입력해 저장·비교·공유할 수 있습니다.",
         ),
       );
       const scores = e("div");
@@ -639,7 +643,11 @@
       const status = e("p");
       status.setAttribute("role", "status");
       form.append(
-        b("사진에서 점수 읽기", async () => {
+        b(ocrEnabled ? "사진에서 점수 읽기" : "사진 자동 읽기 · 준비 중", async () => {
+          if (!ocrEnabled) {
+            status.textContent = "사진 자동 읽기는 준비 중입니다. 점수를 직접 입력해 주세요.";
+            return;
+          }
           if (busy || !file.files?.[0]) {
             status.textContent = "성적표 사진을 먼저 선택해 주세요.";
             return;

@@ -48,6 +48,12 @@ const click = (label) =>
 (async () => {
   await ui.open();
   assert(d.querySelector("form"));
+  assert(d.querySelector('input[type="file"]').disabled);
+  const beforePhoto = calls.length;
+  click("사진 자동 읽기 · 준비 중");
+  await tick();
+  assert.equal(calls.length, beforePhoto);
+  assert(d.body.textContent.includes("점수를 직접 입력해 주세요."));
   assert(d.body.textContent.includes("백분위 87"));
   click("수정");
   await tick();

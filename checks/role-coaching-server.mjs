@@ -92,7 +92,7 @@ try {
   );
   await db.exec(
     fs.readFileSync(
-      "supabase/migrations/20261111125155_role_coaching_redesign.sql",
+      "supabase/migrations/20261111204715_role_coaching_redesign.sql",
       "utf8",
     ),
   );
