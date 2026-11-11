@@ -10,3 +10,7 @@ verify_jwt = false
 [functions.cheongla-score-extract]
 # User JWT and active principal role verified inside the function.
 verify_jwt = false
+
+[functions.cheongla-score-readiness]
+# Returns only whether the OCR service key is configured.
+verify_jwt = false

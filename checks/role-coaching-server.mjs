@@ -86,6 +86,12 @@ try {
   ]);
   await db.exec(
     fs.readFileSync(
+      "supabase/migrations/20261111141257_score_extraction_service.sql",
+      "utf8",
+    ),
+  );
+  await db.exec(
+    fs.readFileSync(
       "supabase/migrations/20261111125155_role_coaching_redesign.sql",
       "utf8",
     ),

@@ -270,10 +270,10 @@ AS $function$
  else cheongla_private.can_read_notification_before_winter(kind,target,student)end;
 $function$
 ;
-create table cheongla_private.score_extraction_requests(user_id uuid primary key references public.cheongla_profiles(id)on delete cascade,window_at timestamptz not null,attempts integer not null);
+create table if not exists cheongla_private.score_extraction_requests(user_id uuid primary key references public.cheongla_profiles(id)on delete cascade,window_at timestamptz not null,attempts integer not null);
 alter table cheongla_private.score_extraction_requests enable row level security;
 revoke all on cheongla_private.score_extraction_requests from public,anon,authenticated;
-create function public.cheongla_claim_score_extraction()returns void language plpgsql security definer set search_path='' as $$
+create or replace function public.cheongla_claim_score_extraction()returns void language plpgsql security definer set search_path='' as $$
 declare r cheongla_private.score_extraction_requests%rowtype;
 begin
  if not cheongla_private.is_principal()then raise insufficient_privilege;end if;
