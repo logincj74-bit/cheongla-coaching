@@ -1,0 +1,1 @@
+do $patch$ declare s text; begin select pg_get_functiondef(oid) into strict s from pg_proc where proname='cheongla_save_tuition_notice_v3' and pronamespace='public'::regnamespace; s:=replace(s,'if cfg.program in(''winter'',''summer'')then day_rate:=20000;end if;',''); execute s; end;$patch$;
