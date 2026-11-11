@@ -50,21 +50,21 @@
       link.setAttribute('aria-busy', 'true');
       try {
         const c = await client();
-        if (actor !== profile()) { popup.close(); return; }
+        if (actor !== profile() || popup.closed) { if (!popup.closed) popup.close(); return; }
         const result = await c.rpc('cheongla_issue_winter_signin');
-        if (actor !== profile()) { popup.close(); return; }
+        if (actor !== profile() || popup.closed) { if (!popup.closed) popup.close(); return; }
         if (result.error || !/^[0-9a-f]{64}$/.test(result.data)) throw Error('Winter sign-in unavailable');
-        const form = element('form');
+        const form = popup.document.createElement('form');
         form.method = 'post';
-        form.target = target;
+        form.target = '_self';
         form.action = new URL('api/student/cheongla', guide).href;
         form.hidden = true;
-        const code = element('input');
+        const code = popup.document.createElement('input');
         code.type = 'hidden';
         code.name = 'code';
         code.value = result.data;
         form.append(code);
-        document.body.append(form);
+        popup.document.body.append(form);
         form.submit();
         root.setTimeout(() => form.remove(), 1000);
       } catch {

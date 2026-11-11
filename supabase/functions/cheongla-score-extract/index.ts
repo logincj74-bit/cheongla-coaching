@@ -126,7 +126,46 @@ Deno.serve(async (request: Request) => {
     const data = JSON.parse(output || "{}");
     if (!Array.isArray(data.scores) || data.scores.length > 10)
       return reply(502, { error: "인식 결과를 확인할 수 없습니다." });
-    return reply(200, data);
+    const scores = [];
+    for (const item of data.scores) {
+      if (
+        !item ||
+        typeof item !== "object" ||
+        typeof item.subject !== "string" ||
+        !item.subject.trim() ||
+        item.subject.length > 60
+      ) {
+        return reply(502, { error: "인식된 과목명을 확인할 수 없습니다." });
+      }
+      const score: Record<string, string | number | null> = {
+        subject: item.subject.trim(),
+      };
+      for (const metric of ["raw", "standard", "percentile", "grade"]) {
+        const value = item[metric];
+        if (value === null || value === undefined) {
+          score[metric] = null;
+          continue;
+        }
+        const minimum = metric === "grade" ? 1 : 0;
+        const maximum =
+          metric === "grade" ? 9 : metric === "standard" ? 200 : 100;
+        if (
+          typeof value !== "number" ||
+          !Number.isFinite(value) ||
+          value < minimum ||
+          value > maximum ||
+          (metric !== "percentile" && !Number.isInteger(value))
+        ) {
+          return reply(502, {
+            error:
+              "인식된 점수 범위를 확인할 수 없습니다. 직접 대조해 입력해 주세요.",
+          });
+        }
+        score[metric] = value;
+      }
+      scores.push(score);
+    }
+    return reply(200, { scores });
   } catch {
     return reply(502, {
       error:

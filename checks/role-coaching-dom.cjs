@@ -17,6 +17,13 @@ w.eval(
     html.indexOf("async function loadApplicationStudents"),
   ),
 );
+w.eval(`
+var canManageExams=canManageLife,canAdministerMembers=isPrincipal,canManageContacts=canManageLife,canCoachAll=isPrincipal;
+var canUseTuition=canManageLife,canUseExamFees=canManageLife,canUseBilling=()=>false,canUseMealForms=()=>false,canUseExams=()=>false;
+var canUseSchedule=()=>currentProfile?.approval_status==='approved',canUseBoard=canUseSchedule,canUseInbox=canUseSchedule,canUseMBTIStudy=isPrincipal;
+useAccountSections=()=>currentProfile?.approval_status==='approved';
+`);
+w.eval(html.match(/^function allowedAccountSection\(id\).*$/m)[0]);
 w.eval(fs.readFileSync("content-trash.js", "utf8"));
 w.eval(fs.readFileSync("staff-journal.js", "utf8"));
 d.dispatchEvent(new w.Event("DOMContentLoaded"));
@@ -57,6 +64,26 @@ for (const role of [
   assert(d.getElementById("englishMenu").hidden);
   assert.equal(w.allowedAccountSection("mbtiStudyPanel"), principal);
   assert.equal(w.allowedAccountSection("tuitionPanel"), role === "manager");
+  w.configureAccountSections();
+  const accountButtons = texts("accountSectionButtons");
+  assert.equal(
+    accountButtons.includes("성적 변화 · 학습코칭"),
+    role !== "manager",
+  );
+  assert.equal(accountButtons.includes("MBTI 학습법"), principal);
+  for (const retired of [
+    "englishPanel",
+    "externalPanel",
+    "billingPanel",
+    "mealPanel",
+    "examPanel",
+  ]) {
+    assert(
+      !d.querySelector(
+        '#accountSectionButtons [data-section="' + retired + '"]',
+      ),
+    );
+  }
   for (const id of ["mealPanel", "examPanel", "externalPanel", "englishPanel"])
     assert.equal(w.allowedAccountSection(id), false);
   assert.equal(items.includes("학원비 안내"), role === "manager");
