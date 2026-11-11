@@ -8,10 +8,10 @@
     host.hidden = true;
     host.setAttribute("data-no-print", "");
     const title = doc.createElement("h3");
-    title.textContent = "근무일지 알림";
+    title.textContent = "청라앱 전체 알림";
     const note = doc.createElement("p");
     note.textContent =
-      "일시중지는 모든 기기의 근무일지 푸시 알림에 적용됩니다. 기록과 앱 알림함에서는 계속 확인할 수 있습니다.";
+      "일시중지는 본인 계정의 모든 기기에서 청라앱 전체 푸시 알림에 적용됩니다. 기록과 앱 알림함에서는 계속 확인할 수 있습니다.";
     const status = doc.createElement("p");
     status.setAttribute("role", "status");
     const actions = doc.createElement("div");
@@ -36,14 +36,14 @@
     }
     function render(value) {
       status.textContent = value.paused
-        ? "근무일지 푸시 알림을 꺼두었습니다."
+        ? "청라앱 전체 푸시 알림을 꺼두었습니다."
         : value.paused_until && Date.parse(value.paused_until) > Date.now()
           ? "알림 일시중지 · " +
             new Date(value.paused_until).toLocaleString("ko-KR", {
               timeZone: "Asia/Seoul",
             }) +
             "까지"
-          : "근무일지 푸시 알림이 켜져 있습니다.";
+          : "청라앱 전체 푸시 알림이 켜져 있습니다.";
     }
     function reset() {
       request++;

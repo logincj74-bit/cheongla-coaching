@@ -59,11 +59,11 @@ for (const role of [
   assert.equal(items.includes("휴지통 관리"), principal);
   assert(items.includes("내 전화번호 등록 · 수정"));
   assert(!d.getElementById("askMenu").hidden);
-  assert(d.getElementById("feeNoticeMenu").hidden);
+  assert.equal(d.getElementById("feeNoticeMenu").hidden,!staff);
   assert(d.getElementById("financeMenu").hidden);
-  assert(d.getElementById("englishMenu").hidden);
+  assert.equal(d.getElementById("englishMenu").hidden,!principal);
   assert.equal(w.allowedAccountSection("mbtiStudyPanel"), principal);
-  assert.equal(w.allowedAccountSection("tuitionPanel"), role === "manager");
+  assert.equal(w.allowedAccountSection("tuitionPanel"), staff);
   w.configureAccountSections();
   const accountButtons = texts("accountSectionButtons");
   assert.equal(
@@ -71,13 +71,13 @@ for (const role of [
     role !== "manager",
   );
   assert.equal(accountButtons.includes("MBTI 학습법"), principal);
-  for (const retired of [
+  for (const retired of (principal ? [] : [
     "englishPanel",
     "externalPanel",
     "billingPanel",
     "mealPanel",
     "examPanel",
-  ]) {
+  ])) {
     assert(
       !d.querySelector(
         '#accountSectionButtons [data-section="' + retired + '"]',
@@ -85,8 +85,9 @@ for (const role of [
     );
   }
   for (const id of ["mealPanel", "examPanel", "externalPanel", "englishPanel"])
-    assert.equal(w.allowedAccountSection(id), false);
-  assert.equal(items.includes("학원비 안내"), role === "manager");
+    assert.equal(w.allowedAccountSection(id), principal);
+  assert.equal(texts("feeNoticeMenuItems").includes("학원비 안내"), staff);
+  assert(!items.includes("학원비 안내"));
 }
 (async () => {
   w.currentProfile = {
