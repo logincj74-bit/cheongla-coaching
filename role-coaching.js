@@ -31,7 +31,7 @@
     const previousAllowed = allowedAccountSection;
     root.allowedAccountSection = function (id) {
       if (disabled.has(id)) return principal();
-      if (fees.includes(id)) return staff();
+      if (fees.includes(id)) return staff() || (currentProfile?.approval_status === 'approved' && currentProfile.membership_state === 'active' && currentProfile.role === 'parent');
       if (id === "mbtiStudyPanel" || id === "contentTrashPanel")
         return principal();
       if (id === "scoreCoachingPanel")
