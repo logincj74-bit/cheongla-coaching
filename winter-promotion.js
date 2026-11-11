@@ -40,18 +40,23 @@
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ||
           actor?.approval_status !== 'approved' || actor.membership_state !== 'active' ||
           !['student', 'parent'].includes(actor.role)) return;
+      if (openingWinter) { event.preventDefault(); return; }
+      const target = 'cheonglaWinter' + Date.now();
+      const popup = root.open('about:blank', target);
+      if (!popup) return;
+      popup.opener = null;
       event.preventDefault();
-      if (openingWinter) return;
       openingWinter = true;
       link.setAttribute('aria-busy', 'true');
       try {
         const c = await client();
-        if (actor !== profile()) return;
+        if (actor !== profile()) { popup.close(); return; }
         const result = await c.rpc('cheongla_issue_winter_signin');
-        if (actor !== profile()) return;
+        if (actor !== profile()) { popup.close(); return; }
         if (result.error || !/^[0-9a-f]{64}$/.test(result.data)) throw Error('Winter sign-in unavailable');
         const form = element('form');
         form.method = 'post';
+        form.target = target;
         form.action = new URL('api/student/cheongla', guide).href;
         form.hidden = true;
         const code = element('input');
@@ -63,7 +68,8 @@
         form.submit();
         root.setTimeout(() => form.remove(), 1000);
       } catch {
-        if (actor === profile()) root.location.assign(guide);
+        if (actor === profile() && !popup.closed) popup.location.replace(guide);
+        else if (!popup.closed) popup.close();
       } finally {
         openingWinter = false;
         link.removeAttribute('aria-busy');
@@ -96,6 +102,8 @@
       const manager = viewer?.role === 'manager' && viewer.approval_status === 'approved' && viewer.membership_state === 'active';
       const link = element('a', (principal() || manager ? '청라윈터스쿨 관리' : row.button_text) + ' →');
       link.href = guide;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
       link.addEventListener('click', event => void openWinter(event, link));
       card.append(heading);
       if (row.message) card.append(element('p', row.message));

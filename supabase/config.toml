@@ -6,3 +6,7 @@ verify_jwt = false
 [functions.cheongla-account-recovery]
 # Authenticated manual recovery. JWT verified against /auth/v1/user at the Edge.
 verify_jwt = false
+
+[functions.cheongla-score-extract]
+# User JWT and active principal role verified inside the function.
+verify_jwt = false
