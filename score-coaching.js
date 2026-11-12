@@ -533,6 +533,7 @@
         ),
         title = field(form, "시험명", "text", editing?.title || "", true);
       title.maxLength = 150;
+      title.setAttribute("list","cheonglaExamNames");
       const typeLabel = e("label", "시험 구분"),
         type = e("select");
       for (const [value, label] of Object.entries(examKinds)) {
