@@ -8,3 +8,5 @@
 .cheongla-slide-left{animation:cheongla-slide-left .18s ease-out}.cheongla-slide-right{animation:cheongla-slide-right .18s ease-out}@keyframes cheongla-slide-left{from{transform:translateX(18px);opacity:.65}to{transform:translateX(0);opacity:1}}@keyframes cheongla-slide-right{from{transform:translateX(-18px);opacity:.65}to{transform:translateX(0);opacity:1}}
 @media(min-width:701px){.swipe-rail>*{flex-basis:65%}}
 @media(prefers-reduced-motion:reduce){.cheongla-slide-left,.cheongla-slide-right{animation:none}.swipe-rail{scroll-behavior:auto}}
+
+.cheongla-swipe-tabs{flex-wrap:nowrap!important;overflow-x:auto;max-width:100%;overscroll-behavior-x:contain}.cheongla-swipe-tabs button{flex:0 0 auto}.cheongla-swipe-hint{font-size:13px;color:#526c62}

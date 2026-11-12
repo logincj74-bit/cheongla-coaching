@@ -1,5 +1,10 @@
 (function(root){
 'use strict';
+// Device identity, rather than window width: a resized desktop retains the original UI.
+const navInfo=root.navigator;
+const mobile=navInfo.userAgentData?.mobile===true||/Android|iPhone|iPad|iPod/i.test(navInfo.userAgent)||(/Mac/i.test(navInfo.platform||'')&&navInfo.maxTouchPoints>1);
+if(!mobile){root.CheonglaSwipe={enabled:false};return;}
+root.document.documentElement.setAttribute('data-cheongla-swipe','mobile');
 const doc=root.document,nav=doc.getElementById('siteNavigation'),home=doc.getElementById('homePanel');if(!nav||!home)return;
 const el=(t,text)=>{const n=doc.createElement(t);if(text!==undefined)n.textContent=text;return n;};
 const btn=(label,fn)=>{const n=el('button',label);n.type='button';n.className='secondary';n.addEventListener('click',fn);return n;};
@@ -46,7 +51,7 @@ function attachRail(rail,name){
  const observer=new MutationObserver(rebuild);observer.observe(rail,{childList:true});rail.addEventListener('scroll',()=>{root.clearTimeout(timer);timer=root.setTimeout(update,70);},{passive:true});root.addEventListener('resize',update,{passive:true});rails.set(rail,{observer,controls,update});rebuild();
 }
 function scan(){for(const [node,x]of rails)if(!node.isConnected){x.observer.disconnect();root.removeEventListener('resize',x.update);x.controls.remove();rails.delete(node);}for(const id of ['homeSpotlightRail','homeTourSection','homeDailyCountdown']){const n=doc.getElementById(id);if(n)attachRail(n,id==='homeDailyCountdown'?'주요 일정':id==='homeTourSection'?'학원 동영상':'청라 주요 안내');}for(const gallery of doc.querySelectorAll('#publicContentBody .public-gallery'))if(gallery.children.length>1)attachRail(gallery,'청라 사진');schedule();}
-const spotlight=el('section');spotlight.className='cheongla-swipe-home';spotlight.append(el('h2','청라 한눈에 보기'));const homeRail=el('div');homeRail.id='homeSpotlightRail';homeRail.className='cheongla-swipe-rail';spotlight.append(homeRail);
+const spotlight=el('section');spotlight.className='cheongla-swipe-home';spotlight.append(el('h2','청라 한눈에 보기'),el('p','← 카드를 좌우로 밀어보세요 →'));const homeRail=el('div');homeRail.id='homeSpotlightRail';homeRail.className='cheongla-swipe-rail';spotlight.append(homeRail);
 function highlight(title,body,selector){const card=el('article');card.className='cheongla-swipe-card';card.append(el('small','CHEONGLA'),el('h3',title),el('p',body),btn('자세히 보기',()=>{const b=doc.querySelector(selector);b?.click();}));homeRail.append(card);return card;}
 highlight('학원 소개','공부에 집중하는 하루, 청라의 생활 관리와 학습 지원을 만나보세요.','#siteNavigation [data-public-page="greeting"]');
 highlight('청라 모습','학습 공간을 사진으로 둘러보세요. 사진도 좌우로 넘길 수 있습니다.','#siteNavigation [data-public-page="photos"]');
@@ -66,5 +71,6 @@ const menu=configureDeskMenu;root.configureDeskMenu=function(...args){const r=me
 const clear=clearAccount;root.clearAccount=function(...args){dirtyForms=new WeakSet();gesture=null;return clear(...args);};
 new MutationObserver(scan).observe(doc.getElementById('publicContentBody'),{childList:true,subtree:true});
 root.addEventListener('popstate',schedule);root.addEventListener('resize',schedule,{passive:true});
-root.CheonglaSwipe={groups,navigate,scan,mbtiStep};scan();
+const tabs=doc.getElementById('mbtiStudyTabs');if(tabs){tabs.classList.add('cheongla-swipe-tabs');const hint=el('p','← 학습법 본문을 좌우로 밀면 과목이 바뀝니다 →');hint.className='cheongla-swipe-hint';tabs.after(hint);}
+root.CheonglaSwipe={enabled:true,groups,navigate,scan,mbtiStep};scan();
 })(globalThis);
