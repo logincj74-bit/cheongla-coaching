@@ -53,6 +53,7 @@
     function entry(key, label) {
       const b = doc.createElement("button");
       b.type = "button";
+      b.dataset.swipeRoute = key;
       b.textContent = label;
       b.addEventListener("click", () => void openSiteDestination(key));
       return b;

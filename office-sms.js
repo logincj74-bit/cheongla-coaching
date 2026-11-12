@@ -184,7 +184,7 @@ async function open(){
  }catch(e){if(valid())feedback(readable(e));}
 }
 const previousAllowed=allowedAccountSection;root.allowedAccountSection=id=>id==='officeSmsPanel'?allowed():previousAllowed(id);
-const previousMenu=configureDeskMenu;root.configureDeskMenu=function(){previousMenu();doc.getElementById('officeSmsMenu')?.remove();if(allowed()){const b=button('청라 문자 발송 안내문',()=>void openSiteDestination('account_officeSmsPanel'));b.id='officeSmsMenu';doc.getElementById('deskMenuItems').append(b);}else reset();};
+const previousMenu=configureDeskMenu;root.configureDeskMenu=function(){previousMenu();doc.getElementById('officeSmsMenu')?.remove();if(allowed()){const b=button('청라 문자 발송 안내문',()=>void openSiteDestination('account_officeSmsPanel'));b.id='officeSmsMenu';b.dataset.swipeRoute='account_officeSmsPanel';doc.getElementById('deskMenuItems').append(b);}else reset();};
 const previousOpen=openSiteDestination;root.openSiteDestination=async function(key,...args){if((dirty||composeDirty)&&!await leave())return;if(key==='account_officeSmsPanel'&&!allowed())return;const result=await previousOpen(key,...args);if(key==='account_officeSmsPanel'&&allowed()){await open();if(valid()){panel.scrollIntoView({block:'start'});root.CheonglaDetailNavigation?.align(panel);}}return result;};
 const previousClear=clearAccount;root.clearAccount=function(...args){reset();return previousClear(...args);};
 root.addEventListener('beforeunload',ev=>{if(dirty||composeDirty){ev.preventDefault();ev.returnValue='';}});
