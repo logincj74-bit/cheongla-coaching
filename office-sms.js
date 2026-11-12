@@ -24,7 +24,7 @@ function button(text,fn,kind='secondary'){const n=element('button',text);n.type=
 function field(box,label,type='text',value=''){const wrap=element('label',label),input=element(type==='textarea'?'textarea':'input');if(type!=='textarea')input.type=type;input.value=value;input.setAttribute('aria-label',label);wrap.append(input);box.append(wrap);return input;}
 function select(box,label,options){const wrap=element('label',label),n=element('select');n.setAttribute('aria-label',label);for(const [value,text] of options)n.append(new Option(text,value));wrap.append(n);box.append(wrap);return n;}
 let lifecycle=0,epoch=0,actor=null,rows=[],students=[],bank={},selected=null,editing=null,busy=false,dirty=false,composeDirty=false,previewEdited=false;
-let status,chooser,compose,params,preview,recipients,studentSelect,manualPhone,manualRole,search,category,list,editForm,editTitle,editCategory,editAudience,editBody,editDetails,generated=false,paramInputs={};
+let status,chooser,compose,params,preview,recipients,studentSelect,recipientSelect,registeredPhone,contactEditor,contactInput,contactStatus,manualBox,manualPhone,manualRole,search,category,list,editForm,editTitle,editCategory,editAudience,editBody,editDetails,generated=false,paramInputs={};
 const panel=element('section');panel.id='officeSmsPanel';panel.hidden=true;panel.className='office-sms';
 doc.getElementById('accountPanel').append(panel);accountSectionLabels.officeSmsPanel='청라 문자 발송 안내문';
 function valid(){return actor===currentProfile&&allowed();}
@@ -88,17 +88,48 @@ async function choose(row){
   if(key==='시험명')input.setAttribute('list','cheonglaExamNames');
   input.addEventListener('input',stale);paramInputs[key]=input;
  }
- const manual=element('div');manual.className='office-sms-fields';manualRole=select(manual,'직접 입력 수신자 구분',[['parent','학부모'],['student','학생']]);manualPhone=field(manual,'직접 입력 수신번호','tel');manualPhone.placeholder='신규 상담자 또는 전화번호 직접 입력';manualPhone.autocomplete='off';
+ const registered=element('section');registered.className='notice-form';recipientSelect=select(registered,'수신자 선택',[['','학생을 먼저 선택해 주세요']]);registeredPhone=field(registered,'선택한 수신자 전화번호','tel');registeredPhone.readOnly=true;
+ contactEditor=element('details');contactEditor.append(element('summary','선택한 수신자 연락처 수정 · 저장'));const contactForm=element('form');contactInput=field(contactForm,'새 문자 수신 연락처','tel');contactInput.required=true;const contactSave=element('button','연락처 저장');contactSave.type='submit';contactStatus=element('p');contactStatus.setAttribute('role','status');contactForm.append(element('p','선택한 학생 또는 학부모의 문자 수신 연락처를 변경합니다. 가입 아이디는 그대로 유지됩니다.'),contactSave,contactStatus);contactEditor.append(contactForm);registered.append(contactEditor);compose.append(registered);
+ contactForm.addEventListener('submit',ev=>{ev.preventDefault();void saveContact();});recipientSelect.addEventListener('change',()=>{updateContact();showRecipients();});
+ const manual=element('details');manualBox=manual;manual.append(element('summary','신규 상담자 · 연락처 직접 입력'));manual.className='notice-form';manualRole=select(manual,'직접 입력 수신자 구분',[['parent','학부모'],['student','학생']]);manualPhone=field(manual,'직접 입력 수신번호','tel');manualPhone.placeholder='신규 상담자 또는 전화번호 직접 입력';manualPhone.autocomplete='off';
  if(row.audience==='student')manualRole.value='student';
  preview=field(compose,'최종 문자 내용 · 직접 수정 가능','textarea');preview.rows=18;preview.maxLength=12000;
  preview.addEventListener('input',()=>{previewEdited=true;composeDirty=true;showRecipients();});
  const build=button('선택값으로 문구 만들기',()=>void generate(),'');
  compose.insertBefore(params,preview.parentElement);compose.insertBefore(build,preview.parentElement);compose.append(manual);
  recipients=element('div');recipients.className='office-sms-recipients';compose.append(recipients,element('p','문자 앱에서 수신번호·내용을 확인한 뒤 전송을 누릅니다. 이 화면에서는 발송 여부를 자동 확인하지 않습니다. iPad·PC는 문자 연동이 필요하며, 문구를 복사해 학원 휴대폰에서도 보낼 수 있습니다.'));
- studentSelect.addEventListener('change',()=>{const s=students.find(s=>s.student_id===studentSelect.value);if(paramInputs.학생이름)paramInputs.학생이름.value=s?.student_name||'';if(paramInputs.첫등원일)paramInputs.첫등원일.value=s?.enrolled_on||'';if(paramInputs.교육비)paramInputs.교육비.value=s?.monthly_fee||'610000';manualPhone.value='';stale();});
+ studentSelect.addEventListener('change',()=>{const s=students.find(s=>s.student_id===studentSelect.value);if(paramInputs.학생이름)paramInputs.학생이름.value=s?.student_name||'';if(paramInputs.첫등원일)paramInputs.첫등원일.value=s?.enrolled_on||'';if(paramInputs.교육비)paramInputs.교육비.value=s?.monthly_fee||'610000';manualPhone.value='';updateRecipientChoices();stale();});
  manualPhone.addEventListener('input',showRecipients);manualRole.addEventListener('change',showRecipients);
  feedback(row.category==='교육비'?'교육비는 학부모에게 먼저, 첫 등원 안내는 학생·학부모에게 이어서 보내세요. 금액·계좌·기간을 확인해 주세요.':'날짜와 운영기간은 실제 일정으로 선택해 주세요. 샘플 금액·모집대상도 발송 전 확인합니다.');
- compose.scrollIntoView({block:'start'});showRecipients();return true;
+ compose.scrollIntoView({block:'start'});updateRecipientChoices();showRecipients();return true;
+}
+function chosenRecipient(){return students.find(s=>s.student_id===studentSelect?.value)?.recipients?.find(r=>r.id===recipientSelect?.value);}
+function updateContact(){
+ const r=chosenRecipient();registeredPhone.value=normalizeContactPhone(r?.phone)||'';registeredPhone.placeholder=r?'연락처 미등록':'수신자를 선택해 주세요';
+ contactInput.value=normalizeContactPhone(r?.phone)||'';contactEditor.hidden=!r;contactEditor.open=false;contactStatus.textContent='';
+}
+function updateRecipientChoices(){
+ const student=students.find(s=>s.student_id===studentSelect.value),previous=recipientSelect.value;
+ recipientSelect.replaceChildren();const targets=(student?.recipients||[]).filter(r=>selected.audience==='both'||r.role===selected.audience);
+ for(const r of targets)recipientSelect.append(new Option(r.name+' · '+(r.role==='parent'?'학부모':'학생')+' · '+(normalizeContactPhone(r.phone)||'연락처 미등록'),r.id));
+ if(!targets.length)recipientSelect.append(new Option(student?'연결된 수신자가 없습니다':'학생을 먼저 선택해 주세요',''));
+ if(targets.some(r=>r.id===previous))recipientSelect.value=previous;recipientSelect.disabled=!targets.length;
+ manualBox.hidden=!!student;manualBox.open=!student;if(student)manualPhone.value='';updateContact();
+}
+async function saveContact(){
+ const r=chosenRecipient(),studentId=studentSelect.value,newPhone=normalizeContactPhone(contactInput.value),oldPhone=normalizeContactPhone(r?.phone)||null,requestActor=actor,life=lifecycle;
+ if(!valid()||!r||busy)return;if(!newPhone){contactStatus.textContent='올바른 휴대전화번호를 입력해 주세요.';return;}
+ if(!await appConfirm(r.name+' '+(r.role==='parent'?'학부모':'학생')+'\n기존: '+(oldPhone||'미등록')+'\n변경: '+newPhone+'\n본인에게 확인한 문자 수신 연락처로 저장할까요?'))return;
+ if(!valid()||life!==lifecycle||studentSelect.value!==studentId||chosenRecipient()?.id!==r.id||normalizeContactPhone(contactInput.value)!==newPhone)return;
+ busy=true;contactStatus.textContent='연락처를 저장하는 중…';
+ try{
+  const c=await getClient();if(!valid()||life!==lifecycle)return;
+  const saved=await c.rpc('cheongla_office_sms_update_contact',{target_student:studentId,target_member:r.id,new_phone:newPhone,expected_phone:oldPhone});if(saved.error)throw saved.error;
+  if(!valid()||actor!==requestActor||life!==lifecycle)return;
+  const result=await c.rpc('cheongla_office_sms_students');if(result.error)throw result.error;
+  if(!valid()||actor!==requestActor||life!==lifecycle)return;students=result.data||[];
+  updateRecipientChoices();showRecipients();contactEditor.open=true;contactStatus.textContent='연락처를 저장했습니다. 이후 문자에도 변경된 번호가 표시됩니다.';
+ }catch(e){if(valid()&&life===lifecycle)contactStatus.textContent=readable(e);}finally{busy=false;}
 }
 function dateRangeError(v){for(const [a,b] of [['운영시작일','운영종료일'],['할인시작일','할인종료일'],['청구시작일','청구종료일']])if(v[a]&&v[b]&&v[a]>v[b])return a+'은 '+b+'보다 늦을 수 없습니다.';return '';}
 async function generate(){
@@ -112,23 +143,23 @@ function showRecipients(){
  if(!generated||!preview.value.trim()||/\{\{|\}\}/.test(preview.value)){recipients.append(element('p','필수 항목을 입력하고 최종 문구를 만들어 주세요.'));return;}
  const text=preview.value;recipients.append(button('문자 내용 복사',async()=>{if(valid())await copyFeeMessage(preview.value,recipients.querySelector('button'));}));
  const s=students.find(s=>s.student_id===studentSelect.value),audience=selected.audience;
- const options=(s?.recipients||[]).filter(r=>audience==='both'||r.role===audience);
- for(const r of options){const phone=normalizeContactPhone(r.phone);if(!phone){recipients.append(element('p',r.name+' · '+(r.role==='parent'?'학부모':'학생')+' 연락처 등록 필요'));continue;}
+ const options=(s?.recipients||[]).filter(r=>r.id===recipientSelect.value&&(audience==='both'||r.role===audience));
+ for(const r of options){const phone=normalizeContactPhone(r.phone);if(!phone){recipients.append(element('p',r.name+' · 연락처가 없습니다. 위 ‘연락처 수정 · 저장’에서 등록해 주세요.'));continue;}
   const b=button(r.name+' '+(r.role==='parent'?'학부모':'학생')+' · '+phone+' 문자 앱 열기',async()=>{
    if(!valid()||busy||!generated)return;const chosen=studentSelect.value,requestActor=actor,body=preview.value;if(!body.trim()||/\{\{|\}\}/.test(body))return;busy=true;
-   try{const c=await getClient(),result=await c.rpc('cheongla_office_sms_students');if(result.error)throw result.error;if(requestActor!==currentProfile||!valid()||studentSelect.value!==chosen||preview.value!==body)return;
+   try{const c=await getClient(),result=await c.rpc('cheongla_office_sms_students');if(result.error)throw result.error;if(requestActor!==currentProfile||!valid()||studentSelect.value!==chosen||recipientSelect.value!==r.id||preview.value!==body)return;
     const fresh=result.data?.find(x=>x.student_id===chosen)?.recipients?.find(x=>x.id===r.id&&x.role===r.role);
     if(!fresh||normalizeContactPhone(fresh.phone)!==phone)throw Error('수신자 연결 또는 번호가 변경되었습니다. 새로고침 후 다시 선택해 주세요.');
     if(!await appConfirm(r.name+' '+(r.role==='parent'?'학부모':'학생')+' · '+phone+'\n최종 문구로 문자 앱을 열까요?'))return;
-    if(valid()&&studentSelect.value===chosen&&preview.value===body&&generated)root.location.href=examFeeSMSURL(phone,body);
+    if(valid()&&studentSelect.value===chosen&&recipientSelect.value===r.id&&preview.value===body&&generated)root.location.href=examFeeSMSURL(phone,body);
    }catch(e){if(valid())feedback(readable(e));}finally{busy=false;}
   });recipients.append(b);
  }
- const manualNumber=normalizeContactPhone(manualPhone.value),manualAudience=manualRole.value;
- if(manualPhone.value&&!manualNumber)recipients.append(element('p','직접 입력한 휴대전화번호를 확인해 주세요.'));
+ const manualNumber=s?'':normalizeContactPhone(manualPhone.value),manualAudience=manualRole.value;
+ if(!s&&manualPhone.value&&!manualNumber)recipients.append(element('p','직접 입력한 휴대전화번호를 확인해 주세요.'));
  if(manualNumber){if(audience!=='both'&&audience!==manualAudience)recipients.append(element('p','이 안내문은 '+(audience==='parent'?'학부모':'학생')+'용입니다. 수신자 구분을 확인해 주세요.'));
  else recipients.append(button('직접 입력 번호 '+manualNumber+' · 문자 앱 열기',async()=>{const body=preview.value;if(!valid()||!generated||!body.trim()||/\{\{|\}\}/.test(body))return;if(await appConfirm((manualAudience==='parent'?'학부모':'학생')+' · '+manualNumber+'\n수신번호와 최종 문구를 확인했나요?'))if(valid()&&generated&&normalizeContactPhone(manualPhone.value)===manualNumber&&manualRole.value===manualAudience&&preview.value===body)root.location.href=examFeeSMSURL(manualNumber,body);}));}
- if(!options.length&&!manualNumber)recipients.append(element('p','학생을 선택하거나 신규 상담자의 휴대전화번호를 직접 입력해 주세요.'));
+ if(!options.length&&!manualNumber)recipients.append(element('p',s?'학생에게 연결된 학부모를 확인하거나 수신자를 선택해 주세요.':'학생을 선택하거나 신규 상담자의 휴대전화번호를 직접 입력해 주세요.'));
 }
 async function open(){
  if(!allowed())return;reset();actor=currentProfile;panel.hidden=false;const request=++epoch,life=lifecycle;

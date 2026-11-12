@@ -30,6 +30,7 @@
     ]);
     const previousAllowed = allowedAccountSection;
     root.allowedAccountSection = function (id) {
+      if (id === "englishPanel") return false;
       if (disabled.has(id)) return principal();
       if (fees.includes(id)) return staff() || (currentProfile?.approval_status === 'approved' && currentProfile.membership_state === 'active' && currentProfile.role === 'parent');
       if (id === "mbtiStudyPanel") return canUseMBTIStudy();
@@ -109,7 +110,7 @@
       }
       for (const menu of doc.querySelectorAll("#siteNavigation .site-menu")) {
         const label = menu.querySelector("summary")?.textContent.trim() || "";
-        if (label === "청라영어") menu.hidden = !principal();
+        if (label === "청라영어") menu.hidden = true;
         if (label.startsWith("나의 MBTI")) menu.hidden = !canUseMBTIStudy();
       }
       root.CheonglaScoreCoachingUI?.reset();
@@ -130,6 +131,7 @@
     ]);
     root.openSiteDestination = async function (key, context) {
       if (
+        (["english_study","english_book","english_practice","english_test"].includes(key)) ||
         (blockedRoutes.has(key) && !principal()) ||
         (key.startsWith("account_") && !allowedAccountSection(key.slice(8))) ||
         (key.startsWith("mbti_") && !canUseMBTIStudy()) ||

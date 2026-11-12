@@ -63,9 +63,10 @@ for (const role of [
   assert(!d.getElementById("askMenu").hidden);
   assert.equal(d.getElementById("feeNoticeMenu").hidden,!staff);
   assert(d.getElementById("financeMenu").hidden);
-  assert.equal(d.getElementById("englishMenu").hidden,!principal);
+  assert(d.getElementById("englishMenu").hidden);
   assert.equal(w.allowedAccountSection("mbtiStudyPanel"), staff);
   assert.equal(w.canEditMBTIStudy(),staff);
+  assert.equal(w.allowedAccountSection("englishPanel"),false);
   assert.equal([...d.querySelectorAll("#siteNavigation .site-menu")].find(n=>n.querySelector("summary")?.textContent.includes("나의 MBTI")).hidden,!staff);
   assert.equal(w.allowedAccountSection("tuitionPanel"), staff || role === "parent");
   w.configureAccountSections();
@@ -89,7 +90,7 @@ for (const role of [
     );
   }
   for (const id of ["mealPanel", "examPanel", "externalPanel", "englishPanel"])
-    assert.equal(w.allowedAccountSection(id), principal);
+    assert.equal(w.allowedAccountSection(id), id === "englishPanel" ? false : principal);
   assert.equal(texts("feeNoticeMenuItems").includes("학원비 안내"), staff);
   assert(!items.includes("학원비 안내"));
 }
@@ -105,6 +106,7 @@ for (const role of [
   w.currentProfile = {id:"manager", role:"manager", approval_status:"approved", membership_state:"active"};
   await w.openSiteDestination("mbti_intro");
   assert.equal(w.lastRoute,"mbti_intro");
+  for(const role of ["owner","english_director","math_director","manager"]){w.currentProfile={id:role,role,approval_status:"approved",membership_state:"active"};w.lastRoute="";await w.openSiteDestination("english_book");assert.notEqual(w.lastRoute,"english_book");}
   w.currentProfile = {id:"student", role:"student", approval_status:"approved", membership_state:"active"};
   await w.openSiteDestination("english_book");
   assert.notEqual(w.lastRoute, "english_book");
