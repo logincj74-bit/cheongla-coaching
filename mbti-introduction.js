@@ -16,7 +16,7 @@ globalThis.CheonglaMBTIIntroduction = {
       section.id = 'mbtiArticle-' + category;
       section.querySelector('summary').textContent = label;
       section.querySelector('article').setAttribute('aria-label', label);
-      section.querySelector('legend').textContent = '자료 관리 · 원장';
+      section.querySelector('legend').textContent = '자료 관리 · 원장·실장';
       section.querySelector('[data-mbti-intro-print]').textContent = '자료 인쇄';
       section.querySelector('button[type="submit"]').textContent = '저장';
       for (const control of section.querySelectorAll('input, textarea')) {

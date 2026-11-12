@@ -20,9 +20,11 @@ w.eval(
 w.eval(`
 var canManageExams=canManageLife,canAdministerMembers=isPrincipal,canManageContacts=canManageLife,canCoachAll=isPrincipal;
 var canUseTuition=canManageLife,canUseExamFees=canManageLife,canUseBilling=()=>false,canUseMealForms=()=>false,canUseExams=()=>false;
-var canUseSchedule=()=>currentProfile?.approval_status==='approved',canUseBoard=canUseSchedule,canUseInbox=canUseSchedule,canUseMBTIStudy=isPrincipal;
+var canUseSchedule=()=>currentProfile?.approval_status==='approved',canUseBoard=canUseSchedule,canUseInbox=canUseSchedule,canUseMBTIStudy=canManageLife;
 useAccountSections=()=>currentProfile?.approval_status==='approved';
 `);
+w.eval(html.match(/^function canUseMBTIStudy\(\).*$/m)[0]);
+w.eval(html.match(/^function canEditMBTIStudy\(\).*$/m)[0]);
 w.eval(html.match(/^function allowedAccountSection\(id\).*$/m)[0]);
 w.eval(fs.readFileSync("content-trash.js", "utf8"));
 w.eval(fs.readFileSync("staff-journal.js", "utf8"));
@@ -62,15 +64,17 @@ for (const role of [
   assert.equal(d.getElementById("feeNoticeMenu").hidden,!staff);
   assert(d.getElementById("financeMenu").hidden);
   assert.equal(d.getElementById("englishMenu").hidden,!principal);
-  assert.equal(w.allowedAccountSection("mbtiStudyPanel"), principal);
-  assert.equal(w.allowedAccountSection("tuitionPanel"), staff);
+  assert.equal(w.allowedAccountSection("mbtiStudyPanel"), staff);
+  assert.equal(w.canEditMBTIStudy(),staff);
+  assert.equal([...d.querySelectorAll("#siteNavigation .site-menu")].find(n=>n.querySelector("summary")?.textContent.includes("나의 MBTI")).hidden,!staff);
+  assert.equal(w.allowedAccountSection("tuitionPanel"), staff || role === "parent");
   w.configureAccountSections();
   const accountButtons = texts("accountSectionButtons");
   assert.equal(
     accountButtons.includes("성적 변화 · 학습코칭"),
     role !== "manager",
   );
-  assert.equal(accountButtons.includes("MBTI 학습법"), principal);
+  assert.equal(accountButtons.includes("MBTI 학습법"), staff);
   for (const retired of (principal ? [] : [
     "englishPanel",
     "externalPanel",
@@ -96,6 +100,12 @@ for (const role of [
     approval_status: "approved",
     membership_state: "active",
   };
+  await w.openSiteDestination("mbti_intro");
+  assert.notEqual(w.lastRoute, "mbti_intro");
+  w.currentProfile = {id:"manager", role:"manager", approval_status:"approved", membership_state:"active"};
+  await w.openSiteDestination("mbti_intro");
+  assert.equal(w.lastRoute,"mbti_intro");
+  w.currentProfile = {id:"student", role:"student", approval_status:"approved", membership_state:"active"};
   await w.openSiteDestination("english_book");
   assert.notEqual(w.lastRoute, "english_book");
   await w.openSiteDestination("account_scoreCoachingPanel");
@@ -114,7 +124,7 @@ for (const role of [
   assert(summary.includes("등급 개선"));
   dom.window.close();
   console.log(
-    "PASS six role menus, deep-link restrictions, common help, manager-only embedded fees, principal-only MBTI/trash, score coaching entry and trend analysis",
+    "PASS six role menus, deep-link restrictions, common help, manager-only embedded fees, staff MBTI and principal-only trash, score coaching entry and trend analysis",
   );
 })().catch((e) => {
   console.error(e);
