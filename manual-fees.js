@@ -3,7 +3,9 @@ const doc=root.document,fmt=v=>Number(v||0).toLocaleString('ko-KR'),num=v=>Numbe
 function el(tag,text){const n=doc.createElement(tag);if(text!=null)n.textContent=text;return n;}
 function money(input,signed=false){input.type='text';input.inputMode=signed?'text':'numeric';input.addEventListener('input',()=>{let raw=input.value.replace(/[^0-9-]/g,'');const neg=signed&&raw.startsWith('-');raw=raw.replaceAll('-','');input.value=raw?(neg?'-':'')+Number(raw).toLocaleString('ko-KR'):(neg?'-':'');});}
 function message(n,name){return '[독학재수학원 청라]\n'+name+' 학생 '+(n.kind==='exam'?'모의고사비':'도시락비')+' 안내\n'+n.title+'\n'+(n.kind==='meal'?'점심 '+n.lunch+'개 + 저녁 '+n.dinner+'개 = 총 '+(n.lunch+n.dinner)+'개\n단가: '+fmt(n.unit_price)+'원\n'+(n.adjustment?'조정액: '+fmt(n.adjustment)+'원\n':''):'시험일: '+n.exam_on+'\n')+'금액: '+fmt(n.amount)+'원\n납부기한: '+n.due_on+(n.note?'\n'+n.note:'');}
-async function mount(kind){const actor=currentProfile,panel=doc.getElementById(panels[kind]);if(!actor||!panel)return;
+async function mount(kind){const actor=currentProfile,panel=doc.getElementById(panels[kind]);if(!actor||!panel||!allowedAccountSection(panels[kind]))return;
+// Resetting billing hides the entire meal panel; opening its replacement must reveal the parent too.
+panel.hidden=false;
 let host=hosts[kind];if(!host){host=el('section');host.className='notice-form';host.id='manualFee_'+kind;const legacy=el('details');legacy.append(el('summary','기존 신청 기반 안내 조회'));const old=doc.getElementById(kind==='exam'?'examFeeList':'mealFeeList');if(old)legacy.append(old);for(const child of [...panel.children])child.hidden=true;panel.prepend(host);panel.append(legacy);hosts[kind]=host;}host.replaceChildren();host.hidden=false;host.append(el('h2',kind==='exam'?'모의고사비 직접 안내':'도시락비 직접 안내'));const status=el('p');status.setAttribute('role','status');host.append(status);
 const c=await getClient();if(actor!==currentProfile)return;
 const isManager=manager();let roster=[];let price=7500,priceVersion;
