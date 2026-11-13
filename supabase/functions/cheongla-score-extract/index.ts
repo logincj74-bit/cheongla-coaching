@@ -23,7 +23,7 @@ Deno.serve(async (request: Request) => {
     return reply(405, { error: "허용되지 않은 요청입니다." });
   const url = Deno.env.get("SUPABASE_URL"),
     anon = Deno.env.get("SUPABASE_ANON_KEY");
-  const key = Deno.env.get("OPENAI_API_KEY");
+  const key = Deno.env.get("OPENAI_API_KEY")?.trim();
   if (!url || !anon) return reply(503, { error: "서버 설정을 확인해 주세요." });
   const authorization = request.headers.get("authorization") || "";
   if (!authorization.startsWith("Bearer "))

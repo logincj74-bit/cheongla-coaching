@@ -99,3 +99,10 @@ cheongla-score-extract 운영 설치 시도는 자동 승인 검토에서 거절
 실제 운영 HTTP 검증: OPTIONS 204, 로그인 없는 POST 401, 잘못된 토큰 POST 401, 다른 Origin POST 405. 사진은 전송하지 않았습니다. 로컬 OCR 검증에서는 외부 API를 모의 처리하여 역할 제한·누락 점수·수능 원점수 금지·범위 검증·실패 처리를 통과했습니다.
 
 같은 시점 cheongla-score-readiness는 HTTP 503 / ready:false입니다. 인식용 OPENAI_API_KEY 등록이 남아 있습니다. 앱 scoreOcr:false는 유지하며, 실제 성적표의 인식 정확도와 로그인한 원장 계정의 추출·수정·저장 검증 및 사진 읽기 활성화는 키 등록 후 진행해야 합니다. 이번 작업으로 실제 자동 인식까지 완료되었다고 보지 않습니다.
+
+
+### 2026-11-13 API 키 저장 후 연결 진단
+
+사용자가 키 저장을 알린 뒤 서버의 ready:true를 확인했습니다. 키 값 자체는 조회·출력하지 않았습니다. 진단 함수를 모델 메타데이터 조회로 보완하여 키의 입력 형식 및 OpenAI 모델 접근 여부를 별도 검사합니다. 이미지나 생성 요청은 보내지 않으며, 같은 런타임의 진단 요청은 60초 동안 캐시합니다.
+
+운영 응답은 HTTP 503, ready:true, key_format_valid:false, provider_ready:false, provider_status:null, provider_error:TypeError였습니다. 저장은 감지됐지만 실제 키 형식 및 API 연결 검증을 통과하지 못한 상태입니다. 사용자에게 실제 발급된 비밀키 전체를 서버 비밀키 값에 다시 등록하도록 안내했고, scoreOcr:false를 유지했습니다. 실제 성적표 인식·저장 검증과 앱 활성화는 아직 진행하지 않았습니다.
