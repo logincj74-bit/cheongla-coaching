@@ -39,7 +39,7 @@ const client = {
   }),
   rpc: async () => ({ error: quotaError ? Error("quota") : null }),
 };
-const context = vm.createContext({
+const globals = {
   Response,
   Request,
   AbortSignal,
@@ -70,8 +70,8 @@ const context = vm.createContext({
       { status: apiStatus },
     );
   },
-});
-vm.runInContext(js, context);
+};
+vm.runInContext(js, vm.createContext(globals));
 const call = async (
   body = { image: "data:image/jpeg;base64,YWJj" },
   headers = {},
@@ -89,6 +89,12 @@ const call = async (
     }),
   );
 (async () => {
+  const paused = await call();
+  assert.equal(paused.status,503);
+  assert.equal((await paused.json()).code,"ocr_paused");
+  assert.equal(requests.length,0,"paused server called paid provider");
+  // Exercise retained extraction logic with a test-only switch in a separate VM.
+  vm.runInContext(js.replace("const photoRecognitionEnabled = false", "const photoRecognitionEnabled = true"), vm.createContext({...globals}));
   for (const name of ["student", "parent", "manager"]) {
     role = name;
     assert.equal((await call()).status, 403);

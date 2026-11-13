@@ -575,7 +575,7 @@
           "p",
           ocrEnabled
             ? "사진을 선택하면 전송 확인 후 과목별 점수를 자동으로 채웁니다. 이름·수험번호 등 개인정보는 가리고 촬영해 주세요. 인식 결과를 원본과 대조한 뒤 저장해 주세요."
-            : "사진 자동 읽기는 연결 준비 중입니다. 과목별 점수를 직접 입력해 저장·비교·공유할 수 있습니다.",
+            : "사진 자동 읽기는 현재 일시 중단되어 있습니다. 과목별 점수를 직접 입력해 저장·비교·공유할 수 있습니다.",
         ),
       );
       const photoStatus = e("p");
@@ -667,7 +667,7 @@
       const status = e("p");
       status.setAttribute("role", "status");
       async function readPhoto() {
-        if (!ocrEnabled) { photoStatus.textContent = "사진 자동 읽기는 준비 중입니다. 점수를 직접 입력해 주세요."; return; }
+        if (!ocrEnabled) { photoStatus.textContent = "사진 자동 읽기는 현재 일시 중단되어 있습니다. 점수를 직접 입력해 주세요."; return; }
         if (busy) return;
         const photo = file.files?.[0];
         if (!photo) { photoStatus.textContent = "성적표 사진을 먼저 선택해 주세요."; return; }
@@ -715,7 +715,7 @@
           }
         }
       }
-      const photoButton = b(ocrEnabled ? "사진 다시 읽기" : "사진 자동 읽기 · 준비 중", readPhoto);
+      const photoButton = b(ocrEnabled ? "사진 다시 읽기" : "사진 자동 읽기 · 일시 중단", readPhoto);
       file.addEventListener("change", () => { if (file.files?.[0]) void readPhoto(); else photoStatus.textContent = ""; });
       form.append(
         photoButton,

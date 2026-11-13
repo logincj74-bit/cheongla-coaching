@@ -1,4 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+// Paused at the owner’s request; preserve extraction code and credentials for later.
+const photoRecognitionEnabled = false;
 const origin = "https://logincj74-bit.github.io";
 const cors = {
   "Access-Control-Allow-Origin": origin,
@@ -52,6 +54,8 @@ Deno.serve(async (request: Request) => {
     !["owner", "english_director", "math_director"].includes(profile.data.role)
   )
     return reply(403, { error: "원장만 성적표를 인식할 수 있습니다." });
+  if (!photoRecognitionEnabled)
+    return reply(503, { code: "ocr_paused", error: "사진 자동 읽기는 현재 일시 중단되어 있습니다. 점수를 직접 입력해 저장해 주세요." });
   if (!key)
     return reply(503, {
       error:

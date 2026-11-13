@@ -54,7 +54,7 @@ const click = (label) =>
   assert(d.querySelector("form"));
   assert(d.querySelector('input[type="file"]').disabled);
   const beforePhoto = calls.length;
-  click("사진 자동 읽기 · 준비 중");
+  click("사진 자동 읽기 · 일시 중단");
   await tick();
   assert.equal(calls.length, beforePhoto);
   assert(d.body.textContent.includes("점수를 직접 입력해 주세요."));
@@ -90,8 +90,8 @@ const click = (label) =>
         c.args.action === "publish",
     ),
   );
-  // The deployed switch enables the complete upload -> consent -> editable draft flow.
-  w.eval(fs.readFileSync('feature-flags.js','utf8'));assert.equal(w.CheonglaFeatures.scoreOcr,true);ui.reset();await ui.open();
+  // Production pauses OCR; explicitly enable the retained flow only in this mock test.
+  w.eval(fs.readFileSync('feature-flags.js','utf8'));assert.equal(w.CheonglaFeatures.scoreOcr,false);w.CheonglaFeatures={...w.CheonglaFeatures,scoreOcr:true};ui.reset();await ui.open();
   const file=d.querySelector('input[type="file"]');assert(!file.disabled);Object.defineProperty(file,'files',{value:[{size:100}]});
   w.FileReader=class{readAsDataURL(){this.result='data:image/jpeg;base64,YWJj';Promise.resolve().then(()=>this.onload());}};
   w.Image=class{width=100;height=100;set src(value){Promise.resolve().then(()=>this.onload());}};
