@@ -106,3 +106,10 @@ cheongla-score-extract 운영 설치 시도는 자동 승인 검토에서 거절
 사용자가 키 저장을 알린 뒤 서버의 ready:true를 확인했습니다. 키 값 자체는 조회·출력하지 않았습니다. 진단 함수를 모델 메타데이터 조회로 보완하여 키의 입력 형식 및 OpenAI 모델 접근 여부를 별도 검사합니다. 이미지나 생성 요청은 보내지 않으며, 같은 런타임의 진단 요청은 60초 동안 캐시합니다.
 
 운영 응답은 HTTP 503, ready:true, key_format_valid:false, provider_ready:false, provider_status:null, provider_error:TypeError였습니다. 저장은 감지됐지만 실제 키 형식 및 API 연결 검증을 통과하지 못한 상태입니다. 사용자에게 실제 발급된 비밀키 전체를 서버 비밀키 값에 다시 등록하도록 안내했고, scoreOcr:false를 유지했습니다. 실제 성적표 인식·저장 검증과 앱 활성화는 아직 진행하지 않았습니다.
+
+
+### 2026-11-13 새 API 키 연결 확인 및 사진 읽기 활성화
+
+사용자가 새 키 저장을 알린 뒤 운영 진단은 HTTP 200, ready:true, key_format_valid:true, provider_ready:true, provider_status:200, provider_error:null을 반환했습니다. 키 값은 조회·출력하지 않았습니다. 이 검증은 OpenAI 모델 메타데이터 접근 확인이며 이미지 인식·결제 가능 여부를 보장하는 생성 요청 검증은 아닙니다.
+
+scoreOcr:true로 전환하고 feature-flags.js 캐시 버전을 갱신했습니다. 원장 화면에서 사진 선택, 전송 동의, 인식 점수의 수정 가능한 초안 표시 및 명시적인 저장 동작을 UI 자동 검증했습니다. 이 UI 검증의 인식 응답과 이미지 처리는 모의 처리했습니다. 실제 성적표 사진의 정확도와 로그인한 원장 계정의 실제 이미지 추출·저장 통합 검증은 아직 하지 않았습니다.

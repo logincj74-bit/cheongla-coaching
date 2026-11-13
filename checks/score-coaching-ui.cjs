@@ -21,14 +21,15 @@ const people = [{ id: "student", name: "테스트학생" }],
   };
 let profile = { id: "owner", role: "owner" },
   rows = [saved],
-  calls = [];
+  calls = [], photoCalls = [], consent = true;
 const ui = w.CheonglaScoreCoaching.mount({
   document: d,
   profile: () => profile,
   principal: () => profile.role === "owner",
-  confirm: async () => true,
+  confirm: async () => consent,
   readable: (e) => e.message,
   client: async () => ({
+    functions: {invoke: async (name,args)=>{photoCalls.push({name,args});return {data:{scores:[{subject:'수학(미적분)',raw:90,standard:130,percentile:97,grade:1}]},error:null};}},
     rpc: async (name, args) => {
       calls.push({ name, args });
       return {
@@ -86,6 +87,20 @@ const click = (label) =>
         c.args.action === "publish",
     ),
   );
+  // The deployed switch enables the complete upload -> consent -> editable draft flow.
+  w.eval(fs.readFileSync('feature-flags.js','utf8'));assert.equal(w.CheonglaFeatures.scoreOcr,true);ui.reset();await ui.open();
+  const file=d.querySelector('input[type="file"]');assert(!file.disabled);Object.defineProperty(file,'files',{value:[{size:100}]});
+  w.FileReader=class{readAsDataURL(){this.result='data:image/jpeg;base64,YWJj';Promise.resolve().then(()=>this.onload());}};
+  w.Image=class{width=100;height=100;set src(value){Promise.resolve().then(()=>this.onload());}};
+  w.HTMLCanvasElement.prototype.getContext=()=>({drawImage(){}});w.HTMLCanvasElement.prototype.toDataURL=()=> 'data:image/jpeg;base64,YWJj';
+  const savedBeforePhoto=calls.filter(c=>c.name==='cheongla_save_score_coaching').length;
+  consent=false;click('사진에서 점수 읽기');await tick();assert.equal(photoCalls.length,0,'photo sent without consent');
+  consent=true;click('사진에서 점수 읽기');await tick();await tick();await tick();
+  assert.equal(photoCalls.length,1);assert.equal(photoCalls[0].name,'cheongla-score-extract');assert.deepEqual(Object.keys(photoCalls[0].args.body).sort(),['exam_type','image']);assert.equal(photoCalls[0].args.body.exam_type,'mock');
+  assert([...d.querySelectorAll('input')].some(n=>n.value==='수학(미적분)'));assert([...d.querySelectorAll('input[type="number"]')].some(n=>n.value==='90'));assert(d.body.textContent.includes('인식 초안입니다'));
+  assert.equal(calls.filter(c=>c.name==='cheongla_save_score_coaching').length,savedBeforePhoto,'OCR saved without review');
+  [...d.querySelectorAll('label')].find(n=>n.textContent==='시험명').querySelector('input').value='인식 검토 테스트';
+  click('성적 · 코칭 초안 저장');await tick();await tick();const photoSaved=calls.filter(c=>c.name==='cheongla_save_score_coaching').at(-1);assert.equal(photoSaved.args.subject_scores[0].subject,'수학(미적분)');assert.equal(photoSaved.args.subject_scores[0].raw,90);
   profile = { id: "parent", role: "parent" };
   ui.reset();
   rows = [{ ...saved, revision: undefined }];
@@ -100,7 +115,7 @@ const click = (label) =>
   assert(!d.body.textContent.includes("확인한 코칭"));
   dom.window.close();
   console.log(
-    "PASS owner score edit/save/publish, parent read-only report, cleared old-account report, dirty navigation confirmation",
+    "PASS enabled OCR photo selection/consent/editable draft/explicit save with mocked provider, owner score edit/save/publish, parent read-only report, cleared old-account report, dirty navigation confirmation",
   );
 })().catch((e) => {
   console.error(e);
