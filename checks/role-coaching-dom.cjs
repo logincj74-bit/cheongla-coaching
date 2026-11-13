@@ -9,6 +9,7 @@ const html = fs.readFileSync("index.html", "utf8"),
   }),
   w = dom.window,
   d = w.document;
+w.HTMLElement.prototype.scrollIntoView=function(){};
 w.eval(`var financeEnabled=()=>true,feeNoticesEnabled=()=>true;window.CheonglaFeatures={finance:true};var currentProfile=null,activeAccountSection=null;var $=id=>document.getElementById(id);var accountSectionLabels=${html.match(/const accountSectionLabels=(\{[^\n]+\});/)[1]};
 var showSiteHome=()=>{},clearAccount=()=>{};var canManageLife=()=>currentProfile?.approval_status==='approved'&&currentProfile?.membership_state==='active'&&['owner','english_director','math_director','manager'].includes(currentProfile.role);var canManageMealForms=canManageLife,canManageAccountRecovery=canManageLife;var isPrincipal=()=>canManageLife()&&currentProfile.role!=='manager';var isAppAdmin=()=>false;var appConfirm=async()=>true,readable=e=>e.message;var getClient=async()=>({rpc:async()=>({data:[]})});var renderMealCancelContacts=()=>{},configureStaffWorkspace=()=>{},feeDepositInstructions=()=>'';var allowedAccountSection=()=>true,accountSectionGroup=()=> '내 계정',configureAccountSections=()=>{},useAccountSections=()=>false,applyAccountSection=()=>{},tuitionText=()=>{},openSiteDestination=async k=>{window.lastRoute=k;},openMemberBilling=()=>{};`);
 w.eval(

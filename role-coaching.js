@@ -130,7 +130,9 @@
       "desk_notices",
       "billing_dashboard",
     ]);
+    let destinationSequence = 0;
     root.openSiteDestination = async function (key, context) {
+      const destinationTicket = ++destinationSequence, actor = currentProfile;
       if (
         (["english_study","english_book","english_practice","english_test"].includes(key)) ||
         (blockedRoutes.has(key) && !principal()) ||
@@ -150,8 +152,15 @@
       )
         return;
       const result = await previousOpen(key, context);
-      if (key === "account_scoreCoachingPanel")
+      if (key === "account_scoreCoachingPanel" && destinationTicket === destinationSequence && actor === currentProfile) {
         await root.CheonglaScoreCoachingUI.open();
+        if (destinationTicket === destinationSequence && actor === currentProfile) {
+          const panel = doc.getElementById("scoreCoachingPanel");
+          panel.scrollIntoView({block:"start", behavior:"instant"});
+          root.CheonglaDetailNavigation?.align(panel);
+          panel.focus({preventScroll:true});
+        }
+      }
       return result;
     };
     const oldReset = clearAccount;

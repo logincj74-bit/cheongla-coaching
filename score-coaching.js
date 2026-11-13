@@ -189,7 +189,8 @@
     async function open() {
       const actor = who(),
         req = ++seq;
-      box.replaceChildren(e("p", "성적·코칭 확인 중…"));
+      box.hidden = false;
+      box.replaceChildren(e("h2", "성적 변화 · 학습코칭"), e("p", "학생 목록과 성적·코칭 확인 중…"));
       try {
         const result = await rpc("cheongla_score_coaching_list");
         if (actor !== who() || req !== seq) return;
@@ -210,6 +211,9 @@
     function render() {
       box.replaceChildren(e("h2", "성적 변화 · 학습코칭"));
       const select = e("select");
+      select.id = "scoreCoachingStudentSelect";
+      const selectLabel = e("label", api.principal() ? "학생 선택" : "성적·코칭 대상");
+      selectLabel.htmlFor = select.id;
       select.setAttribute(
         "aria-label",
         api.principal() ? "학생 선택" : "성적·코칭 대상",
@@ -230,7 +234,14 @@
         dirty = false;
         render();
       });
+      if (!students.length) {
+        const empty = e("option", "선택 가능한 학생이 없습니다");
+        empty.value = "";
+        select.append(empty);
+        select.disabled = true;
+      }
       box.append(
+        selectLabel,
         select,
         b("새로고침", async () => {
           if (await leave()) await open();
@@ -238,7 +249,9 @@
       );
       if (!selected) {
         box.append(
-          e("p", "연결된 승인 학생이 없습니다. 자녀 연결을 확인해 주세요."),
+          e("p", api.principal()
+            ? "선택 가능한 승인 재원생이 없습니다. 학생·학부모 승인에서 학생의 승인 및 재원 상태를 확인해 주세요."
+            : "연결된 승인 학생이 없습니다. 자녀 연결을 확인해 주세요."),
         );
         return;
       }

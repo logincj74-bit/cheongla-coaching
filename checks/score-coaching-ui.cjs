@@ -47,7 +47,10 @@ const click = (label) =>
       .click(),
   tick = () => new Promise((r) => setImmediate(r));
 (async () => {
+  ui.reset();assert(d.getElementById("scoreCoachingPanel").hidden);
   await ui.open();
+  assert(!d.getElementById("scoreCoachingPanel").hidden,"opened score screen remained hidden");
+  assert.equal(d.querySelector('label[for="scoreCoachingStudentSelect"]').textContent,"학생 선택");
   assert(d.querySelector("form"));
   assert(d.querySelector('input[type="file"]').disabled);
   const beforePhoto = calls.length;
