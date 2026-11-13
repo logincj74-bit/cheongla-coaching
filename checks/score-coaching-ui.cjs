@@ -61,7 +61,7 @@ const click = (label) =>
   assert(d.body.textContent.includes("백분위 87"));
   click("수정");
   await tick();
-  assert.equal(d.querySelector("textarea").value, "확인한 코칭");
+  assert.equal(d.querySelector("#scoreCoachingText").value, "확인한 코칭");
   const title = [...d.querySelectorAll("label")]
     .find((n) => n.textContent === "시험명")
     .querySelector("input");

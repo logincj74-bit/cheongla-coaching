@@ -128,6 +128,61 @@
     );
     return lines.join("\n");
   }
+  // Local text parsing only: never send pasted score sheets to a service.
+  function parseScoreText(text, format = "auto", kind = "mock") {
+    const result = { scores: [], errors: [], skipped: 0 };
+    if (typeof text !== "string" || !text.trim() || text.length > 20000) {
+      result.errors.push("점수 내용을 20,000자 이내로 붙여넣어 주세요.");
+      return result;
+    }
+    const orders = { raw: ["raw"], grade: ["grade"], csat: ["standard", "percentile", "grade"], full: ["raw", "standard", "percentile", "grade"] };
+    const labels = Object.fromEntries(Object.entries(metrics).map(([k,v]) => [v,k]));
+    const lines = text.normalize("NFKC").replace(/\r/g, "").split("\n");
+    let header = null;
+    const seen = new Set();
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const labelMatches = [...line.matchAll(/원점수|표준점수|백분위|등급/g)];
+      if (/^(?:과목|영역)(?:\s|[|,:\t])/.test(line) && labelMatches.length) {
+        header = labelMatches.map(m => labels[m[0]]);
+        if (new Set(header).size !== header.length) result.errors.push(`${i+1}행: 점수 제목이 중복되어 있습니다.`);
+        continue;
+      }
+      const match = line.match(/^(국어|수학|영어|한국사|탐구\s*[12]|제\s*2\s*외국어|한문|통합사회|통합과학|생활과\s*윤리|윤리와\s*사상|한국\s*지리|세계\s*지리|동아시아사|세계사|정치와\s*법|경제|사회[·ㆍ・]?문화|물리학\s*[IⅠⅡ12]+|화학\s*[IⅠⅡ12]+|생명과학\s*[IⅠⅡ12]+|지구과학\s*[IⅠⅡ12]+)(\s*\([^()\n]{1,30}\))?(?=\s|[|,:\t]|원점수|표준점수|백분위|등급|$)(.*)$/);
+      if (!match) { result.skipped++; continue; }
+      const subject = (match[1] + (match[2] || "")).replace(/\s+/g, "");
+      const rest = match[3].trim().replace(/^[|,:\s]+/, "");
+      let values = {}, invalid = false;
+      if (labelMatches.length) {
+        const pairs = [...rest.matchAll(/(원점수|표준점수|백분위|등급)\s*[:=]?\s*(\d+(?:\.\d+)?|[-—–])/g)];
+        const residue = rest.replace(/(원점수|표준점수|백분위|등급)\s*[:=]?\s*(\d+(?:\.\d+)?|[-—–])/g, "").replace(/[\s,|/]/g, "");
+        invalid = !!residue || pairs.length !== labelMatches.length;
+        for (const pair of pairs) {
+          const key = labels[pair[1]];
+          if (key in values) invalid = true;
+          values[key] = /^[-—–]$/.test(pair[2]) ? null : Number(pair[2]);
+        }
+      } else {
+        const order = format === "auto" ? header : orders[format];
+        const tokens = rest.split(/[\s,|\t]+/).filter(Boolean);
+        if (!order || tokens.length !== order.length || tokens.some(v => !/^(?:\d+(?:\.\d+)?|[-—–])$/.test(v))) invalid = true;
+        else order.forEach((key,j) => { values[key] = /^[-—–]$/.test(tokens[j]) ? null : Number(tokens[j]); });
+      }
+      if (invalid) { result.errors.push(`${i+1}행: 점수 제목이나 숫자 순서를 확인해 주세요. 한 과목을 한 줄로 정리합니다.`); continue; }
+      if (kind === "csat" && values.raw != null) { result.errors.push(`${i+1}행: 수능에는 원점수를 넣을 수 없습니다. 표준점수·백분위·등급을 사용해 주세요.`); continue; }
+      if (Object.entries(values).some(([key,v]) => v != null && (v < (key === "grade" ? 1 : 0) || v > (key === "grade" ? 9 : key === "standard" ? 200 : 100) || (key !== "percentile" && !Number.isInteger(v))))) {
+        result.errors.push(`${i+1}행: 점수 범위를 확인해 주세요. 등급은 1~9입니다.`); continue;
+      }
+      if (!Object.values(values).some(v => v != null)) { result.errors.push(`${i+1}행: 점수를 하나 이상 입력해 주세요.`); continue; }
+      if (seen.has(subjectKey(subject))) { result.errors.push(`${i+1}행: 같은 과목이 중복되어 있습니다.`); continue; }
+      seen.add(subjectKey(subject));
+      result.scores.push({ subject, ...Object.fromEntries(Object.keys(metrics).map(k => [k, values[k] ?? null])) });
+    }
+    if (!result.scores.length && !result.errors.length) result.errors.push("과목과 점수를 찾지 못했습니다. 예시처럼 한 과목씩 줄을 나누어 주세요.");
+    if (result.scores.length > 10) result.errors.push("과목은 최대 10개까지 반영할 수 있습니다.");
+    return result;
+  }
   function mount(api) {
     const doc = api.document,
       box = doc.getElementById("scoreCoachingPanel");
@@ -216,6 +271,11 @@
       photoEpoch++;
       busy = false;
       box.replaceChildren(e("h2", "성적 변화 · 학습코칭"));
+      if (!doc.getElementById("scoreCompactStyles")) {
+        const style = e("style"); style.id = "scoreCompactStyles";
+        style.textContent = `#scoreCoachingPanel .score-subject{padding:12px;margin:10px 0;border:1px solid #dce5df;border-radius:12px}#scoreCoachingPanel .score-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}#scoreCoachingPanel .score-fields label{margin:0;min-width:0}#scoreCoachingPanel .score-fields input{width:100%;min-width:0;box-sizing:border-box}#scoreCoachingPanel .score-subject>label{display:block;margin:0 0 10px}#scoreCoachingPanel .score-subject details{margin:10px 0}#scoreCoachingPanel .score-paste-preview{overflow-x:auto}#scoreCoachingPanel .score-paste-preview table{width:100%;white-space:nowrap}#scoreCoachingPanel .score-paste-preview td,#scoreCoachingPanel .score-paste-preview th{padding:6px}#scoreCoachingPanel [hidden]{display:none!important}`;
+        doc.head.append(style);
+      }
       const select = e("select");
       select.id = "scoreCoachingStudentSelect";
       const selectLabel = e("label", api.principal() ? "학생 선택" : "성적·코칭 대상");
@@ -267,6 +327,10 @@
           (a, b) =>
             b.exam_on.localeCompare(a.exam_on) || b.id.localeCompare(a.id),
         );
+      if (api.principal()) {
+        box.append(e("p", "① 학생 선택 → ② 시험·점수 입력 → ③ 초안 저장 → ④ 확인 후 공유"));
+        editor(own);
+      } else box.append(e("p", "원장이 공유한 성적과 코칭입니다. 수정 중인 초안은 표시되지 않습니다."));
       const trend = e("table");
       trend.className = "lr-card";
       trend.style.cssText =
@@ -307,7 +371,6 @@
             render();
           }),
         );
-        editor(own);
       }
       for (const r of own) {
         const card = e("details");
@@ -553,6 +616,30 @@
         title = field(form, "시험명", "text", editing?.title || "", true);
       title.maxLength = 150;
       title.setAttribute("list","cheonglaExamNames");
+      const examLabel = e("label", "시험 선택"), examSelect = e("select");
+      examSelect.id = "scoreExamPreset"; examLabel.htmlFor = examSelect.id;
+      const presets = ["대성 더 프리미엄 모의고사", "시대인재 서프 모의고사", "6월 한국교육과정평가원 모의고사", "9월 한국교육과정평가원 모의고사", "수능"];
+      for (const name of ["시험을 선택해 주세요", ...presets, "기타 · 직접 입력"]) {
+        const option = e("option", name); option.value = name === "시험을 선택해 주세요" ? "" : name; examSelect.append(option);
+      }
+      examSelect.value = editing ? (presets.includes(editing.title) ? editing.title : "기타 · 직접 입력") : "";
+      examLabel.append(examSelect); form.insertBefore(examLabel, date.parentElement);
+      examSelect.addEventListener("change", async () => {
+        const choice = examSelect.value;
+        if (presets.includes(choice)) {
+          if (choice === "수능" && readers.some(row=>row.inputs.raw.value!=="")) {
+            if (!(await api.confirm("수능으로 바꾸면 입력한 원점수를 비웁니다. 변경할까요?"))) {
+              examSelect.value = presets.includes(title.value) ? title.value : "기타 · 직접 입력";
+              return;
+            }
+            if (!form.isConnected) return;
+            for (const row of readers) row.inputs.raw.value="";
+          }
+          title.value=choice; type.value=choice === "수능" ? "csat" : "mock";
+          type.dispatchEvent(new root.Event("change"));
+        } else if (choice === "기타 · 직접 입력") { title.value = ""; title.focus(); }
+        dirty = true;
+      });
       const typeLabel = e("label", "시험 구분"),
         type = e("select");
       for (const [value, label] of Object.entries(examKinds)) {
@@ -570,12 +657,13 @@
       file.accept = "image/jpeg,image/png,image/webp";
       const ocrEnabled = root.CheonglaFeatures?.scoreOcr === true;
       file.disabled = !ocrEnabled;
+      file.parentElement.hidden = !ocrEnabled;
       form.append(
         e(
           "p",
           ocrEnabled
             ? "사진을 선택하면 전송 확인 후 과목별 점수를 자동으로 채웁니다. 이름·수험번호 등 개인정보는 가리고 촬영해 주세요. 인식 결과를 원본과 대조한 뒤 저장해 주세요."
-            : "사진 자동 읽기는 현재 일시 중단되어 있습니다. 과목별 점수를 직접 입력해 저장·비교·공유할 수 있습니다.",
+            : "점수를 직접 입력하거나 아래 ‘복사한 점수 붙여넣기’를 이용해 주세요. 사진 자동 읽기는 사용하지 않습니다.",
         ),
       );
       const photoStatus = e("p");
@@ -589,7 +677,7 @@
         readers = [];
         for (const s of data) {
           const line = e("div");
-          line.className = "lr-card";
+          line.className = "score-subject";
           const subject = field(
             line,
             "과목 · 선택과목명",
@@ -599,15 +687,23 @@
           );
           subject.maxLength = 60;
           const inputs = {};
+          const mainFields = e("div"); mainFields.className = "score-fields";
+          const extra = e("details"), extraFields = e("div"); extraFields.className = "score-fields";
+          extra.append(e("summary", "추가 점수 · 표준점수·백분위"), extraFields);
+          line.append(mainFields, extra);
           for (const [key, label] of Object.entries(metrics)) {
-            const n = field(line, label, "number", s[key] ?? "");
+            const basic = key === "grade" || key === (type.value === "csat" ? "standard" : "raw");
+            const n = field(basic ? mainFields : extraFields, label, "number", s[key] ?? "");
+            n.inputMode = key === "percentile" ? "decimal" : "numeric";
+            if (!basic && s[key] != null) extra.open = true;
             n.min = key === "grade" ? 1 : 0;
             n.max = key === "grade" ? 9 : key === "standard" ? 200 : 100;
             n.step = key === "percentile" ? "0.01" : "1";
             n.disabled = key === "raw" && type.value === "csat";
-            if (n.disabled) n.value = "";
+            if (n.disabled) { n.value = ""; n.parentElement.hidden = true; }
             inputs[key] = n;
           }
+          extra.querySelector("summary").textContent = type.value === "csat" ? "추가 점수 · 백분위" : "추가 점수 · 표준점수·백분위";
           readers.push({ subject, inputs });
           line.append(
             b("이 과목 제외", () => {
@@ -663,6 +759,7 @@
         "textarea",
         editing?.report || "",
       );
+      report.id = "scoreCoachingText";
       report.maxLength = 20000;
       const status = e("p");
       status.setAttribute("role", "status");
@@ -716,6 +813,53 @@
         }
       }
       const photoButton = b(ocrEnabled ? "사진 다시 읽기" : "사진 자동 읽기 · 일시 중단", readPhoto);
+      photoButton.hidden = !ocrEnabled;
+      const paste = e("details"); paste.id = "scorePastePanel";
+      paste.append(e("summary", "복사한 점수 붙여넣기 · 무료"), e("p", "사진 앱에서 복사한 글자나 표를 붙여넣으세요. 한 과목을 한 줄로 정리합니다. 이 내용은 외부로 전송되지 않습니다."));
+      const pasteLabel = e("label", "복사한 점수 내용"), pasteText = e("textarea");
+      pasteText.id = "scorePasteText"; pasteLabel.htmlFor = pasteText.id; pasteText.maxLength = 20000; pasteText.rows = 5;
+      pasteText.placeholder = "과목 원점수 표준점수 백분위 등급\n국어 80 120 87 3\n영어 90 - - 1"; pasteLabel.append(pasteText);
+      const formatLabel = e("label", "숫자 순서"), format = e("select"); format.id = "scorePasteFormat"; formatLabel.htmlFor = format.id;
+      for (const [value, label] of Object.entries({auto:"자동 · 점수 제목이 있는 내용", full:"원점수 → 표준점수 → 백분위 → 등급", csat:"표준점수 → 백분위 → 등급",raw:"원점수만",grade:"등급만"})) { const option=e("option",label); option.value=value; format.append(option); }
+      formatLabel.append(format);
+      const preview = e("div"); preview.className = "score-paste-preview";
+      const pasteStatus = e("p"); pasteStatus.setAttribute("role", "status");
+      const reviewLabel = e("label"), review = e("input"); review.type="checkbox"; review.id="scorePasteReviewed";
+      reviewLabel.append(review, doc.createTextNode("원본과 과목·점수 순서를 대조했습니다."));
+      let parsed = null;
+      const clearPreview = () => { parsed=null; preview.replaceChildren(); review.checked=false; apply.disabled=true; pasteStatus.textContent=""; };
+      const apply = b("확인한 점수를 입력칸에 반영", async () => {
+        if (busy || !parsed || parsed.errors.length || !review.checked) return;
+        const base=read(), keyed=new Map(base.map(row=>[subjectKey(row.subject),row]));
+        const baseSubjects = {"국어": "국어", "수학":"수학"};
+        for (const row of parsed.scores) {
+          const key=subjectKey(row.subject); let target=keyed.get(key);
+          if (!target && /^(국어|수학)\(/.test(row.subject)) {
+            const simple=row.subject.slice(0,2); target=keyed.get(baseSubjects[simple]);
+          }
+          // Match by exact name (or an empty default language/math row), never by row position.
+          if (target && subjectKey(target.subject)!==key && Object.keys(metrics).some(k=>target[k]!=null)) target=null;
+          if (target) { keyed.delete(subjectKey(target.subject)); keyed.set(key,{...row}); }
+          else keyed.set(key,{...row});
+        }
+        const merged=[...keyed.values()].filter(row=>Object.keys(metrics).some(k=>row[k]!=null) || !parsed.scores.length);
+        if (merged.length>10) { pasteStatus.textContent="기존 점수와 합치면 10과목을 초과합니다. 과목을 확인해 주세요."; return; }
+        if (base.some(row=>Object.keys(metrics).some(k=>row[k]!=null)) && !(await api.confirm("같은 과목의 점수는 미리보기 내용으로 교체됩니다. —로 표시된 항목은 비워집니다. 변경할까요?"))) return;
+        if (!form.isConnected || busy) return;
+        fill(merged); dirty=true; pasteText.value=""; clearPreview(); pasteStatus.textContent="입력칸에 반영했습니다. 점수를 확인하고 초안 저장을 눌러 주세요. 아직 저장하거나 공유하지 않았습니다.";
+      });
+      apply.disabled=true;
+      review.addEventListener("change",()=>{apply.disabled=!parsed || !!parsed.errors.length || !review.checked;});
+      pasteText.addEventListener("input", clearPreview); format.addEventListener("change",clearPreview); type.addEventListener("change",clearPreview);
+      paste.append(pasteLabel,formatLabel,b("점수 미리보기",()=>{
+        clearPreview(); parsed=parseScoreText(pasteText.value,format.value,type.value);
+        if (parsed.scores.length) {
+          const table=e("table"), head=e("tr"); for(const label of ["과목",...Object.values(metrics)]) head.append(e("th",label)); table.append(head);
+          for(const row of parsed.scores) { const tr=e("tr"); for(const value of [row.subject,...Object.keys(metrics).map(k=>row[k]??"—")]) tr.append(e("td",String(value))); table.append(tr); } preview.append(table);
+        }
+        pasteStatus.textContent=parsed.errors.length ? parsed.errors.join("\n") : `${parsed.scores.length}과목을 찾았습니다.${parsed.skipped ? " 점수로 읽지 않은 줄 "+parsed.skipped+"개가 있으니 빠진 과목이 없는지 확인해 주세요." : ""} 원본과 대조한 뒤 반영하세요.`;
+      }),preview,pasteStatus,reviewLabel,apply);
+      form.append(paste);
       file.addEventListener("change", () => { if (file.files?.[0]) void readPhoto(); else photoStatus.textContent = ""; });
       form.append(
         photoButton,
@@ -728,8 +872,10 @@
         }),
         b("성적 기반 코칭 초안 만들기", () => {
           if (!form.reportValidity()) return;
+          const entered = read().filter(row => Object.keys(metrics).some(k => row[k] != null));
+          if (!entered.length) { status.textContent = "점수를 하나 이상 입력해 주세요."; return; }
           report.value = analyze(
-            read(),
+            entered,
             history.filter(
               (r) =>
                 r.id !== editing?.id &&
@@ -744,7 +890,7 @@
         }),
         b("성적 · 코칭 초안 저장", async () => {
           if (busy || !form.reportValidity()) return;
-          const values = read();
+          const values = read().filter(row => Object.keys(metrics).some(k => row[k] != null));
           if (
             !values.length ||
             values.some((s) => !Object.keys(metrics).some((k) => s[k] != null))
@@ -780,6 +926,7 @@
       );
       form.insertBefore(photoButton, report.parentElement);
       form.insertBefore(scores, report.parentElement);
+      form.insertBefore(paste, scores);
       box.append(form);
     }
     async function archive(r, action) {
@@ -911,6 +1058,7 @@
   }
   root.CheonglaScoreCoaching = {
     mount,
+    parseScoreText,
     analyze,
     monthlyComparison,
     previousMonth,

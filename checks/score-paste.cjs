@@ -1,0 +1,37 @@
+const fs=require('node:fs'),assert=require('node:assert/strict'),{JSDOM}=require('jsdom');
+const dom=new JSDOM('<section id="scoreCoachingPanel"></section>',{runScripts:'outside-only'}),w=dom.window,d=w.document;
+w.eval(fs.readFileSync('feature-flags.js','utf8'));w.eval(fs.readFileSync('score-coaching.js','utf8'));
+const parse=w.CheonglaScoreCoaching.parseScoreText;
+const full='과목 원점수 표준점수 백분위 등급\n국어(언어와 매체) 80 120 87.5 3\n영어 90 - - 1';
+let parsed=parse(full);assert.equal(parsed.errors.length,0);assert.equal(parsed.scores[0].subject,'국어(언어와매체)');assert.equal(parsed.scores[0].percentile,87.5);assert.equal(parsed.scores[1].standard,null);
+assert.equal(parse('국어 표준점수 123 백분위 92 등급 2','auto','csat').scores[0].standard,123);
+assert.equal(parse('국어 80 120 87 3').scores.length,0,'unlabeled order guessed');
+assert.equal(parse('국어 80 120 87 3','full').scores[0].grade,3);
+for(const text of ['국어 10','국어 0','국어 2.5'])assert(parse(text,'grade').errors.length,'invalid grade accepted');
+assert(parse('국어 101','raw').errors.length);assert(parse('국어 80','raw','csat').errors.length);
+assert(parse('국어 2\n국어 3','grade').errors.length);assert(parse('국어 원점수 80 원점수 90').errors.length);
+assert(parse('x'.repeat(20001)).errors.length);assert(parse('국어 80년','raw').errors.length);
+assert.equal(parse('홍길동 01012345678\n시험일 2026-11-13\n국어 2','grade').scores.length,1);
+assert.equal(parse('사회·문화 65 88 3','csat','csat').scores[0].grade,3);
+assert(parse('국어 - - - -','full').errors.length);
+const profile={id:'owner',role:'owner'},people=[{id:'a',name:'검증학생'}];let calls=[],consent=true;
+const ui=w.CheonglaScoreCoaching.mount({document:d,profile:()=>profile,principal:()=>true,confirm:async()=>consent,readable:e=>e.message,client:async()=>({functions:{invoke:()=>{throw Error('paid OCR invoked')}},rpc:async(name,args)=>{calls.push({name,args});return{data:name==='cheongla_score_coaching_list'?{students:people,items:[]}:{id:'saved',revision:1}};}})});
+const tick=()=>new Promise(r=>setImmediate(r)),click=text=>[...d.querySelectorAll('button')].find(b=>b.textContent===text).click();
+(async()=>{
+ await ui.open();assert(d.querySelector('input[type=file]').parentElement.hidden);assert([...d.querySelectorAll('button')].find(b=>b.textContent.includes('일시 중단')).hidden);
+ const preset=d.querySelector('#scoreExamPreset');assert.equal(preset.options.length,7);preset.value='대성 더 프리미엄 모의고사';preset.dispatchEvent(new w.Event('change',{bubbles:true}));
+ const title=[...d.querySelectorAll('label')].find(l=>l.textContent==='시험명').querySelector('input');assert.equal(title.value,preset.value);
+ const text=d.querySelector('#scorePasteText'),format=d.querySelector('#scorePasteFormat'),review=d.querySelector('#scorePasteReviewed');
+ text.value=full;click('점수 미리보기');assert.equal(d.querySelectorAll('.score-paste-preview tr').length,3);
+ const apply=[...d.querySelectorAll('button')].find(b=>b.textContent==='확인한 점수를 입력칸에 반영');assert(apply.disabled);
+ review.checked=true;review.dispatchEvent(new w.Event('change'));assert(!apply.disabled);const before=calls.length;
+ click('확인한 점수를 입력칸에 반영');await tick();assert.equal(calls.length,before,'paste saved or sent data');assert.equal(d.querySelectorAll('.score-subject').length,2);assert(d.body.textContent.includes('아직 저장하거나 공유하지 않았습니다'));
+ const card=d.querySelector('.score-subject');assert.equal(card.querySelector('input').value,'국어(언어와매체)');assert.equal(card.querySelectorAll('.score-fields')[0].querySelectorAll('input').length,2);
+ const values=()=>[...d.querySelectorAll('.score-subject input[type=number]')].map(n=>n.value);
+ const original=values();text.value='국어(언어와매체) 100';format.value='raw';click('점수 미리보기');review.checked=true;review.dispatchEvent(new w.Event('change'));consent=false;click('확인한 점수를 입력칸에 반영');await tick();assert.deepEqual(values(),original,'cancel overwrote scores');consent=true;
+ text.value='국어 999';text.dispatchEvent(new w.Event('input'));assert(apply.disabled);click('점수 미리보기');review.checked=true;review.dispatchEvent(new w.Event('change'));assert(apply.disabled);assert.deepEqual(values(),original);
+ click('성적 · 코칭 초안 저장');await tick();await tick();assert.equal(calls.find(c=>c.name==='cheongla_save_score_coaching').args.subject_scores.length,2);
+ // Unfilled defaults do not require six separate removals.
+ await ui.open();const grade=[...d.querySelectorAll('.score-subject')][0].querySelector('input[max="9"]');grade.value='2';const title2=[...d.querySelectorAll('label')].find(l=>l.textContent==='시험명').querySelector('input');title2.value='기타 시험';click('성적 · 코칭 초안 저장');await tick();await tick();assert.equal(calls.filter(c=>c.name==='cheongla_save_score_coaching').at(-1).args.subject_scores.length,1);
+ dom.window.close();console.log('PASS local paste: explicit headers/order, labeled scores, CSAT guard, ranges/duplicates/malformed rejection, preview/review gate, cancel/stale preview safety, no network/implicit save, partial subject save');
+})().catch(e=>{console.error(e);dom.window.close();process.exit(1)});

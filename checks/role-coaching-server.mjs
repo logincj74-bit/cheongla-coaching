@@ -166,6 +166,12 @@ try {
       .report,
     "학습코칭",
   );
+  assert.equal((await scalar("select public.cheongla_score_coaching_list()")).items[0].scores[0].raw,80);
+  await denied(() => db.query("select public.cheongla_score_coaching_action($1,'publish',1)",[report.id]));
+  await denied(() => db.query("select public.cheongla_save_score_coaching(null,$1,current_date,$2,$3,$4,null)",[ids.student,"학부모 수정 시도",JSON.stringify(score),"코칭"]));
+  await db.exec("reset role");
+  const notified=await db.query("select recipient_id from public.cheongla_notifications where source_kind='score_coaching'and source_id=$1",[report.id]);
+  assert.deepEqual(notified.rows.map(r=>r.recipient_id).sort(),[ids.student,ids.parent].sort(),"publication notified unrelated people");
   await actor("other");
   assert.equal(
     (await scalar("select public.cheongla_score_coaching_list()")).items.length,
