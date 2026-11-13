@@ -19,3 +19,10 @@ html[data-cheongla-swipe=mobile] .swipe-rail>*{flex-basis:82%}
 @media(prefers-reduced-motion:reduce){.cheongla-swipe-controls .swipe-dot[aria-current=true]{transform:none}}
 
 .spotlight-menu-content .spotlight-submenu{background:#fffdf7;border:1px solid #dce4d9;border-radius:12px;padding:12px}.spotlight-menu-content summary{cursor:pointer;font-weight:700;color:#24564d;padding:6px 0}.spotlight-menu-content button,.spotlight-menu-content a{display:block;width:100%;margin:8px 0 0;text-align:left;min-height:44px;white-space:normal;line-height:1.5}.spotlight-menu-content p{font-size:14px;min-height:0}.spotlight-menu-content details details{margin:8px 0;padding:8px;border-top:1px solid #dce4d9}
+
+/* Match the touch position instead of waiting until touchend to provide feedback. */
+html[data-cheongla-swipe=mobile] .cheongla-dragging{transform:translate3d(var(--cheongla-drag-x,0px),0,0);will-change:transform;transition:none;user-select:none}
+html[data-cheongla-swipe=mobile] .cheongla-drag-return{transition:transform .16s ease-out;transform:translate3d(0,0,0)}
+@media(prefers-reduced-motion:reduce){html[data-cheongla-swipe=mobile] .cheongla-dragging{transform:none}.cheongla-drag-return{transition:none!important}}
+
+html[data-cheongla-swipe=mobile] body{overflow-x:clip}
