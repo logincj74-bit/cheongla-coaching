@@ -127,15 +127,23 @@ Deno.serve(async (request: Request) => {
       signal: AbortSignal.timeout(60000),
     });
     if (!response.ok) {
-      let providerCode = "unknown";
-      const allowedCodes = new Set(["insufficient_quota", "billing_hard_limit_reached", "rate_limit_exceeded", "invalid_api_key", "model_not_found", "permission_denied", "invalid_image", "invalid_image_format", "invalid_base64_image", "invalid_json_schema", "invalid_request_error"]);
-      try { const body = await response.json(); const code = body.error?.code || body.error?.type; if (allowedCodes.has(code)) providerCode = code; } catch { /* no provider body is returned or logged */ }
-      const details = {provider_status: response.status, provider_code: providerCode};
-      if (providerCode === "insufficient_quota" || providerCode === "billing_hard_limit_reached")
+      let providerCode = "unknown", providerType = "unknown";
+      const allowedCodes = new Set(["insufficient_quota", "billing_hard_limit_reached", "rate_limit_exceeded", "invalid_api_key", "model_not_found", "permission_denied", "invalid_image", "invalid_image_format", "invalid_base64_image", "invalid_json_schema", "invalid_request_error", "credit_balance_exhausted", "organization_usage_limit_exceeded", "organization_spend_limit_exceeded", "project_spend_limit_exceeded", "slow_down", "rate_limit_error", "tokens", "requests"]);
+      try { const body = await response.json(); const code = body.error?.code || body.code || body.error?.type; if (allowedCodes.has(code)) providerCode = code; if (allowedCodes.has(body.error?.type)) providerType = body.error.type; } catch { /* no provider body is returned or logged */ }
+      const details = {provider_status: response.status, provider_code: providerCode, provider_type: providerType};
+      if (providerCode === "credit_balance_exhausted") return failure(402, "api_credit", "OpenAI API의 선불 크레딧 잔액이 소진됐습니다. API Billing에서 잔액을 확인해 주세요. ChatGPT 구독료와 API 이용 요금은 별도입니다.", details);
+      if (providerCode === "organization_usage_limit_exceeded") return failure(403, "api_usage_limit", "OpenAI API 계정의 승인 사용량 한도에 도달했습니다. API Limits에서 사용 한도를 확인해 주세요.", details);
+      if (providerCode === "organization_spend_limit_exceeded") return failure(402, "api_org_budget", "OpenAI API 조직의 지출 한도에 도달했습니다. 해당 조직의 Limits 설정을 확인해 주세요.", details);
+      if (providerCode === "project_spend_limit_exceeded") return failure(402, "api_project_budget", "성적표 인식에 사용하는 OpenAI 프로젝트의 지출 한도에 도달했습니다. 해당 프로젝트의 Limits 설정을 확인해 주세요.", details);
+      if (providerCode === "insufficient_quota" || providerCode === "billing_hard_limit_reached" || providerType === "insufficient_quota")
         return failure(402, "api_credit", "OpenAI API의 사용 가능 잔액 또는 결제 설정을 확인해 주세요. ChatGPT 구독료와 API 이용 요금은 별도입니다.", details);
       if (response.status === 401) return failure(503, "api_key", "인식용 OpenAI API 키를 확인해 주세요.", details);
       if (response.status === 403) return failure(503, "api_permission", "OpenAI API 키의 응답 생성 권한과 인식 모델 사용 권한을 확인해 주세요.", details);
-      if (response.status === 429) return failure(429, "api_rate_limit", "OpenAI 인식 요청이 많습니다. 잠시 기다린 뒤 ‘사진 다시 읽기’를 눌러 주세요.", details);
+      if (response.status === 429) {
+        const retry = Number(response.headers.get("retry-after"));
+        if (["rate_limit_exceeded", "slow_down", "rate_limit_error"].includes(providerCode)) return failure(429, "api_rate_limit", Number.isFinite(retry) && retry > 0 && retry <= 3600 ? Math.ceil(retry) + "초 후 사진을 다시 읽어 주세요. OpenAI의 요청 속도 제한입니다." : "OpenAI의 요청 횟수 또는 처리량 제한입니다. API Limits에서 인식 모델의 요청·토큰 한도를 확인해 주세요.", details);
+        return failure(429, "api_request_limit", "OpenAI가 인식 요청을 제한했습니다. API 계정의 결제·잔액과 모델별 사용 한도를 확인해야 합니다. 대기만으로 해결되는 일시적 제한인지는 아직 확인되지 않았습니다.", details);
+      }
       if (response.status === 404) return failure(503, "api_model", "인식 모델의 사용 가능 여부를 관리자에게 확인해 주세요.", details);
       if (["invalid_image", "invalid_image_format", "invalid_base64_image"].includes(providerCode)) return failure(422, "image_format", "사진 형식을 읽을 수 없습니다. JPEG 또는 PNG 사진으로 다시 선택해 주세요.", details);
       return failure(502, "api_request", "사진 인식 서비스의 요청 처리에 실패했습니다. 관리자에게 오류 코드 api_request를 알려 주세요.", details);

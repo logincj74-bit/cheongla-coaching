@@ -13,6 +13,7 @@ let handler,
   fetchError = false,
   apiStatus = 200,
   providerCode = "",
+  providerType = "",
   diagnosticLogs = [],
   output,
   requests = [];
@@ -53,7 +54,7 @@ const context = vm.createContext({
     requests.push({ url, args });
     if (fetchError) throw Error("network");
     return new Response(
-      JSON.stringify(apiStatus >= 400 ? {error:{code:providerCode,message:"provider-private-detail-test-key"}} : {
+      JSON.stringify(apiStatus >= 400 ? {error:{code:providerCode,type:providerType,message:"provider-private-detail-test-key"}} : {
         output: [
           {
             content: [
@@ -224,6 +225,8 @@ const call = async (
   assert.equal((await call()).status, 429);
   providerCode="insufficient_quota";
   const credit=await call();assert.equal(credit.status,402);const creditBody=await credit.json();assert.equal(creditBody.code,'api_credit');assert(creditBody.error.includes('잔액'));assert(!JSON.stringify(creditBody).includes('provider-private-detail'));
+  for(const [code,expected,http] of [['credit_balance_exhausted','api_credit',402],['organization_usage_limit_exceeded','api_usage_limit',403],['organization_spend_limit_exceeded','api_org_budget',402],['project_spend_limit_exceeded','api_project_budget',402],['slow_down','api_rate_limit',429]]){providerCode=code;const response=await call();assert.equal(response.status,http);assert.equal((await response.json()).code,expected);}
+  providerCode='new_unknown_code';providerType='insufficient_quota';const quotaFallback=await call();assert.equal(quotaFallback.status,402);assert.equal((await quotaFallback.json()).code,'api_credit');providerType='';const unknownLimit=await call();assert.equal(unknownLimit.status,429);const unknownBody=await unknownLimit.json();assert.equal(unknownBody.code,'api_request_limit');assert(!unknownBody.error.includes('잠시 기다린'));
   for(const [status,code,expected,http] of [[401,'invalid_api_key','api_key',503],[403,'permission_denied','api_permission',503],[404,'model_not_found','api_model',503],[400,'invalid_image','image_format',422],[400,'invalid_json_schema','api_request',502]]){apiStatus=status;providerCode=code;const response=await call();assert.equal(response.status,http);assert.equal((await response.json()).code,expected);}
   assert(!diagnosticLogs.join('').includes('provider-private-detail'));assert(!diagnosticLogs.join('').includes('test-key'));
   apiStatus = 200;
