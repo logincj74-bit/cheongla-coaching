@@ -1,28 +1,9 @@
 const fs = require("fs");
 const vm = require("vm");
 const assert = require("node:assert/strict");
-const cp = require("child_process");
-const typescriptPath = cp
-  .execFileSync(
-    "find",
-    ["/home/agent/.npm/_npx", "-path", "*/typescript/lib/typescript.js"],
-    { encoding: "utf8" },
-  )
-  .trim()
-  .split("\n")[0];
-if (!typescriptPath)
-  throw Error("Install TypeScript before running this check");
-const ts = require(typescriptPath);
-const source = fs.readFileSync(
-  "supabase/functions/cheongla-score-extract/index.ts",
-  "utf8",
-);
-const js = ts.transpileModule(source.replace(/^import[^\n]*\n/, ""), {
-  compilerOptions: {
-    target: ts.ScriptTarget.ES2022,
-    module: ts.ModuleKind.None,
-  },
-}).outputText;
+const { stripTypeScriptTypes } = require("node:module");
+const source = fs.readFileSync("supabase/functions/cheongla-score-extract/index.ts", "utf8");
+const js = stripTypeScriptTypes(source.replace(/^import[^\n]*\n/, ""));
 let handler,
   role = "owner",
   approved = true,
