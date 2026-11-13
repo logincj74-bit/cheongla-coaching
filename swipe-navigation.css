@@ -10,3 +10,10 @@
 @media(prefers-reduced-motion:reduce){.cheongla-slide-left,.cheongla-slide-right{animation:none}.swipe-rail{scroll-behavior:auto}}
 
 .cheongla-swipe-tabs{flex-wrap:nowrap!important;overflow-x:auto;max-width:100%;overscroll-behavior-x:contain}.cheongla-swipe-tabs button{flex:0 0 auto}.cheongla-swipe-hint{font-size:13px;color:#526c62}
+/* A visible slice of the next card makes the gesture discoverable. */
+html[data-cheongla-swipe=mobile] .swipe-rail>*{flex-basis:82%}
+.cheongla-swipe-controls .swipe-dot{min-width:32px;min-height:44px;padding:8px 6px;font-size:13px;background:transparent;color:#8ca79a;border-radius:0}
+.cheongla-swipe-controls .swipe-dot[aria-current=true]{background:transparent;color:#183d47;transform:scale(1.25)}
+.cheongla-swipe-controls{gap:4px}.cheongla-swipe-controls>button:first-child,.cheongla-swipe-controls>button:last-child{background:#edf3f0;border-radius:12px;padding:10px 14px;font-size:13px}
+.mobile-role-home{margin:16px 0 20px;padding:20px;border:1px solid #d8e5da;border-radius:20px;background:#fffdf7}.mobile-role-home h2{margin:0;color:#24564d;font-size:22px}.mobile-role-home>p{margin:10px 0 16px}.mobile-home-shortcuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.mobile-home-shortcut{min-height:66px;padding:14px 10px;background:#edf3f0;color:#24564d;line-height:1.5;overflow-wrap:anywhere}.mobile-home-shortcut:first-child{background:#183d47;color:white}.mobile-all-menus{margin:12px 0 20px;border:1px solid #dce4d9;border-radius:14px;background:#fffdf7}.mobile-all-menus>summary{padding:16px 18px;color:#24564d;font-weight:700;cursor:pointer}.mobile-all-menus[open]>summary{border-bottom:1px solid #dce4d9}.mobile-all-menus #siteNavigation{margin:12px;padding:0}.mobile-journal-slot:empty{display:none}.mobile-journal-slot #journalHomeCard{margin:12px 0 16px;padding:14px;border-radius:14px}.mobile-journal-slot .journal-home-actions{gap:8px}
+@media(prefers-reduced-motion:reduce){.cheongla-swipe-controls .swipe-dot[aria-current=true]{transform:none}}
