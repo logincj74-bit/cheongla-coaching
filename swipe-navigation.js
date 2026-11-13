@@ -71,12 +71,38 @@ function attachRail(rail,name){
 }
 function scan(){for(const [node,x]of rails)if(!node.isConnected){x.observer.disconnect();root.removeEventListener('resize',x.update);x.controls.remove();rails.delete(node);}for(const id of ['homeSpotlightRail','homeTourSection','homeDailyCountdown']){const n=doc.getElementById(id);if(n)attachRail(n,id==='homeDailyCountdown'?'주요 일정':id==='homeTourSection'?'학원 동영상':'청라 주요 안내');}for(const gallery of doc.querySelectorAll('#publicContentBody .public-gallery'))if(gallery.children.length>1)attachRail(gallery,'청라 사진');schedule();}
 const spotlight=el('section');spotlight.className='cheongla-swipe-home';spotlight.append(el('h2','청라 한눈에 보기'),el('p','← 카드를 좌우로 밀어보세요 →'));const homeRail=el('div');homeRail.id='homeSpotlightRail';homeRail.className='cheongla-swipe-rail';spotlight.append(homeRail);
-function highlight(title,body,selector){const card=el('article');card.className='cheongla-swipe-card';card.append(el('small','CHEONGLA'),el('h3',title),el('p',body),btn('자세히 보기',()=>{const b=doc.querySelector(selector);b?.click();}));homeRail.append(card);return card;}
-highlight('학원 소개','공부에 집중하는 하루, 청라의 생활 관리와 학습 지원을 만나보세요.','#siteNavigation [data-public-page="greeting"]');
-highlight('청라 모습','학습 공간을 사진으로 둘러보세요. 사진도 좌우로 넘길 수 있습니다.','#siteNavigation [data-public-page="photos"]');
-highlight('청라 소식','주요 입시 소식과 학원에서 전하는 자료를 확인하세요.','#siteNavigation [data-member-page="admissions_news"]');
-const winterCard=highlight('윈터스쿨','자기주도학습을 준비하는 청라 윈터스쿨 안내를 확인하세요.','#winterPromotion a[href]');winterCard.hidden=true;home.prepend(spotlight);
-const winter=doc.getElementById('winterPromotion');if(winter)new MutationObserver(()=>{const hidden=winter.hidden||!winter.querySelector('a[href]');if(winterCard.hidden!==hidden){winterCard.hidden=hidden;const instance=rails.get(homeRail);if(instance){instance.observer.disconnect();root.removeEventListener('resize',instance.update);rails.delete(homeRail);instance.controls.remove();attachRail(homeRail,'청라 주요 안내');}}}).observe(winter,{attributes:true,attributeFilter:['hidden'],childList:true});
+// Reuse the real menu controls so permission checks and destination history stay intact.
+const highlights=[
+ ['청라소개','청라의 소개, 모습, 생활 규칙을 확인하세요.','[data-public-page="greeting"]'],
+ ['청라소식','공지와 월간일정, 입시 뉴스와 자료를 확인하세요.','[data-member-page="admissions_news"]'],
+ ['청라 Q&A','학생·학부모 상담과 신규 상담 문의를 남겨 주세요.','[data-public-page="new_inquiry"]'],
+ ['청라생활','생활·학습 기록과 청라의 운영 업무를 확인하세요.','#deskMenu'],
+ ['청라비용안내','학원비, 모의고사비, 도시락비 안내를 확인하세요.','#feeNoticeMenu'],
+ ['청라에게 묻기','계정 복구, 연락처와 문의 답변을 확인하세요.','#askMenu'],
+ ['청재의 서재','원장님의 글과 사진, 칼럼을 만나보세요.','#directorLibrary'],
+ ['나의 MBTI학습법','나의 학습성향과 유형별 공부 방법을 살펴보세요.','[data-member-page="mbti_intro"]'],
+ ['청라찾아오시는 길','청라의 위치와 방문 방법을 확인하세요.','[data-public-page="visit"]']
+].map(([title,body,selector])=>{
+ const card=el('article');card.className='cheongla-swipe-card';card.dataset.spotlightMenu=title;
+ const content=el('div');content.className='spotlight-menu-content';card.append(el('small','CHEONGLA'),el('h3',title),el('p',body),content);homeRail.append(card);return {selector,content};
+});
+function menuCopy(source){
+ if(source.hidden)return null;
+ if(source.matches('button')){const copy=btn(source.textContent.trim(),()=>{if(source.isConnected&&!source.hidden&&!source.disabled)source.click();});copy.disabled=source.disabled;return copy;}
+ if(source.matches('a')){const copy=source.cloneNode(true);copy.removeAttribute('id');return copy;}
+ if(!source.matches('details,div'))return null;
+ const copy=el(source.localName);if(source.matches('details'))copy.append(el('summary',source.querySelector(':scope>summary')?.textContent.trim()||'메뉴 보기'));
+ for(const child of source.children){const item=menuCopy(child);if(item)copy.append(item);}return copy;
+}
+function syncHighlights(){for(const {selector,content}of highlights){
+ const node=nav.querySelector(selector),source=node?.closest('.site-menu');content.replaceChildren();
+ if(!source||source.hidden){content.append(el('p','로그인과 이용 권한에 따라 사용할 수 있는 메뉴입니다.'));continue;}
+ if(source.matches('button')){content.append(menuCopy(source));continue;}
+ const menu=el('details');menu.className='spotlight-submenu';menu.append(el('summary','하위 메뉴 보기'));
+ for(const child of source.children){const item=menuCopy(child);if(item)menu.append(item);}content.append(menu);
+}}
+home.prepend(spotlight);syncHighlights();
+new MutationObserver(syncHighlights).observe(nav,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','disabled']});
 function mbtiStep(step){const tabs=[...doc.querySelectorAll('#mbtiStudyTabs button')].filter(b=>!b.hidden&&!b.disabled),i=tabs.findIndex(b=>b.getAttribute('aria-pressed')==='true');if(i<0||!tabs[i+step])return false;tabs[i+step].click();if(!reduced()){const panel=doc.getElementById('mbtiStudyCards');panel.classList.remove('cheongla-slide-left','cheongla-slide-right');void panel.offsetWidth;panel.classList.add(step>0?'cheongla-slide-left':'cheongla-slide-right');}return true;}
 function horizontalArea(node){for(let n=node;n&&n!==doc.body;n=n.parentElement){if(n.classList.contains('swipe-rail'))return true;if(n.scrollWidth>n.clientWidth+8&&['auto','scroll'].includes(root.getComputedStyle(n).overflowX))return true;}return false;}
 function start(event){gesture=null;if(event.touches.length!==1||blocked(event.target))return;const p=event.touches[0],width=root.visualViewport?.width||root.innerWidth;if(p.clientX<28||p.clientX>width-28)return;if(horizontalArea(event.target))return;gesture={x:p.clientX,y:p.clientY,time:Date.now(),local:!!event.target.closest('#mbtiStudyCards,#mbtiStudySummary'),node:event.target};}
