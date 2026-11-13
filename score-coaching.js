@@ -689,7 +689,18 @@
           if (!current()) return;
           const r = await c.functions.invoke("cheongla-score-extract", {body: {image, exam_type: extractionType}});
           if (!current()) return;
-          if (r.error) throw Error("성적표 인식 서버 연결을 확인해 주세요. ‘사진 다시 읽기’로 재시도하거나 점수를 직접 입력할 수 있습니다.");
+          if (r.error) {
+            let message = "성적표 인식 서버 연결을 확인해 주세요. ‘사진 다시 읽기’로 재시도하거나 점수를 직접 입력할 수 있습니다.";
+            try {
+              const context = r.error.context;
+              const response = context?.clone ? context.clone() : context;
+              const payload = await response?.json?.();
+              if (typeof payload?.error === "string" && payload.error.length <= 500) message = payload.error;
+              else if (context?.status === 401) message = "로그인 시간이 만료됐습니다. 다시 로그인한 뒤 사진을 선택해 주세요.";
+            } catch { /* retain the network failure message */ }
+            if (!current()) return;
+            throw Error(message);
+          }
           if (!Array.isArray(r.data?.scores) || !r.data.scores.length) throw Error("읽을 수 있는 점수가 없습니다. 선명한 사진으로 다시 시도해 주세요.");
           if (extractionType !== type.value) { photoStatus.textContent = "시험 구분이 변경되었습니다. 사진 읽기를 다시 실행해 주세요."; return; }
           fill(r.data.scores); dirty = true;

@@ -12,6 +12,8 @@ let handler,
   quotaError = false,
   fetchError = false,
   apiStatus = 200,
+  providerCode = "",
+  diagnosticLogs = [],
   output,
   requests = [];
 const client = {
@@ -41,7 +43,7 @@ const context = vm.createContext({
   Request,
   AbortSignal,
   URL,
-  console,
+  console: {...console, warn: message=>diagnosticLogs.push(message)},
   Deno: {
     env: { get: (name) => (name === "OPENAI_API_KEY" ? key : "test-config") },
     serve: (fn) => (handler = fn),
@@ -51,7 +53,7 @@ const context = vm.createContext({
     requests.push({ url, args });
     if (fetchError) throw Error("network");
     return new Response(
-      JSON.stringify({
+      JSON.stringify(apiStatus >= 400 ? {error:{code:providerCode,message:"provider-private-detail-test-key"}} : {
         output: [
           {
             content: [
@@ -219,12 +221,16 @@ const call = async (
   output = "unreadable";
   assert.equal((await call()).status, 502);
   apiStatus = 429;
-  assert.equal((await call()).status, 502);
+  assert.equal((await call()).status, 429);
+  providerCode="insufficient_quota";
+  const credit=await call();assert.equal(credit.status,402);const creditBody=await credit.json();assert.equal(creditBody.code,'api_credit');assert(creditBody.error.includes('잔액'));assert(!JSON.stringify(creditBody).includes('provider-private-detail'));
+  for(const [status,code,expected,http] of [[401,'invalid_api_key','api_key',503],[403,'permission_denied','api_permission',503],[404,'model_not_found','api_model',503],[400,'invalid_image','image_format',422],[400,'invalid_json_schema','api_request',502]]){apiStatus=status;providerCode=code;const response=await call();assert.equal(response.status,http);assert.equal((await response.json()).code,expected);}
+  assert(!diagnosticLogs.join('').includes('provider-private-detail'));assert(!diagnosticLogs.join('').includes('test-key'));
   apiStatus = 200;
   fetchError = true;
   assert.equal((await call()).status, 502);
   console.log(
-    "PASS OCR authorization, missing configuration, upload validation, quota, structured provider request, output allowlist, unknown score retention and failure handling; provider calls are mocked",
+    "PASS OCR authorization, missing configuration, upload validation, quota, structured provider request, output allowlist, unknown score retention, credit/auth/permission/rate/image error categories and sanitized diagnostic logs; provider calls are mocked",
   );
 })().catch((error) => {
   console.error(error);
