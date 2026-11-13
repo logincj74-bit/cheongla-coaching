@@ -80,17 +80,18 @@ async function navigate(step){
 const rails=new Map();
 function attachRail(rail,name){
  if(rails.has(rail))return;const controls=el('div');controls.className='cheongla-swipe-controls';controls.setAttribute('aria-label',name+' 넘기기');controls.setAttribute('role','group');rail.after(controls);
- let cards=[],index=0,timer;const adaptive=rail.id==='homeSpotlightRail',status=el('p');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
+ let cards=[],offsets=[],measuredWidth=-1,index=0,timer,scrollFrame=0;const adaptive=rail.id==='homeSpotlightRail',status=el('p');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
  function fit(){if(!adaptive||!cards[index]||!visible(rail))return;const height=cards[index].offsetHeight;if(!height)return;const style=root.getComputedStyle(rail),extra=(parseFloat(style.paddingTop)||0)+(parseFloat(style.paddingBottom)||0);rail.style.height=Math.ceil(height+extra)+'px';}
  function activate(){if(adaptive){for(const card of cards)if(card!==cards[index])card.querySelectorAll('details[open]').forEach(n=>n.open=false);fit();}}
- function leftFor(i){return cards[i].getBoundingClientRect().left-cards[0].getBoundingClientRect().left;}
+ function measure(){const origin=cards[0]?.offsetLeft||0;offsets=cards.map(card=>card.offsetLeft-origin);measuredWidth=rail.clientWidth;}
+ function leftFor(i){return offsets[i]||0;}
  function paint(){status.textContent=(index+1)+' / '+cards.length;controls.querySelectorAll('[data-slide]').forEach((b,i)=>b.setAttribute('aria-current',String(i===index)));controls.firstChild.disabled=index===0;controls.lastChild.disabled=index===cards.length-1;}
- function update(settle=true){if(!cards.length)return;index=cards.reduce((best,card,i)=>Math.abs(leftFor(i)-rail.scrollLeft)<Math.abs(leftFor(best)-rail.scrollLeft)?i:best,0);paint();if(settle===true)activate();}
- function go(i){i=Math.max(0,Math.min(cards.length-1,i));if(!cards[i])return;const left=leftFor(i);index=i;activate();paint();if(rail.scrollTo)rail.scrollTo({left,behavior:reduced()?'instant':'smooth'});else rail.scrollLeft=left;}
- const sizeObserver=adaptive&&root.ResizeObserver?new root.ResizeObserver(fit):null;
- function rebuild(){sizeObserver?.disconnect();cards=[...rail.children].filter(n=>!n.hidden);rail.classList.toggle('swipe-rail',cards.length>1);controls.hidden=cards.length<=1;controls.replaceChildren();if(cards.length<=1)return;
+ function update(settle=true){if(!cards.length)return;if(measuredWidth!==rail.clientWidth||settle?.type==='resize')measure();index=cards.reduce((best,card,i)=>Math.abs(leftFor(i)-rail.scrollLeft)<Math.abs(leftFor(best)-rail.scrollLeft)?i:best,0);paint();if(settle===true)activate();}
+ function go(i){i=Math.max(0,Math.min(cards.length-1,i));if(!cards[i])return;measure();const left=leftFor(i);index=i;activate();paint();if(rail.scrollTo)rail.scrollTo({left,behavior:reduced()?'instant':'smooth'});else rail.scrollLeft=left;}
+ const sizeObserver=adaptive&&root.ResizeObserver?new root.ResizeObserver(()=>{measure();fit();}):null;
+ function rebuild(){sizeObserver?.disconnect();cards=[...rail.children].filter(n=>!n.hidden);measure();rail.classList.toggle('swipe-rail',cards.length>1);controls.hidden=cards.length<=1;controls.replaceChildren();if(cards.length<=1)return;
  rail.setAttribute('aria-label',name+' · 좌우로 넘기기');controls.append(btn('← 이전',()=>go(index-1)),status);cards.forEach((card,i)=>{const dot=btn('●',()=>go(i));dot.className='swipe-dot';dot.dataset.slide=String(i);dot.setAttribute('aria-label',name+' '+(i+1)+'번째 보기');controls.append(dot);card.querySelectorAll('img').forEach(img=>img.draggable=false);sizeObserver?.observe(card);});controls.append(btn('다음 →',()=>go(index+1)));controls.firstChild.setAttribute('aria-label',name+' 이전');controls.lastChild.setAttribute('aria-label',name+' 다음');update();}
- const observer=new MutationObserver(rebuild);observer.observe(rail,{childList:true});rail.addEventListener('scroll',()=>{update(false);root.clearTimeout(timer);timer=root.setTimeout(()=>update(true),110);},{passive:true});rail.addEventListener('scrollend',()=>update(true),{passive:true});rail.addEventListener('toggle',fit,true);root.addEventListener('resize',update,{passive:true});rails.set(rail,{observer,controls,update,fit,dispose:()=>sizeObserver?.disconnect()});rebuild();
+ const observer=new MutationObserver(rebuild);observer.observe(rail,{childList:true});rail.addEventListener('scroll',()=>{if(!scrollFrame)scrollFrame=root.requestAnimationFrame(()=>{scrollFrame=0;update(false);});root.clearTimeout(timer);timer=root.setTimeout(()=>update(true),110);},{passive:true});rail.addEventListener('scrollend',()=>update(true),{passive:true});rail.addEventListener('toggle',fit,true);root.addEventListener('resize',update,{passive:true});rails.set(rail,{observer,controls,update,fit,dispose:()=>{sizeObserver?.disconnect();root.clearTimeout(timer);if(scrollFrame)root.cancelAnimationFrame(scrollFrame);}});rebuild();
 }
 function scan(){for(const [node,x]of rails)if(!node.isConnected){x.observer.disconnect();x.dispose();root.removeEventListener('resize',x.update);x.controls.remove();rails.delete(node);}for(const id of ['homeSpotlightRail','homeTourSection','homeDailyCountdown']){const n=doc.getElementById(id);if(n)attachRail(n,id==='homeDailyCountdown'?'주요 일정':id==='homeTourSection'?'학원 동영상':'청라 주요 안내');}for(const gallery of doc.querySelectorAll('#publicContentBody .public-gallery'))if(gallery.children.length>1)attachRail(gallery,'청라 사진');schedule();}
 const spotlight=el('section');spotlight.className='cheongla-swipe-home';spotlight.append(el('h2','청라 한눈에 보기'),el('p','← 카드를 좌우로 밀어보세요 →'));const homeRail=el('div');homeRail.id='homeSpotlightRail';homeRail.className='cheongla-swipe-rail';spotlight.append(homeRail);
@@ -117,7 +118,8 @@ function menuCopy(source){
  const copy=el(source.localName);if(source.matches('details'))copy.append(el('summary',source.querySelector(':scope>summary')?.textContent.trim()||'메뉴 보기'));
  for(const child of source.children){const item=menuCopy(child);if(item)copy.append(item);}return copy;
 }
-function syncHighlights(){for(const {selector,content}of highlights){
+let highlightsPending=false;
+function syncHighlights(){if(home.hidden){highlightsPending=true;return;}highlightsPending=false;for(const {selector,content}of highlights){
  const node=nav.querySelector(selector),source=node?.closest('.site-menu'),opened=[...content.querySelectorAll('details')].map(n=>n.open);content.replaceChildren();
  if(!source||source.hidden){content.append(el('p','로그인과 이용 권한에 따라 사용할 수 있는 메뉴입니다.'));continue;}
  if(source.matches('button')){content.append(menuCopy(source));continue;}
@@ -130,6 +132,7 @@ doc.addEventListener('click',event=>{const summary=event.target.closest('summary
  for(const other of homeRail.querySelectorAll('details'))if(opening?(!other.contains(details)&&!details.contains(other)):details.contains(other))other.open=false;
  details.open=opening;rails.get(homeRail)?.fit();
 },true);
+new MutationObserver(()=>{if(highlightsPending&&!home.hidden)syncHighlights();}).observe(home,{attributes:true,attributeFilter:['hidden']});
 new MutationObserver(syncHighlights).observe(nav,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','disabled']});
 function mbtiStep(step){const tabs=[...doc.querySelectorAll('#mbtiStudyTabs button')].filter(b=>!b.hidden&&!b.disabled),i=tabs.findIndex(b=>b.getAttribute('aria-pressed')==='true');if(i<0||!tabs[i+step])return false;tabs[i+step].click();if(!reduced()){const panel=doc.getElementById('mbtiStudyCards');panel.classList.remove('cheongla-slide-left','cheongla-slide-right');void panel.offsetWidth;panel.classList.add(step>0?'cheongla-slide-left':'cheongla-slide-right');}return true;}
 function horizontalArea(node){for(let n=node;n&&n!==doc.body;n=n.parentElement){if(n.classList.contains('swipe-rail'))return true;if(n.scrollWidth>n.clientWidth+8&&['auto','scroll'].includes(root.getComputedStyle(n).overflowX))return true;}return false;}
