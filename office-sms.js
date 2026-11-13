@@ -188,6 +188,6 @@ const previousMenu=configureDeskMenu;root.configureDeskMenu=function(){previousM
 const previousOpen=openSiteDestination;root.openSiteDestination=async function(key,...args){if((dirty||composeDirty)&&!await leave())return;if(key==='account_officeSmsPanel'&&!allowed())return;const result=await previousOpen(key,...args);if(key==='account_officeSmsPanel'&&allowed()){await open();if(valid()){panel.scrollIntoView({block:'start'});root.CheonglaDetailNavigation?.align(panel);}}return result;};
 const previousClear=clearAccount;root.clearAccount=function(...args){reset();return previousClear(...args);};
 root.addEventListener('beforeunload',ev=>{if(dirty||composeDirty){ev.preventDefault();ev.returnValue='';}});
-root.CheonglaOfficeSMS={variables,render,dateRangeError,open,reset,allowed,names};
+root.CheonglaOfficeSMS={variables,render,dateRangeError,open,reset,allowed,names,leave,get dirty(){return dirty||composeDirty;}};
 configureDeskMenu();configureAccountSections();
 })(globalThis);

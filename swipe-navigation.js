@@ -10,12 +10,20 @@ const el=(t,text)=>{const n=doc.createElement(t);if(text!==undefined)n.textConte
 const btn=(label,fn)=>{const n=el('button',label);n.type='button';n.className='secondary';n.addEventListener('click',fn);return n;};
 const visible=n=>!!n&&!n.closest('[hidden],.account-section-inactive')&&!n.closest('details:not([open])');
 const reduced=()=>root.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-let dirtyForms=new WeakSet(),gesture=null,direction=0,frame=0;
+let dirtyForms=new WeakSet(),gesture=null,direction=0,frame=0,navigating=false,restoring=false,restoreToken=0;
+const positions=new Map();
+let activeEntry=root.history.state?.cheonglaView||{view:'home',key:'',index:0},furthest=activeEntry.index||0;
+root.history.scrollRestoration='manual';
+const entryKey=s=>[s.index||0,s.view,s.key||''].join(':');
+function remember(){if(!restoring)positions.set(entryKey(activeEntry),{left:root.scrollX||0,top:root.scrollY||0});}
+function restorePosition(){const token=++restoreToken;activeEntry=state();const position=positions.get(entryKey(activeEntry));restoring=false;navigating=false;
+ if(position)root.requestAnimationFrame(()=>root.requestAnimationFrame(()=>{if(token===restoreToken)root.scrollTo({...position,behavior:'instant'});}));schedule();
+}
 function activePanel(){if(!doc.getElementById('accountPanel').hidden){const p=[...doc.querySelectorAll('#accountPanel>section')].find(visible);if(p)return p;}return ['publicContentPanel','informationPanel','newInquiryPanel','homeDictionary','homePanel'].map(id=>doc.getElementById(id)).find(visible);}
 function dirtyVisible(){return [...doc.querySelectorAll('form')].some(f=>visible(f)&&dirtyForms.has(f));}
 function editable(n){return n?.closest?.('input,textarea,select,[contenteditable="true"]');}
-function protectedScreen(){return ['staffJournalPanel','officeSmsPanel','registrationPanel','scoreCoachingPanel','learningPanel'].some(id=>visible(doc.getElementById(id)));}
-function blocked(start){return doc.querySelector('dialog[open]')||editable(doc.activeElement)||dirtyVisible()||protectedScreen()||start?.closest?.('input,textarea,select,button,a,summary,video,audio,[contenteditable="true"],#siteBackControls,#siteNavigation,.rules-image-expanded');}
+function protectedScreen(){return ['registrationPanel','scoreCoachingPanel','learningPanel'].some(id=>visible(doc.getElementById(id)));}
+function blocked(start){return doc.querySelector('dialog[open]')||editable(doc.activeElement)||navigating||restoring||protectedScreen()||start?.closest?.('input,textarea,select,button,a,summary,video,audio,[contenteditable="true"],#siteBackControls,#siteNavigation,.rules-image-expanded');}
 function state(){return root.history.state?.cheonglaView||{view:'home',key:''};}
 function allowedButton(button){
  if(button.disabled||button.hidden)return false;const key=button.dataset.publicPage||button.dataset.memberPage||button.dataset.swipeRoute||'';
@@ -31,15 +39,26 @@ function allowedButton(button){
 }
 function groups(){return [...nav.children].filter(n=>!n.hidden).map(n=>{const all=n.matches('button')?[n]:[...n.querySelectorAll('button[data-public-page],button[data-member-page],button[data-swipe-route],#officeSmsMenu')];
  const buttons=all.filter(allowedButton);return {label:n.querySelector(':scope>summary .menu-summary-label')?.textContent.trim()||n.querySelector(':scope>summary')?.textContent.trim()||n.textContent.trim(),buttons,keys:all.map(b=>b.dataset.publicPage||b.dataset.memberPage||b.dataset.swipeRoute)};}).filter(g=>g.buttons.length);}
-const pager=el('section');pager.className='cheongla-menu-pager';pager.setAttribute('aria-label','좌우 메뉴 이동');
-const previous=btn('← 이전 메뉴',()=>navigate(-1)),next=btn('다음 메뉴 →',()=>navigate(1)),label=el('p'),help=el('p','본문을 좌우로 밀어 메뉴를 이동할 수 있습니다.');label.setAttribute('role','status');label.setAttribute('aria-live','polite');help.className='swipe-help';pager.append(previous,next,label,help);nav.after(pager);
-function sync(){frame=0;const list=groups(),s=state();const index=s.view==='home'?-1:list.findIndex(g=>g.keys.includes(s.key));previous.disabled=index<=0;next.disabled=index>=list.length-1||!list.length;
- label.textContent=index>=0?list[index].label+' · '+(index+1)+' / '+list.length:'청라 첫 화면';previous.textContent=index>0?'← '+list[index-1].label:'← 이전 메뉴';next.textContent=index<list.length-1?(list[index+1]?.label||list[0]?.label)+' →':'다음 메뉴 →';
- help.textContent=protectedScreen()||dirtyVisible()?'작성 화면에서는 스와이프 이동을 잠시 멈춥니다.':'본문 좌우 스와이프 · 카드와 사진은 해당 영역만 넘깁니다.';
+const pager=el('section');pager.className='cheongla-menu-pager';pager.setAttribute('aria-label','이전·다음 화면 이동');
+const previous=btn('← 이전 화면',()=>navigate(-1)),next=btn('다음 화면 →',()=>navigate(1)),label=el('p'),help=el('p');label.setAttribute('role','status');label.setAttribute('aria-live','polite');help.className='swipe-help';pager.append(previous,next,label,help);nav.after(pager);
+function sync(){frame=0;const s=state(),index=s.index||0;previous.disabled=index<=0||navigating;next.disabled=index>=furthest||navigating;
+ label.textContent='화면 이동';help.textContent='오른쪽으로 쓸면 이전 화면 · 왼쪽으로 쓸면 다음 화면';
  if(direction){const panel=activePanel();if(panel&&!reduced()){panel.classList.remove('cheongla-slide-left','cheongla-slide-right');void panel.offsetWidth;panel.classList.add(direction>0?'cheongla-slide-left':'cheongla-slide-right');root.setTimeout(()=>panel.classList.remove('cheongla-slide-left','cheongla-slide-right'),220);}direction=0;}
 }
 function schedule(){if(!frame)frame=root.requestAnimationFrame(sync);}
-function navigate(step){if(doc.querySelector('dialog[open]')||dirtyVisible()){help.textContent='작성 중인 내용을 먼저 저장하거나 취소해 주세요.';return false;}const list=groups(),s=state(),i=s.view==='home'?-1:list.findIndex(g=>g.keys.includes(s.key)),target=list[i+step];if(!target)return false;direction=step;target.buttons[0].click();root.setTimeout(()=>{direction=0;schedule();},400);return true;}
+async function canLeave(){
+ const owned=[['officeSmsPanel',root.CheonglaOfficeSMS],['staffJournalPanel',root.CheonglaStaffJournalUI]].find(([id])=>visible(doc.getElementById(id)));
+ if(owned?.[1]?.leave)return await owned[1].leave();
+ if(!dirtyVisible())return true;
+ const confirm=root.appConfirm||root.confirm;return !!(await confirm('저장하지 않은 내용을 버리고 이전·다음 화면으로 이동할까요?'));
+}
+async function navigate(step){
+ const index=state().index||0;if(navigating||restoring||doc.querySelector('dialog[open]')||(step<0?index<=0:index>=furthest))return false;
+ navigating=true;schedule();
+ try{if(!await canLeave()){navigating=false;schedule();return false;}}
+ catch(error){navigating=false;schedule();return false;}
+ remember();direction=step;root.history.go(step<0?-1:1);return true;
+}
 const rails=new Map();
 function attachRail(rail,name){
  if(rails.has(rail))return;const controls=el('div');controls.className='cheongla-swipe-controls';controls.setAttribute('aria-label',name+' 넘기기');controls.setAttribute('role','group');rail.after(controls);
@@ -66,10 +85,12 @@ function end(event){const g=gesture;gesture=null;if(!g||event.changedTouches.len
 doc.addEventListener('touchstart',start,{passive:true});doc.addEventListener('touchmove',move,{passive:false});doc.addEventListener('touchend',end,{passive:true});doc.addEventListener('touchcancel',()=>gesture=null,{passive:true});
 for(const name of ['input','change'])doc.addEventListener(name,e=>{const f=e.target.form;if(f&&f.id!=='mbtiStudyForm'&&!e.target.matches('[type=search]'))dirtyForms.add(f);schedule();},true);
 doc.addEventListener('reset',e=>{dirtyForms.delete(e.target);schedule();},true);
-const record=recordSiteView;root.recordSiteView=function(...args){const r=record(...args);schedule();return r;};
+const record=recordSiteView;root.recordSiteView=function(...args){remember();const previous=entryKey(state()),r=record(...args);if(previous!==entryKey(state())){restoreToken++;activeEntry=state();furthest=activeEntry.index||0;}schedule();return r;};
 const menu=configureDeskMenu;root.configureDeskMenu=function(...args){const r=menu(...args);schedule();return r;};
-const clear=clearAccount;root.clearAccount=function(...args){dirtyForms=new WeakSet();gesture=null;return clear(...args);};
+const clear=clearAccount;root.clearAccount=function(...args){dirtyForms=new WeakSet();gesture=null;positions.clear();restoreToken++;return clear(...args);};
 new MutationObserver(scan).observe(doc.getElementById('publicContentBody'),{childList:true,subtree:true});
+root.addEventListener('cheongla:view-restoring',()=>{remember();restoring=true;restoreToken++;});
+root.addEventListener('cheongla:view-restored',restorePosition);
 root.addEventListener('popstate',schedule);root.addEventListener('resize',schedule,{passive:true});
 const tabs=doc.getElementById('mbtiStudyTabs');if(tabs){tabs.classList.add('cheongla-swipe-tabs');const hint=el('p','← 학습법 본문을 좌우로 밀면 과목이 바뀝니다 →');hint.className='cheongla-swipe-hint';tabs.after(hint);}
 root.CheonglaSwipe={enabled:true,groups,navigate,scan,mbtiStep};scan();
