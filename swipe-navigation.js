@@ -10,7 +10,7 @@ const el=(t,text)=>{const n=doc.createElement(t);if(text!==undefined)n.textConte
 const btn=(label,fn)=>{const n=el('button',label);n.type='button';n.className='secondary';n.addEventListener('click',fn);return n;};
 const visible=n=>!!n&&!n.closest('[hidden],.account-section-inactive')&&!n.closest('details:not([open])');
 const reduced=()=>root.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-let dirtyForms=new WeakSet(),gesture=null,direction=0,frame=0,navigating=false,restoring=false,restoreToken=0;
+let dirtyForms=new WeakSet(),gesture=null,direction=0,frame=0,navigating=false,restoring=false,restoreToken=0,transitioning=false;
 const positions=new Map();
 let pendingOrigin=null;
 let activeEntry=root.history.state?.cheonglaView||{view:'home',key:'',index:0},furthest=activeEntry.index||0;
@@ -25,10 +25,12 @@ function restoreHome(position){
  if(state().view!=='home')return;
  home.querySelectorAll('details').forEach((n,i)=>{n.open=!!position.homeDetails?.[i];});
  doc.querySelectorAll('#mobileAllMenus,#siteNavigation details').forEach((n,i)=>{n.open=!!position.menuDetails?.[i];});
- const rail=doc.getElementById('homeSpotlightRail');if(rail){rail.scrollLeft=position.railLeft||0;rails.get(rail)?.update();}
+ const rail=doc.getElementById('homeSpotlightRail');if(rail){rail.style.transition='none';rail.scrollLeft=position.railLeft||0;rails.get(rail)?.update();void rail.offsetHeight;rail.style.removeProperty('transition');}
 }
-function restorePosition(){const token=++restoreToken;activeEntry=state();const position=positions.get(entryKey(activeEntry));restoring=false;navigating=false;resetDrag();
- if(position)root.requestAnimationFrame(()=>root.requestAnimationFrame(()=>{if(token===restoreToken){restoreHome(position);root.scrollTo({left:position.left,top:position.top,behavior:'instant'});}}));schedule();
+function restorePosition(){const token=++restoreToken;activeEntry=state();const position=positions.get(entryKey(activeEntry));restoring=false;navigating=transitioning;resetDrag();root.CheonglaDetailNavigation?.cancel?.();
+ const finish=()=>{if(token!==restoreToken)return;root.CheonglaDetailNavigation?.cancel?.();if(position){restoreHome(position);root.scrollTo({left:position.left,top:position.top,behavior:'instant'});}root.dispatchEvent(new root.Event('cheongla:position-restored'));schedule();};
+ // View Transition updates must finish without waiting for a rendered frame.
+ Promise.resolve().then(finish);
 }
 function activePanel(){if(!doc.getElementById('accountPanel').hidden){const p=[...doc.querySelectorAll('#accountPanel>section')].find(visible);if(p)return p;}return ['publicContentPanel','informationPanel','newInquiryPanel','homeDictionary','homePanel'].map(id=>doc.getElementById(id)).find(visible);}
 function dirtyVisible(){return [...doc.querySelectorAll('form')].some(f=>visible(f)&&dirtyForms.has(f));}
@@ -53,7 +55,7 @@ const pager=el('section');pager.className='cheongla-menu-pager';pager.setAttribu
 const previous=btn('← 이전 화면',()=>navigate(-1)),next=btn('다음 화면 →',()=>navigate(1)),label=el('p'),help=el('p');label.setAttribute('role','status');label.setAttribute('aria-live','polite');help.className='swipe-help';pager.append(previous,next,label,help);nav.after(pager);
 function sync(){frame=0;const s=state(),index=s.index||0;previous.disabled=index<=0||navigating;next.disabled=index>=furthest||navigating;
  label.textContent='화면 이동';help.textContent='오른쪽으로 쓸면 이전 화면 · 왼쪽으로 쓸면 다음 화면';
- if(direction&&!navigating&&!restoring){const panel=activePanel();if(panel&&!reduced()){panel.classList.remove('cheongla-slide-left','cheongla-slide-right');void panel.offsetWidth;panel.classList.add(direction>0?'cheongla-slide-left':'cheongla-slide-right');root.setTimeout(()=>panel.classList.remove('cheongla-slide-left','cheongla-slide-right'),220);}direction=0;}
+ if(direction&&!navigating&&!restoring&&!transitioning){const panel=activePanel();if(panel&&!reduced()){panel.classList.remove('cheongla-slide-left','cheongla-slide-right');void panel.offsetWidth;panel.classList.add(direction>0?'cheongla-slide-left':'cheongla-slide-right');root.setTimeout(()=>panel.classList.remove('cheongla-slide-left','cheongla-slide-right'),220);}direction=0;}
 }
 function schedule(){if(!frame)frame=root.requestAnimationFrame(sync);}
 async function canLeave(){
@@ -67,19 +69,30 @@ async function navigate(step){
  navigating=true;schedule();
  try{if(!await canLeave()){navigating=false;resetDrag(true);schedule();return false;}}
  catch(error){navigating=false;resetDrag(true);schedule();return false;}
- editable(doc.activeElement)&&doc.activeElement.blur();remember();direction=step;root.history.go(step<0?-1:1);return true;
+ editable(doc.activeElement)&&doc.activeElement.blur();remember();direction=step;
+ if(typeof doc.startViewTransition!=='function'||reduced()){root.history.go(step<0?-1:1);return true;}
+ let committed=false;transitioning=true;doc.documentElement.dataset.cheonglaTransition=step<0?'back':'forward';doc.documentElement.style.setProperty('--cheongla-page-reveal',(dragPanel?Math.abs(dragX):0)+'px');
+ const commit=()=>{committed=true;resetDrag();return new Promise(resolve=>{let timer;const finish=()=>{root.clearTimeout(timer);root.removeEventListener('cheongla:position-restored',finish);resolve();};root.addEventListener('cheongla:position-restored',finish,{once:true});timer=root.setTimeout(finish,5000);root.history.go(step<0?-1:1);});};
+ try{const transition=doc.startViewTransition(commit);transition.ready.catch(()=>{});transition.finished.catch(()=>{}).finally(()=>{transitioning=false;navigating=false;direction=0;delete doc.documentElement.dataset.cheonglaTransition;doc.documentElement.style.removeProperty('--cheongla-page-reveal');schedule();});}
+ catch(error){transitioning=false;delete doc.documentElement.dataset.cheonglaTransition;doc.documentElement.style.removeProperty('--cheongla-page-reveal');if(!committed)root.history.go(step<0?-1:1);}
+ return true;
 }
 const rails=new Map();
 function attachRail(rail,name){
  if(rails.has(rail))return;const controls=el('div');controls.className='cheongla-swipe-controls';controls.setAttribute('aria-label',name+' 넘기기');controls.setAttribute('role','group');rail.after(controls);
- let cards=[],index=0,timer;const status=el('p');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
- function update(){if(!cards.length)return;const origin=rail.getBoundingClientRect().left;index=cards.reduce((best,card,i)=>Math.abs(card.getBoundingClientRect().left-origin)<Math.abs(cards[best].getBoundingClientRect().left-origin)?i:best,0);status.textContent=(index+1)+' / '+cards.length;controls.querySelectorAll('[data-slide]').forEach((b,i)=>b.setAttribute('aria-current',String(i===index)));controls.firstChild.disabled=index===0;controls.lastChild.disabled=index===cards.length-1;}
- function go(i){i=Math.max(0,Math.min(cards.length-1,i));if(!cards[i])return;const left=cards[i].offsetLeft-cards[0].offsetLeft;if(rail.scrollTo)rail.scrollTo({left,behavior:reduced()?'instant':'smooth'});else rail.scrollLeft=left;index=i;status.textContent=(i+1)+' / '+cards.length;controls.firstChild.disabled=i===0;controls.lastChild.disabled=i===cards.length-1;controls.querySelectorAll('[data-slide]').forEach((b,j)=>b.setAttribute('aria-current',String(j===i)));}
- function rebuild(){cards=[...rail.children].filter(n=>!n.hidden);rail.classList.toggle('swipe-rail',cards.length>1);controls.hidden=cards.length<=1;controls.replaceChildren();if(cards.length<=1)return;
- rail.setAttribute('aria-label',name+' · 좌우로 넘기기');controls.append(btn('← 이전',()=>go(index-1)),status);cards.forEach((card,i)=>{const dot=btn('●',()=>go(i));dot.className='swipe-dot';dot.dataset.slide=String(i);dot.setAttribute('aria-label',name+' '+(i+1)+'번째 보기');controls.append(dot);card.querySelectorAll('img').forEach(img=>img.draggable=false);});controls.append(btn('다음 →',()=>go(index+1)));controls.firstChild.setAttribute('aria-label',name+' 이전');controls.lastChild.setAttribute('aria-label',name+' 다음');update();}
- const observer=new MutationObserver(rebuild);observer.observe(rail,{childList:true});rail.addEventListener('scroll',()=>{root.clearTimeout(timer);timer=root.setTimeout(update,70);},{passive:true});root.addEventListener('resize',update,{passive:true});rails.set(rail,{observer,controls,update});rebuild();
+ let cards=[],index=0,timer;const adaptive=rail.id==='homeSpotlightRail',status=el('p');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
+ function fit(){if(!adaptive||!cards[index]||!visible(rail))return;const height=cards[index].offsetHeight;if(!height)return;const style=root.getComputedStyle(rail),extra=(parseFloat(style.paddingTop)||0)+(parseFloat(style.paddingBottom)||0);rail.style.height=Math.ceil(height+extra)+'px';}
+ function activate(){if(adaptive){for(const card of cards)if(card!==cards[index])card.querySelectorAll('details[open]').forEach(n=>n.open=false);fit();}}
+ function leftFor(i){return cards[i].getBoundingClientRect().left-cards[0].getBoundingClientRect().left;}
+ function paint(){status.textContent=(index+1)+' / '+cards.length;controls.querySelectorAll('[data-slide]').forEach((b,i)=>b.setAttribute('aria-current',String(i===index)));controls.firstChild.disabled=index===0;controls.lastChild.disabled=index===cards.length-1;}
+ function update(settle=true){if(!cards.length)return;index=cards.reduce((best,card,i)=>Math.abs(leftFor(i)-rail.scrollLeft)<Math.abs(leftFor(best)-rail.scrollLeft)?i:best,0);paint();if(settle===true)activate();}
+ function go(i){i=Math.max(0,Math.min(cards.length-1,i));if(!cards[i])return;const left=leftFor(i);index=i;activate();paint();if(rail.scrollTo)rail.scrollTo({left,behavior:reduced()?'instant':'smooth'});else rail.scrollLeft=left;}
+ const sizeObserver=adaptive&&root.ResizeObserver?new root.ResizeObserver(fit):null;
+ function rebuild(){sizeObserver?.disconnect();cards=[...rail.children].filter(n=>!n.hidden);rail.classList.toggle('swipe-rail',cards.length>1);controls.hidden=cards.length<=1;controls.replaceChildren();if(cards.length<=1)return;
+ rail.setAttribute('aria-label',name+' · 좌우로 넘기기');controls.append(btn('← 이전',()=>go(index-1)),status);cards.forEach((card,i)=>{const dot=btn('●',()=>go(i));dot.className='swipe-dot';dot.dataset.slide=String(i);dot.setAttribute('aria-label',name+' '+(i+1)+'번째 보기');controls.append(dot);card.querySelectorAll('img').forEach(img=>img.draggable=false);sizeObserver?.observe(card);});controls.append(btn('다음 →',()=>go(index+1)));controls.firstChild.setAttribute('aria-label',name+' 이전');controls.lastChild.setAttribute('aria-label',name+' 다음');update();}
+ const observer=new MutationObserver(rebuild);observer.observe(rail,{childList:true});rail.addEventListener('scroll',()=>{update(false);root.clearTimeout(timer);timer=root.setTimeout(()=>update(true),110);},{passive:true});rail.addEventListener('scrollend',()=>update(true),{passive:true});rail.addEventListener('toggle',fit,true);root.addEventListener('resize',update,{passive:true});rails.set(rail,{observer,controls,update,fit,dispose:()=>sizeObserver?.disconnect()});rebuild();
 }
-function scan(){for(const [node,x]of rails)if(!node.isConnected){x.observer.disconnect();root.removeEventListener('resize',x.update);x.controls.remove();rails.delete(node);}for(const id of ['homeSpotlightRail','homeTourSection','homeDailyCountdown']){const n=doc.getElementById(id);if(n)attachRail(n,id==='homeDailyCountdown'?'주요 일정':id==='homeTourSection'?'학원 동영상':'청라 주요 안내');}for(const gallery of doc.querySelectorAll('#publicContentBody .public-gallery'))if(gallery.children.length>1)attachRail(gallery,'청라 사진');schedule();}
+function scan(){for(const [node,x]of rails)if(!node.isConnected){x.observer.disconnect();x.dispose();root.removeEventListener('resize',x.update);x.controls.remove();rails.delete(node);}for(const id of ['homeSpotlightRail','homeTourSection','homeDailyCountdown']){const n=doc.getElementById(id);if(n)attachRail(n,id==='homeDailyCountdown'?'주요 일정':id==='homeTourSection'?'학원 동영상':'청라 주요 안내');}for(const gallery of doc.querySelectorAll('#publicContentBody .public-gallery'))if(gallery.children.length>1)attachRail(gallery,'청라 사진');schedule();}
 const spotlight=el('section');spotlight.className='cheongla-swipe-home';spotlight.append(el('h2','청라 한눈에 보기'),el('p','← 카드를 좌우로 밀어보세요 →'));const homeRail=el('div');homeRail.id='homeSpotlightRail';homeRail.className='cheongla-swipe-rail';spotlight.append(homeRail);
 // Reuse the real menu controls so permission checks and destination history stay intact.
 const highlights=[
@@ -112,6 +125,11 @@ function syncHighlights(){for(const {selector,content}of highlights){
  for(const child of source.children){const item=menuCopy(child);if(item)menu.append(item);}content.append(menu);content.querySelectorAll('details').forEach((n,i)=>{n.open=!!opened[i];});
 }}
 home.prepend(spotlight);syncHighlights();
+// Card menus expand in place. Changing branches closes the previous branch completely.
+doc.addEventListener('click',event=>{const summary=event.target.closest('summary'),details=summary?.parentElement;if(!summary||!summary.closest('#homeSpotlightRail')||details?.tagName!=='DETAILS')return;if(event.target.closest('button,a,input,select,textarea'))return;event.preventDefault();const opening=!details.open;
+ for(const other of homeRail.querySelectorAll('details'))if(opening?(!other.contains(details)&&!details.contains(other)):details.contains(other))other.open=false;
+ details.open=opening;rails.get(homeRail)?.fit();
+},true);
 new MutationObserver(syncHighlights).observe(nav,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','disabled']});
 function mbtiStep(step){const tabs=[...doc.querySelectorAll('#mbtiStudyTabs button')].filter(b=>!b.hidden&&!b.disabled),i=tabs.findIndex(b=>b.getAttribute('aria-pressed')==='true');if(i<0||!tabs[i+step])return false;tabs[i+step].click();if(!reduced()){const panel=doc.getElementById('mbtiStudyCards');panel.classList.remove('cheongla-slide-left','cheongla-slide-right');void panel.offsetWidth;panel.classList.add(step>0?'cheongla-slide-left':'cheongla-slide-right');}return true;}
 function horizontalArea(node){for(let n=node;n&&n!==doc.body;n=n.parentElement){if(n.classList.contains('swipe-rail'))return true;if(n.scrollWidth>n.clientWidth+8&&['auto','scroll'].includes(root.getComputedStyle(n).overflowX))return true;}return false;}

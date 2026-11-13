@@ -26,3 +26,18 @@ html[data-cheongla-swipe=mobile] .cheongla-drag-return{transition:transform .16s
 @media(prefers-reduced-motion:reduce){html[data-cheongla-swipe=mobile] .cheongla-dragging{transform:none}.cheongla-drag-return{transition:none!important}}
 
 html[data-cheongla-swipe=mobile] body{overflow-x:clip}
+
+/* Each card uses its own height; an expanded menu cannot stretch every other card. */
+#homeSpotlightRail{align-items:flex-start;transition:height .22s ease;overflow-y:hidden;overflow-anchor:none}
+#homeSpotlightRail>.cheongla-swipe-card{align-self:flex-start}
+@media(prefers-reduced-motion:reduce){#homeSpotlightRail{transition:none}}
+html[data-cheongla-transition]::view-transition-group(root){animation:none}
+html[data-cheongla-transition]::view-transition-old(root),html[data-cheongla-transition]::view-transition-new(root){mix-blend-mode:normal;animation-duration:.24s;animation-timing-function:cubic-bezier(.22,.61,.36,1);animation-fill-mode:both}
+html[data-cheongla-transition=back]::view-transition-old(root){animation-name:cheongla-page-out-right;z-index:2;clip-path:inset(0 0 0 var(--cheongla-page-reveal,0px))}
+html[data-cheongla-transition=back]::view-transition-new(root){animation-name:cheongla-page-in-left;z-index:1}
+html[data-cheongla-transition=forward]::view-transition-old(root){animation-name:cheongla-page-out-left;z-index:1;clip-path:inset(0 var(--cheongla-page-reveal,0px) 0 0)}
+html[data-cheongla-transition=forward]::view-transition-new(root){animation-name:cheongla-page-in-right;z-index:2}
+@keyframes cheongla-page-out-right{to{transform:translateX(100%)}}
+@keyframes cheongla-page-in-left{from{transform:translateX(-25%)}to{transform:translateX(0)}}
+@keyframes cheongla-page-out-left{to{transform:translateX(-25%)}}
+@keyframes cheongla-page-in-right{from{transform:translateX(100%)}to{transform:translateX(0)}}

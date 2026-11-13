@@ -13,4 +13,6 @@ click(a.summary);click(z.summary);flush();assert.equal(calls.at(-1).name,'rapid'
 const button={closest:s=>s==='summary'?z.summary:button};z.summary.contains=x=>x===button;let canceled=false;events.click({target:button,button:0,preventDefault(){canceled=true}});assert(!canceled&&z.d.open);
 const menu=item('main',true);assert(!click(menu.summary));
 c.CheonglaDetailNavigation.open(b.d);flush();assert(b.d.open&&!z.d.open);assert.equal(calls.at(-1).name,'selected');
+const beforeCancel=calls.length;c.CheonglaDetailNavigation.align(b.summary);c.CheonglaDetailNavigation.cancel();flush();assert.equal(calls.length,beforeCancel,'pending alignment was not canceled');
+const homeMenu=item('home card');homeMenu.summary.closest=s=>s==='summary'?homeMenu.summary:s==='#homeSpotlightRail'?{}:null;assert(!click(homeMenu.summary),'home card was forced to scroll to its summary');
 console.log('PASS: collapse preceding content before heading alignment; double-frame layout, rapid switching, close toggle, download button and main-menu preservation, guide hash entry');
