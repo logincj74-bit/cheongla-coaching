@@ -137,7 +137,8 @@
       editing = null,
       busy = false,
       dirty = false,
-      seq = 0;
+      seq = 0,
+      photoEpoch = 0;
     const e = (tag, text) => {
       const n = doc.createElement(tag);
       if (text !== undefined) n.textContent = text;
@@ -169,6 +170,7 @@
     }
     function reset() {
       seq++;
+      photoEpoch++;
       rows = [];
       students = [];
       selected = "";
@@ -187,6 +189,8 @@
       return accepted;
     }
     async function open() {
+      photoEpoch++;
+      busy = false;
       const actor = who(),
         req = ++seq;
       box.hidden = false;
@@ -209,6 +213,8 @@
       }
     }
     function render() {
+      photoEpoch++;
+      busy = false;
       box.replaceChildren(e("h2", "성적 변화 · 학습코칭"));
       const select = e("select");
       select.id = "scoreCoachingStudentSelect";
@@ -568,10 +574,14 @@
         e(
           "p",
           ocrEnabled
-            ? "이름·수험번호 등 개인정보는 가리고 촬영해 주세요. 사진은 점수를 읽는 데 사용하며, 저장할 과목별 점수는 원본과 대조해 확인해 주세요."
+            ? "사진을 선택하면 전송 확인 후 과목별 점수를 자동으로 채웁니다. 이름·수험번호 등 개인정보는 가리고 촬영해 주세요. 인식 결과를 원본과 대조한 뒤 저장해 주세요."
             : "사진 자동 읽기는 연결 준비 중입니다. 과목별 점수를 직접 입력해 저장·비교·공유할 수 있습니다.",
         ),
       );
+      const photoStatus = e("p");
+      photoStatus.setAttribute("role", "status");
+      photoStatus.setAttribute("aria-live", "polite");
+      form.append(photoStatus);
       const scores = e("div");
       let readers = [];
       function fill(data) {
@@ -656,57 +666,48 @@
       report.maxLength = 20000;
       const status = e("p");
       status.setAttribute("role", "status");
+      async function readPhoto() {
+        if (!ocrEnabled) { photoStatus.textContent = "사진 자동 읽기는 준비 중입니다. 점수를 직접 입력해 주세요."; return; }
+        if (busy) return;
+        const photo = file.files?.[0];
+        if (!photo) { photoStatus.textContent = "성적표 사진을 먼저 선택해 주세요."; return; }
+        const actor = who(), student = selected, epoch = photoEpoch, extractionType = type.value;
+        const studentSelect = doc.getElementById("scoreCoachingStudentSelect");
+        const current = () => epoch === photoEpoch && actor === who() && student === selected && form.isConnected && !box.closest('[hidden],.account-section-inactive') && photo === file.files?.[0];
+        busy = true; file.disabled = true; type.disabled = true; photoButton.disabled = true;
+        if (studentSelect) studentSelect.disabled = true;
+        form.setAttribute("aria-busy", "true");
+        photoStatus.textContent = "사진을 선택했습니다. 전송을 확인하면 점수를 자동으로 읽습니다.";
+        try {
+          if (!(await api.confirm("선택한 성적표 사진을 OpenAI API로 보내 과목별 점수를 읽을까요? 이름·수험번호 등 개인정보를 가렸는지 확인해 주세요. 인식이 완료되면 현재 점수 칸을 새 결과로 교체합니다."))) {
+            if (current()) photoStatus.textContent = "자동 읽기를 취소했습니다. 필요하면 ‘사진 다시 읽기’를 눌러 주세요.";
+            return;
+          }
+          if (!current()) return;
+          photoStatus.textContent = "성적표 점수를 자동으로 읽고 있습니다… 완료되면 아래 점수 칸에 표시됩니다.";
+          const image = await compress(photo), c = await api.client();
+          if (!current()) return;
+          const r = await c.functions.invoke("cheongla-score-extract", {body: {image, exam_type: extractionType}});
+          if (!current()) return;
+          if (r.error) throw Error("성적표 인식 서버 연결을 확인해 주세요. ‘사진 다시 읽기’로 재시도하거나 점수를 직접 입력할 수 있습니다.");
+          if (!Array.isArray(r.data?.scores) || !r.data.scores.length) throw Error("읽을 수 있는 점수가 없습니다. 선명한 사진으로 다시 시도해 주세요.");
+          if (extractionType !== type.value) { photoStatus.textContent = "시험 구분이 변경되었습니다. 사진 읽기를 다시 실행해 주세요."; return; }
+          fill(r.data.scores); dirty = true;
+          photoStatus.textContent = r.data.scores.length + "개 과목을 읽어 아래 점수 칸에 자동 표시했습니다. 인식 초안입니다. 학생·시험·과목과 점수를 원본과 대조한 뒤 저장해 주세요.";
+        } catch (err) {
+          if (current()) photoStatus.textContent = api.readable(err);
+        } finally {
+          if (epoch === photoEpoch) {
+            busy = false; file.disabled = !ocrEnabled; type.disabled = false; photoButton.disabled = false;
+            if (studentSelect) studentSelect.disabled = false;
+            form.removeAttribute("aria-busy");
+          }
+        }
+      }
+      const photoButton = b(ocrEnabled ? "사진 다시 읽기" : "사진 자동 읽기 · 준비 중", readPhoto);
+      file.addEventListener("change", () => { if (file.files?.[0]) void readPhoto(); else photoStatus.textContent = ""; });
       form.append(
-        b(ocrEnabled ? "사진에서 점수 읽기" : "사진 자동 읽기 · 준비 중", async () => {
-          if (!ocrEnabled) {
-            status.textContent = "사진 자동 읽기는 준비 중입니다. 점수를 직접 입력해 주세요.";
-            return;
-          }
-          if (busy || !file.files?.[0]) {
-            status.textContent = "성적표 사진을 먼저 선택해 주세요.";
-            return;
-          }
-          if (
-            !(await api.confirm(
-              "선택한 성적표 사진을 OpenAI API로 보내 과목별 점수를 읽을까요? 이름·수험번호 등 개인정보를 가렸는지 확인해 주세요.",
-            ))
-          )
-            return;
-          const actor = who(),
-            extractionType = type.value;
-          busy = true;
-          status.textContent = "성적표 확인 중…";
-          try {
-            const image = await compress(file.files[0]),
-              c = await api.client();
-            if (actor !== who()) return;
-            const r = await c.functions.invoke("cheongla-score-extract", {
-              body: { image, exam_type: extractionType },
-            });
-            if (r.error)
-              throw Error(
-                "성적표 인식 서버 연결을 확인해 주세요. 점수를 직접 입력해 저장할 수도 있습니다.",
-              );
-            if (actor !== who()) return;
-            if (!Array.isArray(r.data?.scores) || !r.data.scores.length)
-              throw Error(
-                "읽을 수 있는 점수가 없습니다. 선명한 사진으로 다시 시도해 주세요.",
-              );
-            if (extractionType !== type.value) {
-              status.textContent =
-                "시험 구분이 변경되었습니다. 사진 읽기를 다시 실행해 주세요.";
-              return;
-            }
-            fill(r.data.scores);
-            dirty = true;
-            status.textContent =
-              "인식 초안입니다. 학생·시험·과목과 모든 점수를 확인해 주세요.";
-          } catch (err) {
-            if (actor === who()) status.textContent = api.readable(err);
-          } finally {
-            busy = false;
-          }
-        }),
+        photoButton,
         scores,
         b("과목 추가", () => {
           if (readers.length < 10) {
@@ -766,6 +767,8 @@
         }),
         status,
       );
+      form.insertBefore(photoButton, report.parentElement);
+      form.insertBefore(scores, report.parentElement);
       box.append(form);
     }
     async function archive(r, action) {
