@@ -1,6 +1,6 @@
 /* A single shared document per day; authenticated data stays in memory only. */
 (function(root){'use strict';
-const inks={red:['원장 · 빨강','#b93636'],green:['평일 실장 · 녹색','#247147'],blue:['토요일 오전 실장 · 파랑','#1f5fae'],brown:['토요일 오후 실장 · 갈색','#82512e'],purple:['일요일 실장 · 보라','#7545a5'],pink:['국어선생님 · 분홍','#a62b71']};
+const inks={red:['원장 · 빨강','#b93636'],green:['평일 실장 · 녹색','#247147'],brown:['토요일 오전 실장 · 갈색','#82512e'],blue:['토요일 오후 실장 · 파랑','#1f5fae'],purple:['일요일 실장 · 보라','#7545a5'],pink:['국어선생님 · 분홍','#a62b71']};
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const labels=[['duty','근무 내용'],['special','특이 사항 · 구체적인 시간 기재'],['handover','신규 상담 내용 · 전달사항']];
 function mount(api){const doc=api.document||root.document,box=doc.getElementById('staffJournalPanel');let record=null,fields=[],status,form,date,month,history,recovery,handovers,handoverBox,dateTitle,handoverOptions,handoverSummary,conflictBox,closedInfo,palette,toolbar,saveButton,closeButton,formActions,active=false,dirty=false,busy=null,rev=0,saved=0,epoch=0,timer=null,focusKey='duty',ink='green',conflict=false,loading=false,dateRequest=0,archives=[],legacyTrash=[];
