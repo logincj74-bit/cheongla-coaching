@@ -1,42 +1,50 @@
-/* Anchor the navigation to the visible viewport, including iOS standalone mode.
-   Document coordinates avoid WebKit's stale fixed-position viewport after input. */
+/* Keep navigation in the fixed viewport layer, never in document scroll coordinates. */
 (function(root){
  'use strict';
  const doc=root.document,bar=doc.getElementById('siteBackControls');
  if(!bar)return;
  if(bar.parentElement!==doc.body)doc.body.append(bar);
- let frame=0;
- const touch=()=>root.matchMedia?.('(pointer: coarse)').matches||root.navigator.maxTouchPoints>0;
+ // Clear geometry left by the former absolute-position workaround.
+ bar.removeAttribute('data-viewport-anchored');
+ for(const name of ['top','left','width','bottom','transform'])bar.style.removeProperty(name);
+ let frame=0,keyboardSession=false,normalHeight=0,layoutWidth=0;
+ const touch=()=>root.matchMedia?.('(any-pointer: coarse)').matches||root.navigator.maxTouchPoints>0;
  function editing(){
   const node=doc.activeElement;
-  if(!touch()||!node)return false;
-  if(node.isContentEditable||node.closest?.('[contenteditable="true"]'))return true;
+  if(!touch()||!node||node.closest?.('[hidden],.account-section-inactive'))return false;
+  if(node.isContentEditable||node.closest?.('[contenteditable="true"],.lr-document-toolbar,.lr-writing-tools'))return true;
   if(node.matches('textarea,select'))return true;
   return node.matches('input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([readonly]):not([disabled])');
  }
  function update(){
-  frame=0;bar.toggleAttribute('data-keyboard-hidden',editing());
-  if(bar.hidden||bar.hasAttribute('data-keyboard-hidden'))return;
-  const vv=root.visualViewport;
-  const width=vv?.width>0?vv.width:root.innerWidth;
-  const height=vv?.height>0?vv.height:root.innerHeight;
-  const pageTop=Number.isFinite(vv?.pageTop)?vv.pageTop:root.scrollY+(vv?.offsetTop||0);
-  const pageLeft=Number.isFinite(vv?.pageLeft)?vv.pageLeft:root.scrollX+(vv?.offsetLeft||0);
-  if(!(width>0&&height>0))return;
-  bar.setAttribute('data-viewport-anchored','');
-  const barWidth=Math.min(width,800);
-  bar.style.width=barWidth+'px';bar.style.left=(pageLeft+(width-barWidth)/2)+'px';
+  frame=0;
+  const vv=root.visualViewport,coarse=touch(),focused=editing();
+  const width=root.innerWidth||doc.documentElement.clientWidth;
+  const height=Math.max(root.innerHeight||0,doc.documentElement.clientHeight||0);
+  const visibleHeight=vv?.height>0?vv.height:height;
+  const zoomed=coarse&&(vv?.scale||1)>1.05;
+  if(width!==layoutWidth){layoutWidth=width;normalHeight=height;}
+  if(!zoomed)normalHeight=Math.max(normalHeight,height,focused?0:visibleHeight);
+  if(focused)keyboardSession=true;
+  // WebKit can retain the keyboard's smaller/panned viewport after focusout.
+  // Keep the bar hidden until that transition completes, instead of placing it mid-page.
+  const settling=coarse&&keyboardSession&&!zoomed&&(
+   normalHeight-visibleHeight>Math.max(140,normalHeight*.2)||(vv?.offsetTop||0)>3);
+  const hidden=focused||settling||zoomed;
+  if(!focused&&!settling&&!zoomed)keyboardSession=false;
+  bar.toggleAttribute('data-keyboard-hidden',hidden);
+  if(bar.hidden||hidden)return;
   const barHeight=bar.getBoundingClientRect().height;
-  bar.style.top=Math.max(0,pageTop+height-barHeight)+'px';
-  doc.documentElement.style.setProperty('--nav-reserved-size',(barHeight+20)+'px');
+  if(barHeight>0)doc.documentElement.style.setProperty('--nav-reserved-size',(barHeight+20)+'px');
  }
  function schedule(){if(!frame)frame=root.requestAnimationFrame(update);}
- for(const name of ['scroll','resize','orientationchange','pageshow'])root.addEventListener(name,schedule,{passive:true});
+ for(const name of ['resize','orientationchange','pageshow'])root.addEventListener(name,schedule,{passive:true});
  for(const name of ['resize','scroll'])root.visualViewport?.addEventListener(name,schedule,{passive:true});
  doc.addEventListener('focusin',schedule);
- doc.addEventListener('focusout',()=>{schedule();for(const delay of [80,300,700])root.setTimeout(schedule,delay);});
+ doc.addEventListener('focusout',()=>{schedule();for(const delay of [100,300,700,1200])root.setTimeout(schedule,delay);});
+ doc.addEventListener('touchend',schedule,{passive:true});
  doc.addEventListener('visibilitychange',schedule);
  new MutationObserver(schedule).observe(bar,{attributes:true,attributeFilter:['hidden']});
- if(root.ResizeObserver)new ResizeObserver(schedule).observe(bar);
+ if(root.ResizeObserver)new root.ResizeObserver(schedule).observe(bar);
  schedule();root.CheonglaBottomNavigation={refresh:schedule};
 })(globalThis);
