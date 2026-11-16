@@ -8,6 +8,6 @@ for(const key of ['mbti_intro','mbti_groups','mbti_parents'])assert(d.querySelec
 assert(d.querySelector('script[src="mbti-library.js?v=3"]'));
 for(const script of d.querySelectorAll('script:not([src])'))if(!script.type||script.type==='text/javascript')new vm.Script(script.textContent);
 assert(html.includes("globalThis.CheonglaMBTILibraryUI?.open()"));assert(html.includes("referenceSections:code=>globalThis.CheonglaMBTILibraryUI?.references(code)"));
-const policy=html.match(/function canUseMBTIStudy\(\)\{([^}]+)\}/)[1];assert(policy.includes("['owner','english_director','math_director','manager']"));
+const policy=html.match(/function canUseMBTIStudy\(\)\{([^}]+)\}/)[1];assert(policy.includes("['owner','english_director','math_director']"));
 dom.window.close();console.log('PASS revised library integration: last submenu host, hidden legacy content, first three pages retained, current role scope, 2022 prescription references and inline script syntax');
 require('./mbti-library-ui.cjs');

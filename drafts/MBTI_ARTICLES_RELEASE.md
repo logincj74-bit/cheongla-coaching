@@ -45,3 +45,20 @@ Validation:
 
 Jekyll excludes import data, maintenance scripts, drafts and fixtures from the
 deployed website. Runtime document reads use the guarded database RPCs.
+
+## v2.0.10 — principal-only access
+
+The principal ended the temporary manager collaboration. Approved, active
+`owner`, `english_director` and `math_director` roles retain all MBTI features.
+Managers, students, parents and teachers cannot see the main menu, any MBTI
+submenu, mobile home shortcut or home spotlight card. Account/direct routes use
+the same gate. Losing access clears the loaded MBTI views.
+
+Production migration `mbti_principals_only` narrows the shared authorization
+helper used by all library/article/legacy RPCs and makes the six legacy table
+gates restrictive for all operations. All 28 revised documents are preserved;
+content hashes match before and after the permission change.
+
+Verified using isolated PostgreSQL role fixtures and the actual UI permission
+functions on mobile and desktop, including a manager with an admin flag,
+pending/suspended principals and logout. Home swipe counts exclude hidden cards.

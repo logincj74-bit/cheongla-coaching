@@ -15,7 +15,7 @@ globalThis.CheonglaMBTIOperations = {
     const section = $('mbtiIntroduction').cloneNode(true);
     section.id = 'mbtiPrescriptionArticle';
     section.querySelector('article').setAttribute('aria-label', '학생별 학습 처방');
-    section.querySelector('legend').textContent = '학습 처방 관리 · 원장·실장';
+    section.querySelector('legend').textContent = '학습 처방 관리 · 원장';
     section.querySelector('[data-mbti-intro-print]').textContent = '학습 처방 인쇄';
     section.querySelector('button[type="submit"]').textContent = '학습 처방 저장';
     for (const control of section.querySelectorAll('input, textarea')) {
