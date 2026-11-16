@@ -25,3 +25,6 @@
 #homeFeaturesVisibilityList .home-video-swipe-content>.home-video-owner-actions{margin-top:0}
 #homeFeaturesVisibilityList [data-home-video-swipe]>.home-video-trash-action{width:88px}
 @media(prefers-reduced-motion:reduce){.home-video-swipe-content{transition:none}}
+
+#homeTourSection .home-video-description{margin:18px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.85}
+.home-tour-open>.home-video-caption{background:linear-gradient(0deg,#102f3b99,transparent 40%)}

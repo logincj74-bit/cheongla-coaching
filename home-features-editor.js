@@ -126,6 +126,7 @@ globalThis.CheonglaHomeFeatures = {
         if (principal()) {
           const controls = document.createElement('div');
           controls.className = 'home-video-owner-actions';
+          controls.append(button('수정', () => openEditor(row.id)));
           controls.append(button('홈에서 숨기기', () => change(row,
             { hidden: true, video_hidden: false }, '홈에서 숨겼습니다. 콘텐츠 관리에서 다시 표시할 수 있습니다.')));
           card.append(controls);
@@ -218,6 +219,7 @@ globalThis.CheonglaHomeFeatures = {
         text.append(heading, state);
         item.append(text, button(tourHidden(row) ? '홈에 다시 표시' : '홈에서 숨기기', () => change(row,
           { hidden: !tourHidden(row), video_hidden: false }, tourHidden(row) ? '홈에 다시 표시했습니다.' : '홈에서 숨겼습니다. 영상 파일은 그대로 보관됩니다.')));
+        item.append(button('수정', () => openEditor(row.id)));
         visibility.append(item);
         const controls = document.createElement('div');controls.className = 'home-video-owner-actions';item.append(controls);
         swipeActions?.attach(item, { label: row.title, controls, onTrash: () => change(row,
@@ -341,9 +343,10 @@ globalThis.CheonglaHomeFeatures = {
       });
     }
 
-    entry.addEventListener('click', async () => {
+    async function openEditor(id) {
       if (!principal() || busy) return;
-      dialog.showModal();
+      if (id) { kind = 'tour'; selectedId = id; }
+      if (!dialog.open) dialog.showModal();
       fields.disabled = true;
       status.textContent = '게시 내용과 휴지통을 불러오는 중입니다…';
       const actor = profile();
@@ -353,10 +356,16 @@ globalThis.CheonglaHomeFeatures = {
         renderEditor();
         fields.disabled = false;
         status.textContent = '';
+        if (id) {
+          const title = $('homeFeatureTitleInput');
+          title.scrollIntoView?.({ block: 'center' });
+          title.focus({ preventScroll: true });
+        }
         const db = await client();
         if (actor === profile() && principal()) void cleanup(db).catch(() => {});
       }
-    });
+    }
+    entry.addEventListener('click', () => openEditor());
     close.addEventListener('click', () => dialog.close());
     dialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); });
     form.elements.kind.addEventListener('change', event => {

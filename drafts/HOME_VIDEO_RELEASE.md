@@ -54,3 +54,11 @@ Checks: `home-video-swipe.cjs` drives touch/keyboard/role and history interactio
 poster/file preservation and viewer cleanup. Existing home content, swipe,
 principal-only MBTI and score navigation checks pass. Gesture events are simulated;
 physical iPhone/iPad gesture feel has not been measured.
+
+
+## v2.0.14 — direct editing and video captions
+- Principal-only 수정 buttons on each published video and visibility-management row open the existing editor with that exact record selected. Existing revision-checked save and role policies are unchanged.
+- Video description follows the preview and preserves line breaks on all screen sizes. Editor label explains placement.
+- Local JPEG generation checks sampled pixel luminance and skips black opening frames, retaining the earliest visible sampled scene. No new service or paid API.
+- Current winter-school video had a 3,855-character blank poster; replaced only its poster using the first readable scene at one second, with an id/path/revision guard. Revision 2 → 3. Title, description, video, visibility unchanged.
+- Passed DOM integration: correct-record edit, title/description save, caption order, original video preservation, logout permissions; simulated decoder tests include dark-opening recovery. Existing swipe, playback and bottom navigation checks passed. Physical iPhone/iPad decoding has not been exercised.
