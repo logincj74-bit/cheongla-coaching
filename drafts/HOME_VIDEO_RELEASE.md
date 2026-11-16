@@ -32,3 +32,25 @@ stale signing and viewer/logout controls; local decoder lifecycle tests; existin
 home video playback/trash/cleanup and mobile swipe/MBTI permissions. Browser media
 events are simulated in unit checks; the actual existing MP4 was independently
 decoded to verify its real cover.
+
+## v2.0.12 — swipe to reveal trash
+
+Active principals can swipe a home video card or its management-list row left to
+reveal a red trash-icon button on phones/tablets. Swiping does not archive the
+record. Clicking the action opens the existing confirmation and then uses the
+same revision-checked `archived_at` update; the normal trash screen can restore
+it. Desktop users get an inline trash button. Hiding remains a separate action.
+
+Only one local action tray opens at a time. Right swipe, outside tap and Escape
+close it. Vertical scrolling, short touches, pinch/cancel and playback-click
+suppression are covered. Owner card gestures take priority over the video rail;
+its previous/next controls remain available. Other app-history swipes and viewer
+video rails retain their behavior. Local swipe rows are excluded from the global
+history gesture recognizer. Refresh, busy-save and logout paths dispose/rebind
+row handlers and remove privileged actions.
+
+Checks: `home-video-swipe.cjs` drives touch/keyboard/role and history interaction;
+`home-video-preview.cjs` verifies confirmed/canceled trash, refresh reattachment,
+poster/file preservation and viewer cleanup. Existing home content, swipe,
+principal-only MBTI and score navigation checks pass. Gesture events are simulated;
+physical iPhone/iPad gesture feel has not been measured.

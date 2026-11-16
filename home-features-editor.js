@@ -20,6 +20,7 @@ globalThis.CheonglaHomeFeatures = {
     let editing;
     let request = 0;
     let previewRequest = 0;
+    const swipeActions = globalThis.CheonglaHomeVideoSwipe?.mount({ document, allowed: principal, isBusy: () => busy });
 
     const ordered = items => [...items].sort((a, b) =>
       a.sort_order - b.sort_order || a.title.localeCompare(b.title, 'ko') || a.id.localeCompare(b.id));
@@ -102,6 +103,7 @@ globalThis.CheonglaHomeFeatures = {
       const schedules = $('homeDailyCountdown');
       const clock = $('homeClockExam');
       const countdown = representative();
+      swipeActions?.clearWithin(videos);
       videos.replaceChildren();
       schedules.replaceChildren();
 
@@ -127,6 +129,9 @@ globalThis.CheonglaHomeFeatures = {
           controls.append(button('홈에서 숨기기', () => change(row,
             { hidden: true, video_hidden: false }, '홈에서 숨겼습니다. 콘텐츠 관리에서 다시 표시할 수 있습니다.')));
           card.append(controls);
+          swipeActions?.attach(card, { label: row.title, controls, onTrash: () => change(row,
+            { archived_at: new Date().toISOString() }, '영상을 휴지통으로 옮겼습니다. 홈 화면 콘텐츠 관리에서 복원할 수 있습니다.',
+            '“' + row.title + '” 영상을 휴지통으로 옮길까요? 제목·설명과 영상은 휴지통에서 복원할 수 있습니다.') });
         }
       }
       for (const row of published('countdown')) {
@@ -199,6 +204,7 @@ globalThis.CheonglaHomeFeatures = {
       }
       chooser.value = selectedId;
       const visibility = $('homeFeaturesVisibilityList');
+      swipeActions?.clearWithin(visibility);
       $('homeFeaturesVisibility').hidden = kind !== 'tour';
       visibility.replaceChildren();
       for (const row of kind === 'tour' ? available : []) {
@@ -213,6 +219,10 @@ globalThis.CheonglaHomeFeatures = {
         item.append(text, button(tourHidden(row) ? '홈에 다시 표시' : '홈에서 숨기기', () => change(row,
           { hidden: !tourHidden(row), video_hidden: false }, tourHidden(row) ? '홈에 다시 표시했습니다.' : '홈에서 숨겼습니다. 영상 파일은 그대로 보관됩니다.')));
         visibility.append(item);
+        const controls = document.createElement('div');controls.className = 'home-video-owner-actions';item.append(controls);
+        swipeActions?.attach(item, { label: row.title, controls, onTrash: () => change(row,
+          { archived_at: new Date().toISOString() }, '영상을 휴지통으로 옮겼습니다.',
+          '“' + row.title + '” 영상을 휴지통으로 옮길까요? 휴지통에서 복원할 수 있습니다.') });
       }
       if (kind === 'tour' && !available.length) visibility.textContent = '등록된 동영상이 없습니다.';
       $('homeFeaturesNewVisibility').hidden = Boolean(editing);
@@ -313,7 +323,7 @@ globalThis.CheonglaHomeFeatures = {
 
     function change(row, values, message, prompt) {
       if (!row) return;
-      void run(async (db, current) => {
+      return run(async (db, current) => {
         if (prompt && !await confirm(prompt, '홈 화면 관리')) return;
         if (!current()) return;
         await update(db, row, values);
@@ -449,6 +459,9 @@ globalThis.CheonglaHomeFeatures = {
       reset() {
         request++;
         previewRequest++;
+        swipeActions?.reset();
+        $('homeFeaturesVisibilityList').replaceChildren();
+        $('homeFeaturesVisibility').hidden = true;
         rows = rows.filter(row => !row.archived_at && !row.hidden);
         videoTrash = [];
         selectedId = null;

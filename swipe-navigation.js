@@ -35,7 +35,7 @@ function restorePosition(){const token=++restoreToken;activeEntry=state();const 
 function activePanel(){if(!doc.getElementById('accountPanel').hidden){const p=[...doc.querySelectorAll('#accountPanel>section')].find(visible);if(p)return p;}return ['publicContentPanel','informationPanel','newInquiryPanel','homeDictionary','homePanel'].map(id=>doc.getElementById(id)).find(visible);}
 function dirtyVisible(){return [...doc.querySelectorAll('form')].some(f=>visible(f)&&dirtyForms.has(f));}
 function editable(n){return n?.closest?.('input,textarea,select,[contenteditable="true"]');}
-function blocked(start){return doc.querySelector('dialog[open]')||navigating||restoring||start?.closest?.('input,textarea,select,video,audio,canvas,[contenteditable="true"],#siteBackControls,#siteNavigation,.rules-image-expanded');}
+function blocked(start){return doc.querySelector('dialog[open]')||navigating||restoring||start?.closest?.('input,textarea,select,video,audio,canvas,[contenteditable="true"],#siteBackControls,#siteNavigation,.rules-image-expanded,[data-home-video-swipe]');}
 function state(){return root.history.state?.cheonglaView||{view:'home',key:''};}
 function allowedButton(button){
  if(button.disabled||button.hidden)return false;const key=button.dataset.publicPage||button.dataset.memberPage||button.dataset.swipeRoute||'';
