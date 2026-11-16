@@ -80,7 +80,6 @@ root.CheonglaStaffJournal={mount,today,inks};
   ask.addEventListener('toggle',()=>{if(ask.open)for(const menu of doc.querySelectorAll('details.site-menu'))if(menu!==ask)menu.open=false;});
   finance.addEventListener('toggle',()=>{if(finance.open)for(const menu of doc.querySelectorAll('details.site-menu'))if(menu!==finance)menu.open=false;});
   for(const menu of doc.querySelectorAll('details.site-menu'))if(menu!==finance)menu.addEventListener('toggle',()=>{if(menu.open)finance.open=false;});
-  const footer=doc.querySelector('footer');if(footer)for(const n of footer.childNodes)if(n.nodeType===3&&n.textContent.includes('웹앱 v'))n.textContent=n.textContent.replace(/웹앱 v[\d.]+/,'웹앱 v1.9.79');
   root.CheonglaJournalHomeUI=root.CheonglaJournalHome?.mount({document:doc,profile:()=>currentProfile,allowed:()=>root.CheonglaStaffJournalUI.allowed(),client:getClient,today:root.CheonglaStaffJournal.today,readable,navigate:context=>openSiteDestination('account_staffJournalPanel',context)});
   root.configureDeskMenu();root.configureAccountSections();root.configureStaffWorkspace();
  }
