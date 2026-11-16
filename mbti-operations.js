@@ -1,5 +1,5 @@
 globalThis.CheonglaMBTIOperations = {
-  mount({ document, profile, canEdit, client, confirm, readable, appendReference }) {
+  mount({ document, profile, canEdit, client, confirm, readable, appendReference, referenceSections }) {
     const $ = id => document.getElementById(id);
     const student = $('mbtiOperationStudent');
     const status = $('mbtiOperationStatus');
@@ -82,7 +82,7 @@ globalThis.CheonglaMBTIOperations = {
         if (!current()) return;
         const [roster, guide] = await Promise.all([
           students ? Promise.resolve({ data: students }) : db.rpc('cheongla_mbti_operation_students'),
-          db.from('cheongla_mbti_operation_references').select('sections').eq('mbti', nextCode).maybeSingle()
+          referenceSections ? Promise.resolve({data:{sections:referenceSections(nextCode)}}) : db.from('cheongla_mbti_operation_references').select('sections').eq('mbti', nextCode).maybeSingle()
         ]);
         if (!current()) return;
         if (!roster.error && !students) {

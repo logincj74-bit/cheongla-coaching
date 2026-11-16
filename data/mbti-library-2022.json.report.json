@@ -1,0 +1,162 @@
+[
+  {
+    "code": "ENFJ",
+    "pages": 13,
+    "sections": 12,
+    "tables": 4,
+    "bodyCharacters": 13368,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "ENFP",
+    "pages": 16,
+    "sections": 12,
+    "tables": 18,
+    "bodyCharacters": 15451,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "ENTJ",
+    "pages": 14,
+    "sections": 12,
+    "tables": 3,
+    "bodyCharacters": 14907,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "ENTP",
+    "pages": 15,
+    "sections": 12,
+    "tables": 4,
+    "bodyCharacters": 16455,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "ESFJ",
+    "pages": 19,
+    "sections": 12,
+    "tables": 26,
+    "bodyCharacters": 17681,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "ESFP",
+    "pages": 20,
+    "sections": 12,
+    "tables": 28,
+    "bodyCharacters": 19714,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "ESTJ",
+    "pages": 19,
+    "sections": 12,
+    "tables": 26,
+    "bodyCharacters": 17842,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "ESTP",
+    "pages": 19,
+    "sections": 12,
+    "tables": 24,
+    "bodyCharacters": 18564,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "INFJ",
+    "pages": 15,
+    "sections": 12,
+    "tables": 5,
+    "bodyCharacters": 14635,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "INFP",
+    "pages": 17,
+    "sections": 12,
+    "tables": 3,
+    "bodyCharacters": 19101,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "INTJ",
+    "pages": 16,
+    "sections": 12,
+    "tables": 20,
+    "bodyCharacters": 15800,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "INTP",
+    "pages": 16,
+    "sections": 12,
+    "tables": 19,
+    "bodyCharacters": 16757,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "ISFJ",
+    "pages": 12,
+    "sections": 12,
+    "tables": 2,
+    "bodyCharacters": 12914,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "ISFP",
+    "pages": 19,
+    "sections": 12,
+    "tables": 22,
+    "bodyCharacters": 19119,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "ISTJ",
+    "pages": 13,
+    "sections": 12,
+    "tables": 4,
+    "bodyCharacters": 13687,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "ISTP",
+    "pages": 19,
+    "sections": 12,
+    "tables": 21,
+    "bodyCharacters": 19835,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "NF",
+    "pages": 10,
+    "sections": 12,
+    "tables": 12,
+    "bodyCharacters": 9489,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "NT",
+    "pages": 10,
+    "sections": 12,
+    "tables": 11,
+    "bodyCharacters": 8780,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "SJ",
+    "pages": 10,
+    "sections": 12,
+    "tables": 11,
+    "bodyCharacters": 8587,
+    "glyphCoverage": "100%"
+  },
+  {
+    "code": "SP",
+    "pages": 10,
+    "sections": 12,
+    "tables": 13,
+    "bodyCharacters": 8823,
+    "glyphCoverage": "100%"
+  }
+]

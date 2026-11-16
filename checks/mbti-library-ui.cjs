@@ -1,0 +1,25 @@
+const fs=require('fs'),assert=require('node:assert/strict'),{JSDOM}=require('jsdom');
+const seed=JSON.parse(fs.readFileSync('data/mbti-library-2022.json','utf8')),dom=new JSDOM('<section id="mbtiLibraryRoot"></section>',{runScripts:'outside-only'}),w=dom.window,d=w.document;
+for(const path of ['mbti-library.js','drafts/mbti-preview-adapter.js'])w.eval(fs.readFileSync(path,'utf8'));
+let profile={id:'owner'},canUse=true,canEdit=true,consent=true,prints=[],deferred=null;
+w.CheonglaPrint={clear(){},open(title,build,filename){const out=d.implementation.createHTMLDocument(title);build(out.body,out);prints.push({title,out,filename});}};
+const fake=w.CheonglaMBTIPreview.make(seed),ui=w.CheonglaMBTILibrary.mount({document:d,profile:()=>profile,canUse:()=>canUse,canEdit:()=>canEdit,confirm:async()=>consent,readable:e=>e.message,preference:fake.preference,savePreference:fake.savePreference,rpc:async(...args)=>deferred?await deferred:fake.rpc(...args)});
+const tick=()=>new Promise(r=>setImmediate(r)),click=text=>{const b=[...d.querySelectorAll('button')].find(b=>b.textContent===text);assert(b,'missing '+text);b.click();},settle=async()=>{for(let i=0;i<5;i++)await tick();};
+(async()=>{
+ await ui.open();assert.equal(d.querySelectorAll('.ml-group').length,4);assert.equal(d.querySelectorAll('[data-section]').length,12);assert(d.body.textContent.includes('2022 개정'));
+ for(const group of ['NF','NT','SJ','SP']){
+  const g=[...d.querySelectorAll('.ml-group')].find(b=>b.querySelector('strong').textContent===group);g.click();await settle();assert.equal(ui.code,group);
+  for(const type of seed.groups[group]){click(type);await settle();assert.equal(ui.code,type);assert.equal(d.querySelectorAll('[data-section]').length,12);click('문서 전체 인쇄 / PDF');assert.equal(prints.at(-1).out.querySelectorAll('section').length,12);assert(!prints.at(-1).out.querySelector('script'));}
+ }
+ const picker=d.querySelector('select[aria-label="유형 바로 찾기"]');picker.value='ENFP';picker.dispatchEvent(new w.Event('change'));await settle();click('이 유형을 내 MBTI로 저장');await settle();assert.equal(await fake.preference(),'ENFP');
+ d.querySelector('[data-section="6"]').click();await settle();assert(d.querySelector('[data-section-body="6"]').textContent.includes('대수'));click('이 항목 인쇄 / PDF');assert.equal(prints.at(-1).out.querySelectorAll('section').length,1);
+ click('이 항목 수정');const form=d.querySelector('form'),body=form.querySelector('[data-body]');body.value+='\n검토 후 추가한 새 문장';body.dispatchEvent(new w.Event('input',{bubbles:true}));assert(ui.dirty);consent=false;click('수정 취소');await settle();assert(ui.dirty);assert(d.querySelector('[data-body]').value.endsWith('새 문장'));consent=true;click('수정 내용 저장');await settle();assert(!ui.dirty);assert(d.querySelector('[data-section-body]').textContent.includes('검토 후 추가한 새 문장'));
+ click('이 항목 삭제 · 휴지통');await settle();assert(!d.querySelector('[data-section-body="6"]'));click('휴지통 (1)');await settle();click('복원');await settle();assert(d.body.textContent.includes('휴지통이 비어 있습니다'));click('학습법으로 돌아가기');await settle();assert(d.querySelector('[data-section-body="6"]'));
+ click('이 항목 삭제 · 휴지통');await settle();click('휴지통 (1)');await settle();click('영구삭제');await settle();click('학습법으로 돌아가기');await settle();assert(!d.body.textContent.includes('검토 후 추가한 새 문장'));assert((await fake.rpc('cheongla_mbti_library_list')).find(r=>r.code==='ENFP').content.sections[5].purged_at);
+ d.querySelector('[data-section="5"]').click();await settle();click('이 문서 전체 삭제 · 휴지통');await settle();click('휴지통 (1)');await settle();click('휴지통 비우기');await settle();assert.equal((await fake.rpc('cheongla_mbti_library_list')).find(r=>r.code==='ENFP').content,null);
+ canEdit=false;ui.reset();await ui.open();assert(!d.body.textContent.includes('휴지통 ('));assert(![...d.querySelectorAll('button')].some(b=>b.textContent==='이 항목 수정'));[...d.querySelectorAll('.ml-group')].find(b=>b.querySelector('strong').textContent==='NF').click();await settle();assert(d.body.textContent.includes('인쇄 / PDF'));
+ const html=d.createElement('div');w.CheonglaMBTILibrary.markdown(html,'<img src=x onerror=alert(1)>\n\n| 과목 | 내용 |\n| --- | --- |\n| 국어 | 안전<br>확인 |');assert(!html.querySelector('img'));assert.equal(html.querySelector('td:last-child').textContent,'안전\n확인');
+ let resolve;deferred=new Promise(r=>resolve=r);const pending=ui.open();ui.reset();profile={id:'other'};resolve(await fake.rpc('cheongla_mbti_library_list'));await pending;assert.equal(d.querySelector('#mbtiLibraryRoot').children.length,0,'stale account result leaked');
+ assert(seed.documents.length===20&&seed.documents.every(x=>x.sections.length===12));const report=JSON.parse(fs.readFileSync('data/mbti-library-2022.json.report.json'));assert(report.every(r=>r.glyphCoverage==='100%'));
+ dom.window.close();console.log('PASS four temperaments/16 types/240 sections; subject navigation, preference save, safe tables, full/section print, edit/save/cancel, section/document trash/restore/purge/empty, read-only controls and stale-account isolation; all PDF non-footer glyphs accounted for');
+})().catch(e=>{console.error(e);dom.window.close();process.exit(1)});
