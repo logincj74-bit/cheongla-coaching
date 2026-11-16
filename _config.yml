@@ -1,0 +1,7 @@
+# The app reads MBTI documents through the role-checked database RPCs.
+# Import sources, test fixtures and maintenance scripts are not website assets.
+exclude:
+  - data
+  - scripts
+  - drafts
+  - checks
