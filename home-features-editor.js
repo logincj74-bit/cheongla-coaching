@@ -19,10 +19,11 @@ globalThis.CheonglaHomeFeatures = {
     let kind = 'tour';
     let editing;
     let request = 0;
+    let previewRequest = 0;
 
     const ordered = items => [...items].sort((a, b) =>
       a.sort_order - b.sort_order || a.title.localeCompare(b.title, 'ko') || a.id.localeCompare(b.id));
-    const published = type => ordered(rows.filter(row => row.kind === type && !row.archived_at && !row.hidden));
+    const published = type => ordered(rows.filter(row => row.kind === type && !row.archived_at && !row.hidden && (type !== 'tour' || !row.video_hidden)));
     const representative = () => {
       const countdowns = published('countdown');
       return countdowns.find(row => row.featured) || countdowns[0];
@@ -30,8 +31,73 @@ globalThis.CheonglaHomeFeatures = {
     const hasVideo = row => Boolean(row?.video_path || row?.original_video);
     const dateFormat = new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeZone: 'Asia/Seoul' });
     const formatDate = date => dateFormat.format(new Date(date + 'T12:00:00+09:00'));
+    const tourHidden = row => Boolean(row.hidden || row.video_hidden);
+
+    function appendPreview(card, row, token) {
+      if (!hasVideo(row) || row.video_hidden) return;
+      const play = card.querySelector('[data-home-feature-video]');
+      play.classList.add('home-tour-open');
+      const caption = document.createElement('span');
+      caption.className = 'home-video-caption';
+      const title = document.createElement('strong');
+      title.textContent = '동영상 보기 ▶';
+      caption.append(title);
+      if (row.original_video || row.poster_data_url && row.poster_video_path === row.video_path) {
+        const photo = document.createElement('img');
+        photo.src = row.original_video ? originalPoster : row.poster_data_url;
+        if (!row.original_video) photo.className = 'home-upload-poster';
+        photo.alt = '';
+        photo.loading = 'lazy';
+        photo.width = 960;
+        photo.height = 640;
+        play.replaceChildren(photo, caption);
+        return;
+      }
+      const thumbnail = document.createElement('video');
+      thumbnail.className = 'home-video-preview';
+      thumbnail.muted = true;
+      thumbnail.defaultMuted = true;
+      thumbnail.playsInline = true;
+      thumbnail.setAttribute('muted', '');
+      thumbnail.setAttribute('playsinline', '');
+      thumbnail.setAttribute('aria-hidden', 'true');
+      thumbnail.preload = 'metadata';
+      thumbnail.tabIndex = -1;
+      const placeholder = document.createElement('div');
+      placeholder.className = 'home-video-placeholder';
+      placeholder.textContent = '미리보기 불러오는 중…';
+      play.dataset.previewState = 'loading';
+      const current = () => token === previewRequest && card.isConnected;
+      const ready = () => {
+        if (!current() || thumbnail.readyState < 2) return;
+        placeholder.hidden = true;
+        play.dataset.previewState = 'ready';
+      };
+      const failed = () => {
+        if (!current()) return;
+        placeholder.hidden = false;
+        placeholder.textContent = '미리보기를 불러오지 못했습니다. 눌러 재생해 주세요.';
+        play.dataset.previewState = 'unavailable';
+      };
+      thumbnail.addEventListener('loadedmetadata', () => {
+        // Seek off time zero, including on iOS where metadata alone can leave a blank frame.
+        if (!current() || !Number.isFinite(thumbnail.duration) || thumbnail.duration <= 0) return;
+        try { thumbnail.currentTime = Math.min(1, thumbnail.duration / 2); } catch (_) { /* The media fragment remains the fallback. */ }
+      });
+      thumbnail.addEventListener('loadeddata', ready);
+      thumbnail.addEventListener('seeked', ready);
+      thumbnail.addEventListener('error', failed);
+      thumbnail.addEventListener('stalled', failed);
+      play.replaceChildren(thumbnail, placeholder, caption);
+      void resolveVideo(row.id).then(source => {
+        if (!current()) return;
+        if (!source) { failed(); return; }
+        thumbnail.src = source.url.replace(/#.*$/, '') + '#t=0.1';
+      }).catch(failed);
+    }
 
     function renderPublic() {
+      const previewToken = ++previewRequest;
       const videos = $('homeTourSection');
       const schedules = $('homeDailyCountdown');
       const clock = $('homeClockExam');
@@ -54,20 +120,13 @@ globalThis.CheonglaHomeFeatures = {
         card.querySelector('h3').textContent = row.title;
         card.querySelector('p').textContent = row.description;
         card.querySelector('p').hidden = !row.description;
-        if (row.original_video && !row.video_hidden) {
-          const play = card.querySelector('button');
-          play.classList.add('home-tour-open');
-          const photo = document.createElement('img');
-          photo.src = originalPoster;
-          photo.alt = '';
-          photo.loading = 'lazy';
-          photo.width = 960;
-          photo.height = 640;
-          const caption = document.createElement('span');
-          const title = document.createElement('strong');
-          title.textContent = row.title + ' ▶';
-          caption.append(title);
-          play.replaceChildren(photo, caption);
+        appendPreview(card, row, previewToken);
+        if (principal()) {
+          const controls = document.createElement('div');
+          controls.className = 'home-video-owner-actions';
+          controls.append(button('홈에서 숨기기', () => change(row,
+            { hidden: true, video_hidden: false }, '홈에서 숨겼습니다. 콘텐츠 관리에서 다시 표시할 수 있습니다.')));
+          card.append(controls);
         }
       }
       for (const row of published('countdown')) {
@@ -132,13 +191,30 @@ globalThis.CheonglaHomeFeatures = {
       const chooser = $('homeFeaturesItem');
       chooser.replaceChildren();
       for (const [value, title] of [['', '새 콘텐츠 등록'], ...available.map(row =>
-        [row.id, row.title + (row.hidden ? ' · 숨김' : row.featured ? ' · 대표 D-day' : '')])]) {
+        [row.id, row.title + ((row.hidden || kind === 'tour' && row.video_hidden) ? ' · 홈에서 숨김' : row.featured ? ' · 대표 D-day' : '')])]) {
         const option = document.createElement('option');
         option.value = value;
         option.textContent = title;
         chooser.append(option);
       }
       chooser.value = selectedId;
+      const visibility = $('homeFeaturesVisibilityList');
+      $('homeFeaturesVisibility').hidden = kind !== 'tour';
+      visibility.replaceChildren();
+      for (const row of kind === 'tour' ? available : []) {
+        const item = document.createElement('li');
+        item.dataset.homeFeatureId = row.id;
+        const text = document.createElement('div');
+        const heading = document.createElement('strong');
+        heading.textContent = row.title;
+        const state = document.createElement('small');
+        state.textContent = tourHidden(row) ? '홈에서 숨김 · 파일은 보관 중' : '홈에 표시 중';
+        text.append(heading, state);
+        item.append(text, button(tourHidden(row) ? '홈에 다시 표시' : '홈에서 숨기기', () => change(row,
+          { hidden: !tourHidden(row), video_hidden: false }, tourHidden(row) ? '홈에 다시 표시했습니다.' : '홈에서 숨겼습니다. 영상 파일은 그대로 보관됩니다.')));
+        visibility.append(item);
+      }
+      if (kind === 'tour' && !available.length) visibility.textContent = '등록된 동영상이 없습니다.';
       $('homeFeaturesNewVisibility').hidden = Boolean(editing);
       form.elements.title.value = editing?.title || '';
       form.elements.description.value = editing?.description || '';
@@ -150,9 +226,9 @@ globalThis.CheonglaHomeFeatures = {
         ? (editing.video_hidden ? '현재 영상은 숨김 상태입니다.' : '현재 연결된 영상이 있습니다.')
         : '현재 연결된 영상이 없습니다.';
       $('homeFeaturesHide').hidden = !editing;
-      $('homeFeaturesHide').textContent = editing?.hidden ? '다시 공개' : '콘텐츠 숨기기';
+      $('homeFeaturesHide').textContent = (kind === 'tour' ? editing && tourHidden(editing) : editing?.hidden) ? '홈에 다시 표시' : '홈에서 숨기기';
       $('homeFeaturesFeatured').hidden = !editing || kind !== 'countdown' || editing.hidden || editing.featured;
-      $('homeFeaturesHideVideo').hidden = !hasVideo(editing);
+      $('homeFeaturesHideVideo').hidden = kind === 'tour' || !hasVideo(editing);
       $('homeFeaturesHideVideo').textContent = editing?.video_hidden ? '영상 다시 공개' : '영상 숨기기';
       $('homeFeaturesRemoveVideo').hidden = !hasVideo(editing);
       $('homeFeaturesArchive').hidden = !editing;
@@ -284,8 +360,12 @@ globalThis.CheonglaHomeFeatures = {
       renderEditor();
       status.textContent = '';
     });
-    $('homeFeaturesHide').addEventListener('click', () => change(editing,
-      { hidden: !editing?.hidden }, editing?.hidden ? '다시 공개했습니다.' : '콘텐츠를 숨겼습니다.'));
+    $('homeFeaturesHide').addEventListener('click', () => {
+      if (!editing) return;
+      const hidden = kind === 'tour' ? tourHidden(editing) : editing.hidden;
+      change(editing, { hidden: !hidden, ...(kind === 'tour' ? { video_hidden: false } : {}) },
+        hidden ? '홈에 다시 표시했습니다.' : '홈에서 숨겼습니다. 콘텐츠 관리에서 다시 표시할 수 있습니다.');
+    });
     $('homeFeaturesHideVideo').addEventListener('click', () => change(editing,
       { video_hidden: !editing?.video_hidden }, editing?.video_hidden ? '영상을 다시 공개했습니다.' : '영상을 숨겼습니다.'));
     $('homeFeaturesFeatured').addEventListener('click', () => {
@@ -316,15 +396,22 @@ globalThis.CheonglaHomeFeatures = {
       }
       void run(async (db, current) => {
         let path;
+        let coverUnavailable = false;
         const storage = db.storage.from(bucket);
         try {
           if (file) {
+            status.textContent = '영상 미리보기 이미지를 만드는 중입니다…';
+            const poster = await globalThis.CheonglaVideoPoster?.create(file);
+            if (!current()) throw new Error('로그인 상태가 변경되었습니다.');
             status.textContent = '동영상을 업로드하는 중입니다…';
             path = crypto.randomUUID() + '.mp4';
             const { error } = await storage.upload(path, file, { contentType: 'video/mp4' });
             if (error) throw error;
             if (!current()) throw new Error('로그인 상태가 변경되었습니다.');
             values.video_path = path;
+            values.poster_data_url = poster || null;
+            values.poster_video_path = poster ? path : null;
+            coverUnavailable = !poster;
             if (row) {
               values.original_video = false;
               values.video_hidden = false;
@@ -336,7 +423,7 @@ globalThis.CheonglaHomeFeatures = {
             if (error) throw error;
             if (current()) selectedId = data.id;
           }
-          return '홈 화면에 저장했습니다.';
+          return '홈 화면에 저장했습니다.' + (coverUnavailable ? ' 이 기기에서 표지 이미지를 만들지 못해 영상 미리보기를 사용합니다.' : '');
         } catch (error) {
           // Storage refuses to remove a file if the database save actually committed.
           if (path && current()) await storage.remove([path]).catch(() => {});
@@ -345,15 +432,29 @@ globalThis.CheonglaHomeFeatures = {
       });
     });
 
+    async function resolveVideo(id) {
+      const row = rows.find(item => item.id === id && !item.archived_at && !item.hidden && !item.video_hidden);
+      if (!row) return null;
+      if (row.original_video) return { url: original, title: row.title, original: true };
+      if (!row.video_path) return null;
+      const db = await client();
+      const { data, error } = await db.storage.from(bucket).createSignedUrl(row.video_path, 900);
+      if (error) throw error;
+      if (!rows.some(item => item.id === id && item.revision === row.revision && !item.archived_at && !item.hidden && !item.video_hidden)) return null;
+      return { url: data.signedUrl, title: row.title };
+    }
+
     return {
       refresh,
       reset() {
         request++;
+        previewRequest++;
         rows = rows.filter(row => !row.archived_at && !row.hidden);
         videoTrash = [];
         selectedId = null;
         $('homeFeaturesVideoTrash').replaceChildren();
         entry.hidden = true;
+        for (const controls of document.querySelectorAll('#homeTourSection .home-video-owner-actions')) controls.remove();
         if (dialog.open) dialog.close();
         editing = null;
         list.replaceChildren();
@@ -362,17 +463,7 @@ globalThis.CheonglaHomeFeatures = {
         status.textContent = '';
       },
       countdown: representative,
-      async video(id) {
-        const row = rows.find(item => item.id === id && !item.archived_at && !item.hidden && !item.video_hidden);
-        if (!row) return null;
-        if (row.original_video) return { url: original, title: row.title, original: true };
-        if (!row.video_path) return null;
-        const db = await client();
-        const { data, error } = await db.storage.from(bucket).createSignedUrl(row.video_path, 900);
-        if (error) throw error;
-        if (!rows.some(item => item.id === id && item.revision === row.revision && !item.archived_at && !item.hidden && !item.video_hidden)) return null;
-        return { url: data.signedUrl, title: row.title };
-      }
+      video: resolveVideo
     };
   }
 };
