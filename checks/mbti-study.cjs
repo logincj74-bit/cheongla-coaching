@@ -5,7 +5,7 @@ const html=fs.readFileSync('index.html','utf8'),dom=new JSDOM(html),d=dom.window
 assert(d.querySelector('[data-mbti-page="mbti_study"] #mbtiLibraryRoot'));
 assert(d.querySelector('#mbtiLegacyStudy').hidden,'legacy 2015 content remains visible');
 for(const key of ['mbti_intro','mbti_groups','mbti_parents'])assert(d.querySelector('[data-mbti-page="'+key+'"]'));
-assert(d.querySelector('script[src="mbti-library.js?v=2"]'));
+assert(d.querySelector('script[src="mbti-library.js?v=3"]'));
 for(const script of d.querySelectorAll('script:not([src])'))if(!script.type||script.type==='text/javascript')new vm.Script(script.textContent);
 assert(html.includes("globalThis.CheonglaMBTILibraryUI?.open()"));assert(html.includes("referenceSections:code=>globalThis.CheonglaMBTILibraryUI?.references(code)"));
 const policy=html.match(/function canUseMBTIStudy\(\)\{([^}]+)\}/)[1];assert(policy.includes("['owner','english_director','math_director','manager']"));
