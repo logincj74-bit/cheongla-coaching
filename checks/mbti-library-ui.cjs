@@ -1,5 +1,5 @@
 const fs=require('fs'),assert=require('node:assert/strict'),{JSDOM}=require('jsdom');
-const seed=JSON.parse(fs.readFileSync('data/mbti-library-2022.json','utf8')),dom=new JSDOM('<section id="mbtiLibraryRoot"></section>',{runScripts:'outside-only'}),w=dom.window,d=w.document;
+const seed=require('./mbti-fixtures.cjs').library(),dom=new JSDOM('<section id="mbtiLibraryRoot"></section>',{runScripts:'outside-only'}),w=dom.window,d=w.document;
 for(const path of ['mbti-library.js','drafts/mbti-preview-adapter.js'])w.eval(fs.readFileSync(path,'utf8'));
 let profile={id:'owner'},canUse=true,canEdit=true,consent=true,prints=[],deferred=null;
 w.CheonglaPrint={clear(){},open(title,build,filename){const out=d.implementation.createHTMLDocument(title);build(out.body,out);prints.push({title,out,filename});}};
@@ -20,6 +20,6 @@ const tick=()=>new Promise(r=>setImmediate(r)),click=text=>{const b=[...d.queryS
  canEdit=false;ui.reset();await ui.open();assert(!d.body.textContent.includes('휴지통 ('));assert(![...d.querySelectorAll('button')].some(b=>b.textContent==='이 항목 수정'));[...d.querySelectorAll('.ml-group')].find(b=>b.querySelector('strong').textContent==='NF').click();await settle();assert(d.body.textContent.includes('인쇄 / PDF'));
  const html=d.createElement('div');w.CheonglaMBTILibrary.markdown(html,'<img src=x onerror=alert(1)>\n\n| 과목 | 내용 |\n| --- | --- |\n| 국어 | 안전<br>확인 |');assert(!html.querySelector('img'));assert.equal(html.querySelector('td:last-child').textContent,'안전\n확인');
  let resolve;deferred=new Promise(r=>resolve=r);const pending=ui.open();ui.reset();profile={id:'other'};resolve(await fake.rpc('cheongla_mbti_library_list'));await pending;assert.equal(d.querySelector('#mbtiLibraryRoot').children.length,0,'stale account result leaked');
- assert(seed.documents.length===20&&seed.documents.every(x=>x.sections.length===12));const report=JSON.parse(fs.readFileSync('data/mbti-library-2022.json.report.json'));assert(report.every(r=>r.glyphCoverage==='100%'));
- dom.window.close();console.log('PASS four temperaments/16 types/240 sections; subject navigation, preference save, safe tables, full/section print, edit/save/cancel, section/document trash/restore/purge/empty, read-only controls and stale-account isolation; all PDF non-footer glyphs accounted for');
+ assert(seed.documents.length===20&&seed.documents.every(x=>x.sections.length===12));
+ dom.window.close();console.log('PASS four temperaments/16 types/240 sections; subject navigation, preference save, safe tables, full/section print, edit/save/cancel, section/document trash/restore/purge/empty, read-only controls and stale-account isolation; synthetic content only');
 })().catch(e=>{console.error(e);dom.window.close();process.exit(1)});

@@ -16,10 +16,9 @@ select updated_at into v from public.cheongla_information_posts where id=p;
 perform public.cheongla_set_information_deleted(p,true,v);
 if not exists(select 1 from public.cheongla_information_posts where id=p and deleted_at is not null)then raise exception 'FAIL own info delete';end if;
 perform set_config('request.jwt.claim.sub',st::text,true);
-begin perform public.cheongla_save_board_post_secure(null,'검증','비밀번호 누락','private',null,'123');raise exception 'FAIL short PIN';exception when raise_exception then if sqlerrm='FAIL short PIN'then raise;end if;end;
-b:=public.cheongla_save_board_post_secure(null,'검증용 비공개 글','비공개 본문','private',null,'1234');
+b:=public.cheongla_save_board_post_secure(null,'검증용 비공개 글','비공개 본문','private',null,null);
 select updated_at into v from public.cheongla_board_posts where id=b;
-if not exists(select 1 from cheongla_private.inquiry_pins where kind='board'and post_id=b and pin_hash<>'1234'and extensions.crypt('1234',pin_hash)=pin_hash)then raise exception 'FAIL hashed PIN';end if;
+if exists(select 1 from cheongla_private.inquiry_pins where kind='board'and post_id=b)then raise exception 'FAIL unused PIN created';end if;
 perform set_config('test.board',b::text,true);
 perform set_config('request.jwt.claim.sub',mg::text,true);
 begin perform public.cheongla_delete_board_post(b,v);raise exception 'FAIL manager deletes student';exception when insufficient_privilege then null;end;
@@ -42,7 +41,7 @@ if exists(select 1 from jsonb_array_elements(public.cheongla_list_new_inquiries(
 end;$$;
 set local role anon;
 do $$begin
-begin perform public.cheongla_submit_new_inquiry(gen_random_uuid(),gen_random_uuid(),'검증','01000000000','student','검증','검증','private',true,'');raise exception 'FAIL old PIN bypass';exception when insufficient_privilege then null;end;
+begin perform public.cheongla_submit_new_inquiry(gen_random_uuid(),gen_random_uuid(),'검증','01000000000','student','검증','검증','private',true,'');raise exception 'FAIL direct internal submission';exception when insufficient_privilege then null;end;
 end;$$;
 reset role;
 select set_config('request.jwt.claim.sub',current_setting('test.mg'),true);
@@ -64,5 +63,5 @@ select set_config('request.jwt.claim.sub',current_setting('test.pr'),true);
 set local role authenticated;
 do $$declare n integer;begin delete from public.cheongla_notices where id='03700000-0000-0000-0000-000000000001';get diagnostics n=row_count;if n<>1 then raise exception 'FAIL principal notice delete';end if;end;$$;
 reset role;
-select 'PASS: PIN 검증·해시·비공개 열람, 원장 전체/직원·학생 본인 삭제, 답변 삭제, 기존 PIN 우회 차단' as result;
+select 'PASS: 계정 기반 비공개 열람, 원장 전체/직원·학생 본인 삭제, 답변 삭제, 내부 제출 함수 직접 호출 차단' as result;
 rollback;

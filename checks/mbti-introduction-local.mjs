@@ -31,6 +31,7 @@ async function as(role, id, action) {
 try {
   await db.exec(read('./journal-notifications-local-bootstrap.sql'));
   await db.exec(read('../supabase/migrations/' + migration));
+  await db.query('insert into public.cheongla_mbti_introductions(title,body)values($1,$2)',['합성 소개','합성 검증 소개\n\n'+Array.from({length:6},(_,i)=>(i+1)+'. 합성 검증 항목').join('\n\n')+'\n\n※ 안내: 합성 검증 문서']);
   await db.exec(`insert into public.cheongla_profiles (id, role, approval_status, membership_state) values
     ('${principal}', 'english_director', 'approved', 'active'),
     ('${member}', 'student', 'approved', 'active'),
@@ -39,6 +40,7 @@ try {
     ('${manager}', 'manager', 'approved', 'active');`);
   const articlesMigration = readdirSync(migrations).find(name => name.endsWith('_mbti_learning_articles.sql'));
   await db.exec(read('../supabase/migrations/' + articlesMigration));
+  for(const category of ['groups','parent_nf','parent_nt','parent_sj','parent_sp'])await db.query('insert into public.cheongla_mbti_learning_articles(category,title,body)values($1,$2,$3)',[category,'합성 문서','합성 본문']);
   const accessMigration = readdirSync(migrations).find(name => name.endsWith('_mbti_parent_guide_access.sql'));
   await db.exec(read('../supabase/migrations/' + accessMigration));
   const articlesTable = 'public.cheongla_mbti_learning_articles';
@@ -67,9 +69,9 @@ try {
     assert.equal((await rows('select * from ' + articlesTable)).length, 4);
   });
   const [seed] = await rows('select * from ' + table);
-  assert.equal(seed.title, '나를 이해하는 공부, 나에게 맞는 학습법');
+  assert.equal(seed.title, '합성 소개');
   assert.equal(seed.body.match(/^[1-6]\. /gm)?.length, 6);
-  assert.match(seed.body, /※ 안내: MBTI는 학업 능력이나 성적을 진단하는 검사가 아닙니다/);
+  assert.match(seed.body, /합성 검증 항목/);
   await assert.rejects(as('anon', '', () => rows('select * from ' + table)), { code: '42501' });
   await as('authenticated', suspended, async () => assert.equal((await rows('select * from ' + table)).length, 0));
   await as('authenticated', member, async () => {
@@ -111,7 +113,7 @@ try {
   for (const role of ['student', 'parent', 'owner', 'english_director', 'math_director', 'manager']) {
     context.currentProfile = { role, approval_status: 'approved', membership_state: 'active' };
     context.configureMBTIParentMenu();
-    assert.equal(Boolean(parentMenu()), role !== 'student');
+    assert.equal(Boolean(parentMenu()), ['owner','english_director','math_director'].includes(role));
   }
   context.currentProfile = { role:'student', approval_status:'approved', membership_state:'active' };
   context.configureMBTIParentMenu();
@@ -160,7 +162,7 @@ try {
   canEdit = true;
   await ui.load();
   intro.querySelector('[data-mbti-intro-actions] button').click();
-  assert.equal(intro.querySelector('textarea').value.startsWith('MBTI로 시작하는'), true);
+  assert.equal(intro.querySelector('textarea').value.startsWith('합성 검증 소개'), true);
   ui.reset();
   assert.equal(intro.querySelector('textarea').value, '');
   assert(intro.querySelector('[data-mbti-intro-export]').hidden);

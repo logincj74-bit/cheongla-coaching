@@ -1,5 +1,5 @@
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
-const base=path.join(__dirname,'..'),catalog=JSON.parse(fs.readFileSync(path.join(base,'assets/mbti-study-methods.json'),'utf8'));
+const base=path.join(__dirname,'..'),catalog=require('./mbti-fixtures.cjs').legacy();
 class N{constructor(tag){this.tag=tag;this.children=[];this.events={};this.value='';this.open=false;}append(...n){this.children.push(...n);}replaceChildren(...n){this.children=n;}addEventListener(k,f){this.events[k]=f;}reportValidity(){return true;}showModal(){this.open=true;}close(){this.open=false;this.events.close?.();}}
 const nodes={},$=id=>nodes[id]??=new N(),document={getElementById:$,createElement:t=>new N(t)},flat=n=>[n,...n.children.flatMap(flat)];
 const ctx=vm.createContext({document});vm.runInContext(fs.readFileSync(path.join(base,'mbti-editor.js'),'utf8'),ctx);

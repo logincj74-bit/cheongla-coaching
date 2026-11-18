@@ -5,3 +5,5 @@ exclude:
   - scripts
   - drafts
   - checks
+  - recovery
+  - supabase

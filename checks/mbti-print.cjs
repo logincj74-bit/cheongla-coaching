@@ -1,5 +1,5 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const path=require('node:path'),base=path.join(__dirname,'..'),h=fs.readFileSync(path.join(base,'index.html'),'utf8'),p=fs.readFileSync(path.join(base,'print-tools.js'),'utf8'),catalog=JSON.parse(fs.readFileSync(path.join(base,'assets/mbti-study-methods.json'),'utf8'));
+const path=require('node:path'),base=path.join(__dirname,'..'),h=fs.readFileSync(path.join(base,'index.html'),'utf8'),p=fs.readFileSync(path.join(base,'print-tools.js'),'utf8'),catalog=require('./mbti-fixtures.cjs').legacy();
 class N{constructor(tag){this.tag=tag;this.children=[];this.textContent='';}append(...nodes){this.children.push(...nodes);}}
 const allText=n=>[n.textContent,...n.children.map(allText)].join('\n');let result;
 const c=vm.createContext({open:(title,build,filename)=>{const body=new N('body');build(body,{createElement:tag=>new N(tag)});result={title,filename,body};return result;}});

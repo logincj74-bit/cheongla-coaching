@@ -15,7 +15,7 @@ for filename,(code,category) in mapping.items():
  path=next(p for p in source.glob('*.pdf') if unicodedata.normalize('NFC',p.name)==filename)
  pdf=fitz.open(path);sections=[];front=[];titles=[];original=[];used=[];table_count=0
  if code=='intro_letter':
-  entry=json.loads(Path('scripts/sources/mbti-intro-letter.json').read_text())
+  entry=json.loads(Path(sys.argv[3]).read_text())
   coverage='image PDF · local OCR + three-page visual verification'
  else:
   for page_index,page in enumerate(pdf):

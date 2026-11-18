@@ -1,5 +1,5 @@
 const fs=require('fs'),assert=require('node:assert/strict'),{JSDOM}=require('jsdom');
-const seed=JSON.parse(fs.readFileSync('data/mbti-articles-2026.json','utf8'));
+const seed=require('./mbti-fixtures.cjs').articles();
 const dom=new JSDOM(fs.readFileSync('index.html','utf8'),{runScripts:'outside-only'}),w=dom.window,d=w.document;
 for(const path of ['mbti-library.js','mbti-articles.js','drafts/mbti-preview-adapter.js'])w.eval(fs.readFileSync(path,'utf8'));
 let profile={id:'fixture-owner'},use=true,edit=true,consent=true,prints=[],deferred;
@@ -25,7 +25,7 @@ const click=text=>{const b=[...host().querySelectorAll('button')].find(b=>b.text
  click('이 항목 삭제 · 휴지통');await settle();click('휴지통 (1)');await settle();click('복원');await settle();click('학습법으로 돌아가기');await settle();assert(host().textContent.includes('저장검증문장'));
  click('이 항목 삭제 · 휴지통');await settle();click('휴지통 (1)');await settle();click('영구삭제');await settle();assert.equal((await fake.rpc('cheongla_mbti_library_list')).find(x=>x.code==='intro_learning').content.sections[0].body,null);
  click('학습법으로 돌아가기');await settle();host().querySelector('[data-document="intro_letter"]').click();await settle();click('이 문서 전체 삭제 · 휴지통');await settle();click('휴지통 (1)');await settle();click('휴지통 비우기');await settle();assert.equal((await fake.rpc('cheongla_mbti_library_list')).find(x=>x.code==='intro_letter').content,null);
- await ui.open('mbti_groups');assert.equal(host().querySelectorAll('table').length,1);click('문서 전체 인쇄 / PDF');assert.equal(prints.at(-1).out.querySelectorAll('table').length,4);
+ await ui.open('mbti_groups');assert.equal(host().querySelectorAll('table').length,1);click('문서 전체 인쇄 / PDF');assert.equal(prints.at(-1).out.querySelectorAll('table').length,seed.documents.find(x=>x.code==='groups').sections.length);
  edit=false;ui.reset();await ui.open('mbti_parents');assert(![...host().querySelectorAll('button')].some(b=>b.textContent.includes('수정')||b.textContent.includes('휴지통')));
  let resolve;deferred=new Promise(r=>resolve=r);const pending=ui.open('mbti_groups');ui.reset();profile={id:'fixture-other'};resolve(await fake.rpc('cheongla_mbti_library_list'));await pending;assert.equal(host().children.length,0,'stale account data leaked');
  dom.window.close();console.log('PASS three revised menus/eight documents/54 sections: source navigation and safe tables, full/section exports, dirty-page guard, shared edit/save/trash/restore/purge/empty, read-only and stale-account isolation');

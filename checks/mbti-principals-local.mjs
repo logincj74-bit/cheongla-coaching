@@ -1,3 +1,4 @@
+import mbtiFixtures from './mbti-fixtures.cjs';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {PGlite} from '@electric-sql/pglite';
@@ -17,13 +18,14 @@ try{
  alter table public.cheongla_mbti_preferences enable row level security;grant select,insert,update,delete on public.cheongla_mbti_preferences to authenticated;create policy fixture_existing_access on public.cheongla_mbti_preferences for all to authenticated using(true)with check(true);`);
  await db.exec(read('../067_mbti_guide_editor.sql'));
  await apply('_mbti_introduction.sql');await apply('_mbti_learning_articles.sql');await apply('_mbti_study_operations.sql');
+ await db.exec("insert into public.cheongla_mbti_introductions(title,body)values('합성 소개','검증 본문');insert into public.cheongla_mbti_learning_articles(category,title,body)values('groups','합성 성향','검증 본문');");
  for(const table of ['preferences','guides','introductions','learning_articles','operation_references','prescriptions'])await db.exec(`create policy principal_only_role_release on public.cheongla_mbti_${table} as restrictive for select to authenticated using(cheongla_private.is_principal());`);
  for(const role of roles)await db.query('insert into public.cheongla_profiles(id,role,approval_status,membership_state)values($1,$2,$3,$4)',[ids[role],['suspended','pending'].includes(role)?'owner':role,role==='pending'?'pending':'approved',role==='suspended'?'suspended':'active']);
  await db.query("insert into public.cheongla_mbti_preferences values($1,'ENFP')",[ids.student]);
  await apply('_mbti_manager_collaboration.sql');
  await apply('_mbti_principals_only.sql');
  await db.exec(read('../drafts/mbti-library-schema.sql'));await db.exec(read('../drafts/mbti-articles-schema.sql'));
- for(const[table,file]of [['mbti_library','mbti-library-2022'],['mbti_articles','mbti-articles-2026']])for(const content of JSON.parse(read('../data/'+file+'.json')).documents)await db.query('insert into cheongla_private.'+table+'(code,content)values($1,$2)',[content.code,content]);
+ for(const[table,file]of [['mbti_library','mbti-library-2022'],['mbti_articles','mbti-articles-2026']])for(const content of (table==='mbti_library'?mbtiFixtures.library():mbtiFixtures.articles()).documents)await db.query('insert into cheongla_private.'+table+'(code,content)values($1,$2)',[content.code,content]);
  const content={title:'검증',subtitle:'테스트',overview:[{title:'유형',body:'본문'}],subjects:{english_reading:'독해'},groupIntroductions:{english:{title:'영어',body:'학습법'}}};
  for(const role of ['owner','english_director','math_director'])await as(role,async()=>{
   assert.equal((await db.query('select cheongla_private.can_use_mbti_study() as allowed')).rows[0].allowed,true);

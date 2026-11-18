@@ -1,0 +1,7 @@
+checks/node_modules
+supabase/.temp/
+tmp/
+.private/
+data/mbti-*
+assets/mbti-study-methods.json
+scripts/sources/mbti-intro-letter.json

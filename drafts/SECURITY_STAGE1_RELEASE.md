@@ -1,0 +1,14 @@
+# Security maintenance v2.0.15
+
+Scope: current MBTI document exposure, unused inquiry PINs, and pinned login SDK.
+
+- Existing 28 revised documents, 16 legacy guides, intro/group/parent documents, archived state and consultation records were preserved. Before/after row counts and content fingerprints match for eight affected existing tables.
+- MBTI document source JSONs and OCR transcription were removed from current main. Two historical schema files retain definitions but no longer embed document seeds. Do not rerun them against production; the new timestamped migration is the only applied schema change. A private document backup was saved before removal.
+- Historical commits and other branches remain public. This is current-release containment, not an erasure of already-published history or downloaded copies. History rewrite, repository visibility changes, and paid hosting changes are outside this release.
+- The former static legacy catalog is now in a private RLS-enabled table with no client table privileges. Only the role-checked authenticated RPC can return it to approved active principals. Current 28-document pages continue to use their existing protected RPCs. No static fallback or cache resurrection on logout.
+- Member consultations retain account-based visibility/ownership and existing reply/edit/delete checks. Anonymous private inquiries explicitly state contact-based replies and no online private re-read. Unused four-digit PIN fields and validation are gone. Existing RPC signatures accept a deprecated ignored PIN for cached-client compatibility; existing hashes are untouched.
+- Existing submission implementations are unchanged: consent, honeypot, rate limits, duplicate submission handling and optimistic edit checks remain. Tests invoke their pre-change definitions in an isolated local database; production users are never impersonated or test-posted.
+- supabase-js 2.119.0 UMD is vendored with MIT license, source URL and SHA256. App loads it locally; session options and network timeout wrapper are unchanged. Real SDK tested against simulated auth responses for sign-in, persisted session, sign-out and invalid credentials.
+- Synthetic fixtures replace document bodies in UI/DB/PDF regression checks. Source import/seed/review scripts require explicit private input paths.
+- Supabase advisor warnings for authenticated SECURITY DEFINER execution and private RLS tables without policies are expected for the checked RPC design; anonymous catalog EXECUTE remains revoked. Existing unrelated advisor warnings are not claimed resolved.
+- Validation: private catalog role denials including manager/student/parent/pending/suspended/anon, stale-account cache denial, PIN-free submission and retained anti-abuse checks, cross-account edit denial, 28-document editing/trash/export regression, mobile/desktop principal menu gates, existing swipe and fixed navigation. Physical mobile sign-in was not performed.
