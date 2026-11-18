@@ -94,7 +94,7 @@
    finally{if(request===searchRequest)$('dictionarySearchButton').disabled=false;}
   }
   let admin;function accountChanged(){searchRequest++;$('dictionarySearchButton').disabled=false;admin?.configure();}
-  if(adapter.client&&adapter.profile)void import('./dictionary-admin.js?v=20261027-1').then(m=>{admin=m.mountDictionaryAdmin(adapter,{baseLookup:lookup.base,normalize,valid,onSaved:word=>{$('dictionaryWord').value=word;void search();}});admin.configure();}).catch(()=>{});
+  if(adapter.client&&adapter.profile)void import('./dictionary-admin.js?v=20261118-owner').then(m=>{admin=m.mountDictionaryAdmin(adapter,{baseLookup:lookup.base,normalize,valid,onSaved:word=>{$('dictionaryWord').value=word;void search();}});admin.configure();}).catch(()=>{});
   $('dictionaryForm').addEventListener('submit',e=>{e.preventDefault();void search();});
   $('dictionaryClear').addEventListener('click',()=>{searchRequest++;$('dictionaryResultsWrap').hidden=true;$('dictionaryResults').replaceChildren();$('dictionaryStatus').textContent='';$('dictionarySearchButton').disabled=false;current=[];});
   return {accountChanged,search};

@@ -11,7 +11,7 @@ const html = fs.readFileSync("index.html", "utf8"),
   d = w.document;
 w.HTMLElement.prototype.scrollIntoView=function(){};
 w.eval(`var financeEnabled=()=>true,feeNoticesEnabled=()=>true;window.CheonglaFeatures={finance:true};var currentProfile=null,activeAccountSection=null;var $=id=>document.getElementById(id);var accountSectionLabels=${html.match(/const accountSectionLabels=(\{[^\n]+\});/)[1]};
-var showSiteHome=()=>{},clearAccount=()=>{};var canManageLife=()=>currentProfile?.approval_status==='approved'&&currentProfile?.membership_state==='active'&&['owner','english_director','math_director','manager'].includes(currentProfile.role);var canManageMealForms=canManageLife,canManageAccountRecovery=canManageLife;var isPrincipal=()=>canManageLife()&&currentProfile.role!=='manager';var isAppAdmin=()=>false;var appConfirm=async()=>true,readable=e=>e.message;var getClient=async()=>({rpc:async()=>({data:[]})});var renderMealCancelContacts=()=>{},configureStaffWorkspace=()=>{},feeDepositInstructions=()=>'';var allowedAccountSection=()=>true,accountSectionGroup=()=> '내 계정',configureAccountSections=()=>{},useAccountSections=()=>false,applyAccountSection=()=>{},tuitionText=()=>{},openSiteDestination=async k=>{window.lastRoute=k;},openMemberBilling=()=>{};`);
+var showSiteHome=()=>{},clearAccount=()=>{};var canManageLife=()=>currentProfile?.approval_status==='approved'&&currentProfile?.membership_state==='active'&&['owner','english_director','math_director','manager'].includes(currentProfile.role);var canManageMealForms=canManageLife,canManageAccountRecovery=canManageLife;var isPrincipal=()=>canManageLife()&&currentProfile.role!=='manager';var isContentOwner=()=>currentProfile?.id==='owner'&&currentProfile?.approval_status==='approved'&&currentProfile?.membership_state==='active';var isAppAdmin=()=>false;var appConfirm=async()=>true,readable=e=>e.message;var getClient=async()=>({rpc:async()=>({data:[]})});var renderMealCancelContacts=()=>{},configureStaffWorkspace=()=>{},feeDepositInstructions=()=>'';var allowedAccountSection=()=>true,accountSectionGroup=()=> '내 계정',configureAccountSections=()=>{},useAccountSections=()=>false,applyAccountSection=()=>{},tuitionText=()=>{},openSiteDestination=async k=>{window.lastRoute=k;},openMemberBilling=()=>{};`);
 w.eval(
   html.slice(
     html.indexOf("function configureDeskMenu(){"),
@@ -65,10 +65,10 @@ for (const role of [
   assert.equal(d.getElementById("feeNoticeMenu").hidden,!staff);
   assert(d.getElementById("financeMenu").hidden);
   assert(d.getElementById("englishMenu").hidden);
-  assert.equal(w.allowedAccountSection("mbtiStudyPanel"), staff);
-  assert.equal(w.canEditMBTIStudy(),staff);
+  assert.equal(w.allowedAccountSection("mbtiStudyPanel"), role === "owner");
+  assert.equal(w.canEditMBTIStudy(),role === "owner");
   assert.equal(w.allowedAccountSection("englishPanel"),false);
-  assert.equal([...d.querySelectorAll("#siteNavigation .site-menu")].find(n=>n.querySelector("summary")?.textContent.includes("나의 MBTI")).hidden,!staff);
+  assert.equal([...d.querySelectorAll("#siteNavigation .site-menu")].find(n=>n.querySelector("summary")?.textContent.includes("나의 MBTI")).hidden,role !== "owner");
   assert.equal(w.allowedAccountSection("tuitionPanel"), staff || role === "parent");
   w.configureAccountSections();
   const accountButtons = texts("accountSectionButtons");
@@ -76,7 +76,7 @@ for (const role of [
     accountButtons.includes("성적 변화 · 학습코칭"),
     role !== "manager",
   );
-  assert.equal(accountButtons.includes("MBTI 학습법"), staff);
+  assert.equal(accountButtons.includes("MBTI 학습법"), role === "owner");
   for (const retired of (principal ? [] : [
     "englishPanel",
     "externalPanel",
@@ -105,8 +105,9 @@ for (const role of [
   await w.openSiteDestination("mbti_intro");
   assert.notEqual(w.lastRoute, "mbti_intro");
   w.currentProfile = {id:"manager", role:"manager", approval_status:"approved", membership_state:"active"};
-  await w.openSiteDestination("mbti_intro");
-  assert.equal(w.lastRoute,"mbti_intro");
+  w.lastRoute="";await w.openSiteDestination("mbti_intro");
+  assert.notEqual(w.lastRoute,"mbti_intro");
+  w.currentProfile={id:"owner",role:"owner",approval_status:"approved",membership_state:"active"};await w.openSiteDestination("mbti_intro");assert.equal(w.lastRoute,"mbti_intro");
   for(const role of ["owner","english_director","math_director","manager"]){w.currentProfile={id:role,role,approval_status:"approved",membership_state:"active"};w.lastRoute="";await w.openSiteDestination("english_book");assert.notEqual(w.lastRoute,"english_book");}
   w.currentProfile = {id:"student", role:"student", approval_status:"approved", membership_state:"active"};
   await w.openSiteDestination("english_book");
@@ -127,7 +128,7 @@ for (const role of [
   assert(summary.includes("등급 개선"));
   dom.window.close();
   console.log(
-    "PASS six role menus, deep-link restrictions, common help, manager-only embedded fees, staff MBTI and principal-only trash, score coaching entry and trend analysis",
+    "PASS six role menus, deep-link restrictions, common help, manager-only embedded fees, personal-owner MBTI and principal-only trash, score coaching entry and trend analysis",
   );
 })().catch((e) => {
   console.error(e);

@@ -1,0 +1,37 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';import {PGlite}from '@electric-sql/pglite';
+const db=new PGlite(),read=p=>fs.readFileSync(p,'utf8'),roles=['bound','other_english','math','manager','student','parent','pending','suspended','spoof'],ids=Object.fromEntries(roles.map((r,i)=>[r,'30000000-0000-0000-0000-'+String(i+1).padStart(12,'0')]));
+async function as(role,dbrole='authenticated'){await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[ids[role]||'']);await db.exec('set role '+dbrole);}
+try{
+ await db.exec(read('checks/journal-notifications-local-bootstrap.sql'));
+ await db.exec(`alter table public.cheongla_profiles add column is_app_admin boolean default false;
+ create schema storage;grant usage on schema storage to authenticated;create table storage.objects(id uuid default gen_random_uuid(),bucket_id text,name text,metadata jsonb);
+ alter table storage.objects enable row level security;grant all on storage.objects to authenticated;create policy fixture_storage on storage.objects for all to authenticated using(true)with check(true);
+ create table cheongla_private.season_effect_owner(singleton boolean primary key default true,profile_id uuid);revoke all on cheongla_private.season_effect_owner from public,anon,authenticated;
+ create table cheongla_private.intro_pages(page_key text primary key constraint intro_pages_page_key_check check(page_key in('greeting','identity','results','photos','rules','daily_timetable')),payload jsonb not null,state text default 'active',updated_at timestamptz default clock_timestamp(),updated_by uuid);
+ create table cheongla_private.content_recycle(id uuid primary key default gen_random_uuid(),source_id uuid,kind text,row_data jsonb,deleted_at timestamptz default clock_timestamp());
+ create table public.cheongla_information_posts(id uuid,title text,deleted_at timestamptz,updated_at timestamptz);
+ create table public.cheongla_director_files(id uuid,post_id uuid);
+ create table public.cheongla_notices(id uuid default gen_random_uuid(),channel text,created_by uuid);
+ create table public.cheongla_daily_words(id uuid,message_on date,title text,body text,status text,updated_at timestamptz);
+ create table public.cheongla_dictionary_overrides(id uuid);
+ create table public.cheongla_winter_promotions(id uuid default gen_random_uuid(),deleted_at timestamptz);
+ create function cheongla_private.can_read_notice(text)returns boolean language sql as $$select true$$;`);
+ for(const[r,id]of Object.entries(ids))await db.query('insert into public.cheongla_profiles(id,full_name,role,approval_status,membership_state,is_app_admin)values($1,$2,$3,$4,$5,$6)',[id,['bound','other_english','spoof'].includes(r)?'이청재':'fixture',r==='math'?'math_director':['bound','other_english','pending','suspended'].includes(r)?'english_director':r==='spoof'?'owner':r,r==='pending'?'pending':'approved',r==='suspended'?'suspended':'active',['bound','math','other_english','manager'].includes(r)]);
+ await db.query('insert into cheongla_private.season_effect_owner values(true,$1)',[ids.bound]);
+ await db.exec(read('checks/content-owner-baseline.sql'));
+ for(const t of ['cheongla_daily_words','cheongla_dictionary_overrides','cheongla_director_posts','cheongla_director_files','cheongla_winter_promotions','cheongla_notices']){await db.exec(`alter table public.${t} enable row level security;grant all on public.${t} to authenticated;create policy fixture_read on public.${t} for select to authenticated using(true);create policy fixture_manage on public.${t} for all to authenticated using(cheongla_private.is_principal())with check(cheongla_private.is_principal());`);}
+ await db.exec(read('supabase/migrations/20261118083847_personal_content_owner_and_home_copy.sql'));
+ for(const r of roles){await as(r);assert.equal((await db.query('select public.cheongla_can_manage_app_content() value')).rows[0].value,r==='bound');assert.equal((await db.query('select cheongla_private.can_manage_mbti_operations() value')).rows[0].value,r==='bound');if(r!=='bound'){
+  for(const sql of ["select public.cheongla_intro_save('home_message','{\"title\":\"blocked\"}',null)","select public.cheongla_intro_action('home_message','archive',null)",'select public.cheongla_intro_trash()',"select public.cheongla_prepare_director_post(null,'thoughts')"]){await assert.rejects(db.exec(sql),{code:'42501'});}
+  await assert.rejects(db.exec("insert into public.cheongla_winter_promotions(id)values(gen_random_uuid())"),{code:'42501'});
+  await assert.rejects(db.exec("insert into public.cheongla_dictionary_overrides(id)values(gen_random_uuid())"),{code:'42501'});
+  await assert.rejects(db.exec("insert into storage.objects(bucket_id,name)values('cheongla-home-videos','blocked.mp4')"),{code:'42501'});
+ }}
+ await as('manager');assert.equal((await db.query('select cheongla_private.can_manage_life() value')).rows[0].value,true);assert.equal((await db.query("select cheongla_private.can_manage_notice_channel('desk') value")).rows[0].value,true);assert.equal((await db.query("select cheongla_private.can_manage_notice_channel('director') value")).rows[0].value,false);assert.equal((await db.query('select cheongla_private.can_manage_shared_content() value')).rows[0].value,true);await db.exec("insert into storage.objects(bucket_id,name)values('cheongla-information','staff-upload.txt')");await assert.rejects(db.query('update cheongla_private.season_effect_owner set profile_id=$1',[ids.manager]),{code:'42501'});
+ await as('math');assert.equal((await db.query('select cheongla_private.is_principal() value')).rows[0].value,true);assert.equal((await db.query('select cheongla_private.can_manage_life() value')).rows[0].value,true);assert.equal((await db.query("select cheongla_private.can_manage_notice_channel('director') value")).rows[0].value,false);
+ await as('bound');let row=(await db.query("select public.cheongla_intro_read('home_message') value")).rows[0].value;await db.query("select public.cheongla_intro_save('home_message',$1,$2)",[{title:'변경한 공개 문구',paragraphs:['검증']},row.updated_at]);await assert.rejects(db.query("select public.cheongla_intro_save('home_message',$1,$2)",[{title:'충돌'},row.updated_at]),/변경/);
+ row=(await db.query("select public.cheongla_intro_read('home_message') value")).rows[0].value;await db.query("select public.cheongla_intro_action('home_message','archive',$1)",[row.updated_at]);row=(await db.query("select public.cheongla_intro_read('home_message') value")).rows[0].value;assert.equal(row.state,'deleted');await db.query("select public.cheongla_intro_action('home_message','restore',$1)",[row.updated_at]);
+ await db.exec("insert into public.cheongla_winter_promotions(id)values(gen_random_uuid());insert into storage.objects(bucket_id,name)values('cheongla-home-videos','owner.mp4')");
+ await as(null,'anon');await assert.rejects(db.exec('select public.cheongla_can_manage_app_content()'),{code:'42501'});assert.equal((await db.query("select public.cheongla_intro_read('home_message') value")).rows[0].value.payload.title,'변경한 공개 문구');
+ console.log('PASS personal content owner bound by immutable ID; same-name English director, other principal/admin, manager/member/pending/suspended denied; owner edit/conflict/trash/restore and direct storage/write gates; staff desk notices, shared information and operational principal/life helpers preserved. Isolated fixtures only.');
+}finally{await db.close();}

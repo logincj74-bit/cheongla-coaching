@@ -1,0 +1,67 @@
+{
+  "home_message": {
+    "title": "담장 너머,\n더 넓은 세상으로.",
+    "kicker": "독학재수학원 청라",
+    "paragraphs": [
+      "학생의 하루를 함께 살피고,\n스스로 공부하는 힘을 기릅니다."
+    ]
+  },
+  "home_services": {
+    "title": "청라에서 함께하는 일",
+    "items": [
+      {
+        "title": "자기주도학습",
+        "body": "자신에게 맞는 공부 방식과 꾸준한 학습 습관"
+      },
+      {
+        "title": "상담문의",
+        "body": "학원 이용과 학습에 관한 문의를 남겨 주세요"
+      },
+      {
+        "title": "생활 · 학습 · 입시 상담",
+        "body": "목표를 세우고 계획을 점검하는 과정"
+      }
+    ]
+  },
+  "official_contacts": {
+    "title": "청라 문의 · 공식 채널",
+    "items": [
+      {
+        "title": "학원 상담 전화하기",
+        "detail": "010-8664-2052",
+        "href": "tel:01086642052",
+        "symbol": "☎",
+        "hours": "상담 가능 시간: 오전 8시~오후 11시",
+        "logo": "",
+        "helper": ""
+      },
+      {
+        "title": "학원 상담 문자 보내기",
+        "detail": "010-8664-2052",
+        "href": "sms:01086642052",
+        "symbol": "문자",
+        "hours": "상담 가능 시간: 오전 8시~오후 11시",
+        "logo": "",
+        "helper": "학생 이름·학년과 문의 내용을 적어주세요."
+      },
+      {
+        "title": "청라 공식 인스타그램",
+        "detail": "@cheongla_edu",
+        "href": "https://www.instagram.com/cheongla_edu/",
+        "symbol": "",
+        "logo": "assets/instagram-logo.png",
+        "hours": "",
+        "helper": ""
+      },
+      {
+        "title": "청라 공식 블로그",
+        "detail": "cheongla2020",
+        "href": "https://blog.naver.com/cheongla2020",
+        "symbol": "",
+        "logo": "assets/naver-blog-logo.png",
+        "hours": "",
+        "helper": ""
+      }
+    ]
+  }
+}

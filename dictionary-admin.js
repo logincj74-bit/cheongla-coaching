@@ -2,7 +2,7 @@
 export function mountDictionaryAdmin(adapter,api){
  const doc=adapter.document||document,host=doc.getElementById('homeDictionary');
  if(!host||host.querySelector('#dictionaryAdmin'))return {configure(){}};
- const actor=()=>adapter.profile?.(),allowed=()=>{const p=actor();return !!p&&p.approval_status==='approved'&&p.membership_state==='active'&&['owner','english_director','math_director'].includes(p.role);};
+ const actor=()=>adapter.profile?.(),allowed=()=>adapter.canEdit?.()===true;
  const el=(tag,text,cls)=>{const n=doc.createElement(tag);if(text)n.textContent=text;if(cls)n.className=cls;return n;};
  const link=el('link');link.rel='stylesheet';link.href='dictionary-admin.css?v=20261027-1';doc.head.append(link);
  const box=el('details',null,'dictionary-admin');box.id='dictionaryAdmin';box.hidden=true;box.append(el('summary','원장 · 단어 추가·수정'));

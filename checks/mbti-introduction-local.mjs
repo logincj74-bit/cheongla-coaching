@@ -109,11 +109,12 @@ try {
   assert.equal(parentMenu(), null);
   const html = read('../index.html');
   const context = vm.createContext({ document, $: id => document.getElementById(id), currentProfile: null });
+  context.isContentOwner=()=>context.currentProfile?.role==='english_director'&&context.currentProfile?.approval_status==='approved'&&context.currentProfile?.membership_state==='active';
   vm.runInContext(html.slice(html.indexOf('function canUseMBTIStudy()'), html.indexOf('function resetMBTIStudy()')), context);
   for (const role of ['student', 'parent', 'owner', 'english_director', 'math_director', 'manager']) {
     context.currentProfile = { role, approval_status: 'approved', membership_state: 'active' };
     context.configureMBTIParentMenu();
-    assert.equal(Boolean(parentMenu()), ['owner','english_director','math_director'].includes(role));
+    assert.equal(Boolean(parentMenu()), role==='english_director');
   }
   context.currentProfile = { role:'student', approval_status:'approved', membership_state:'active' };
   context.configureMBTIParentMenu();
