@@ -9,6 +9,15 @@ const firstImage=elements.dailyWordImage.src,firstBody=elements.dailyWordBody.te
 assert.match(firstImage,/assets\/daily-word\/.+\.webp$/);assert.ok(firstBody);
 const nextDay=run('automaticDailyWord("2026-10-23")');assert.notEqual(nextDay.image,firstImage);assert.notEqual(nextDay.body,firstBody);
 const gallery=run('dailyWordPhotos');assert.equal(gallery.length,86);assert.equal(new Set(gallery).size,86);for(const photo of gallery)assert.ok(fs.existsSync(new URL('../assets/daily-word/'+photo,import.meta.url)));
+const copy=run('dailyWordCopyByPhoto');
+assert.deepEqual(Object.keys(copy).sort(),Array.from(gallery).sort());
+const cycle=run('dailyWordPhotos.map((_, offset) => automaticDailyWord(new Date(Date.UTC(2026,9,22+offset)).toISOString().slice(0,10)))');
+assert.equal(new Set(cycle.map(card=>card.photo)).size,86);
+assert.equal(new Set(cycle.map(card=>card.title)).size,86);
+assert.equal(new Set(cycle.map(card=>card.body)).size,86);
+for(const card of cycle) assert.deepEqual([card.title,card.body],Array.from(copy[card.photo]));
+assert.equal(run('automaticDailyWord("2027-01-16").photo'),cycle[0].photo);
+
 rows=[{id:'past',message_on:'2026-10-21',title:'어제 글',body:'꾸준히',status:'published',updated_at:'v1'},{id:'today',message_on:'2026-10-22',title:'오늘 글',body:'<img src=x onerror=bad()>',status:'published',updated_at:'v2'},{id:'private',message_on:'2026-10-22',title:'비공개',body:'보이면 안 됨',status:'draft'},{id:'future',message_on:'2026-10-23',title:'미래',body:'아직 아님',status:'published'}];
 await run('loadDailyWord(true)');assert.equal(elements.dailyWordTitle.textContent,'오늘 글');assert.equal(elements.dailyWordBody.textContent,'<img src=x onerror=bad()>');assert.equal(elements.dailyWordHistory.children.length,1);assert.equal(elements.dailyWordArchive.hidden,false);assert.equal(elements.dailyWordManage.hidden,true);
 for(const role of ['student','parent','manager','korean_teacher']){ctx.currentProfile={id:role,role,approval_status:'approved',membership_state:'active'};assert.equal(run('canManageDailyWord()'),false);await elements.dailyWordForm.handlers.submit({preventDefault(){}});assert.equal(saves,0);}
