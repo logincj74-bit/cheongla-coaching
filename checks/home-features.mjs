@@ -4,10 +4,10 @@ import vm from 'node:vm';
 import {forecastSummary,localDate} from '../supabase/functions/cheongla-weather/forecast.mjs';
 // Date boundaries use Korea's calendar even on a phone set to another timezone.
 const {koreaClockState,weatherAdvice,weatherAppearance}=await import('../home-clock.js');
-assert.equal(koreaClockState(new Date('2026-10-22T00:00:00Z')).countdown,'D-28');
-assert.equal(koreaClockState(new Date('2026-11-18T14:59:59Z')).countdown,'D-1');
-assert.equal(koreaClockState(new Date('2026-11-18T15:00:00Z')).countdown,'D-DAY');
-assert.equal(koreaClockState(new Date('2026-11-19T15:00:00Z')).countdown,'D+1');
+assert.equal(koreaClockState(new Date('2026-11-20T00:00:00Z')).countdown,'D-363');
+assert.equal(koreaClockState(new Date('2027-11-17T14:59:59Z')).countdown,'D-1');
+assert.equal(koreaClockState(new Date('2027-11-17T15:00:00Z')).countdown,'D-DAY');
+assert.equal(koreaClockState(new Date('2027-11-18T15:00:00Z')).countdown,'D+1');
 assert.equal(koreaClockState(new Date('2026-11-19T15:00:00Z'),Date.UTC(2026,10,22)).countdown,'D-2');
 assert.equal(koreaClockState(new Date('2026-10-22T15:00:00Z')).period,'오전');
 assert.equal(weatherAdvice({date:'2026-10-22',kind:'rain'},'2026-10-23'),'');

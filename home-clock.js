@@ -7,7 +7,7 @@ const timeFormat = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
   hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
 });
-const examDay = Date.UTC(2026, 10, 19);
+const examDay = Date.UTC(2027, 10, 18);
 const countdownText = days => days === 0 ? 'D-DAY' : days > 0 ? `D-${days}` : `D+${Math.abs(days)}`;
 
 export function koreaClockState(now = new Date(), target = examDay) {
