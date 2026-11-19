@@ -60,9 +60,62 @@ function mount(api){const doc=api.document||document;let sequence=0,currentKind=
  function review(box,r){if(r.state!=='submitted')return;if(manager()){const form=e('form',undefined,'lr-review'),note=field(form,r.kind==='study'?'관리자 확인 · 총평':'보호자 확인 전화 · 접수 메모','textarea',r.review_note||'',r.kind==='external',3000),status=notice(form,'');const save=button('확인 표시 남기기',async()=>{if(busy||!form.reportValidity()||!await dirtyGuard())return;const who=actor();busy=true;save.disabled=true;try{await rpc('cheongla_review_learning',{target_record:r.id,review_text:note.value.trim(),expected_updated_at:(loaded.find(x=>x.id===r.id)||r).updated_at});if(who===actor()){dirty=false;await load(null,'관리자 확인을 남겼습니다.');}}catch(err){if(who===actor())status.textContent=api.readable(err);}finally{if(who===actor()){busy=false;save.disabled=false;}}});form.addEventListener('submit',ev=>ev.preventDefault());form.append(save);box.append(form);}if(['external','study'].includes(r.kind)&&actor()?.role==='parent'&&!r.parent_checks?.some(p=>p.parent_id===actor().id)){const status=notice(box,'');box.append(button(r.kind==='study'?'학습계획표 확인 완료':'자녀의 외부 일정 확인',async()=>{if(busy||!await api.confirm(r.kind==='study'?'자녀의 학습계획표를 확인하셨습니까? 확인한 기록은 작성일부터 7일 후 휴지통으로 이동합니다.':'자녀의 외부 수업·출결 예외 일정을 확인하셨습니까?'))return;const who=actor();busy=true;try{await rpc(r.kind==='study'?'cheongla_acknowledge_study':'cheongla_acknowledge_external',{target_record:r.id,expected_updated_at:r.updated_at});if(who===actor())await load(null,'학부모 확인을 남겼습니다. 관리자 확인은 별도로 진행됩니다.');}catch(err){if(who===actor())status.textContent=api.readable(err);}finally{if(who===actor())busy=false;}}));}}
  function externalEditor(box,r){const p=r?.payload||{},details=e('details',undefined,'lr-card');details.open=!!r;details.append(e('summary',r?'외부 일정 수정':'＋ 외부 수업·출결 예외 일정 작성'));box.append(details);const form=setupForm(details,r),start=field(form,'적용 시작일','date',r?.record_on||day,true),end=field(form,'적용 종료일','date',p.until||day,true),rows=e('div');form.append(rows);function add(data={}){const sec=e('section',undefined,'lr-card'),checks=[];sec.append(e('h3','반복 일정'));const days=e('div',undefined,'lr-days');for(let i=1;i<=7;i++){const l=e('label'),c=e('input');c.type='checkbox';c.checked=data.days?.includes(i)||false;c.value=i;l.append(c,doc.createTextNode(weekdays[i-1]));checks.push(c);days.append(l);}sec.append(days);const from=field(sec,'외출 시작 · 이동시간 포함','time',data.start||'',true),to=field(sec,'복귀 · 이동시간 포함','time',data.end||'',true),reason=field(sec,'학원·과외명 / 예외 사유','text',data.reason||'',true,500),type=select(sec,'예외 유형',[['out','외출'],['late','지각'],['early','조퇴'],['absent','결석']],data.type||'out');sec.append(button('이 일정 지우기',()=>{sec.remove();dirty=true;},'text-button'));sec.read=()=>({days:checks.filter(c=>c.checked).map(c=>Number(c.value)),start:from.value,end:to.value,reason:reason.value.trim(),type:type.value});rows.append(sec);}for(const row of p.rows?.length?p.rows:[{}])add(row);form.append(button('＋ 일정 추가',()=>{if(rows.children.length<10){add();dirty=true;}}));const note=field(form,'비고 · 기존 일정 변경 사유','textarea',p.note||'',false,3000);form.append(e('p','학부모 확인은 제출 후 앱에서 남길 수 있습니다. 수능생 등 보호자 확인 전화가 필요한 경우 관리자가 별도로 연락해 확인합니다. 이미 제출한 일정이 바뀌면 다시 제출하고 관리자에게 알려 주세요.','muted'));const status=notice(form,'');form.append(button('일정 제출 · 변경 저장',()=>save(form,r,{until:end.value,rows:Array.from(rows.children).map(n=>n.read()),note:note.value.trim()},start.value,true,status),''));if(r)form.append(button('새 일정 작성',async()=>{if(!await dirtyGuard())return;editing=null;dirty=false;render();}));}
  function externalRead(box,p){box.append(e('p','적용 종료 '+p.until));for(const row of p.rows||[])box.append(e('p',row.days.map(d=>weekdays[d-1]).join('·')+' '+row.start+'~'+row.end+' · '+({out:'외출',late:'지각',early:'조퇴',absent:'결석'}[row.type])+'\n'+row.reason,'notice-body'));if(p.note)box.append(e('p',p.note,'notice-body'));}
- const regFields=[['name','학생 이름','text'],['birth','생년월일','date'],['gender','성별 (선택)','text'],['address','주소','text'],['phone','학생 휴대전화','tel'],['email','이메일 (선택)','email'],['school','학교 · 졸업/재학 · 학년','text'],['father','보호자 1 성함 · 관계','text'],['father_phone','보호자 1 휴대전화','tel'],['mother','보호자 2 성함 · 관계','text'],['mother_phone','보호자 2 휴대전화','tel'],['registration_on','등록일','date'],['class_time','학원 수업 시간','text'],['school_grades','내신등급 · 국어/영어/수학/탐구1/탐구2','text'],['exam_grades','수능등급 · 국어/영어/수학/탐구1/탐구2','text'],['consultation','상담 일자별 세부 내용','textarea']];
- function registrationEditor(box,r){const details=e('details',undefined,'lr-card');details.open=!!r;details.append(e('summary',r?'상담·등록카드 수정':'＋ 상담·등록카드 작성'));box.append(details);const form=setupForm(details,r),date=field(form,'상담일','date',r?.record_on||day,true),linked=select(form,'재원생 계정 연결 (선택)',[['','미가입 · 연결하지 않음'],...students.map(s=>[s.id,s.name])],r?.student_id||''),state=select(form,'카드 구분',[['상담','상담'],['등록','등록']],r?.payload?.category||'상담'),fields={};for(const[key,label,type]of regFields)fields[key]=field(form,label,type,r?.payload?.[key]||'',key==='name',type==='textarea'?10000:1000);const status=notice(form,'');form.append(button('등록카드 저장',()=>{const p={category:state.value};for(const[key,n]of Object.entries(fields))p[key]=n.value.trim();return save(form,r,p,date.value,true,status,linked.value);},''));if(r)form.append(button('새 카드 작성',async()=>{if(!await dirtyGuard())return;editing=null;dirty=false;render();}));}
- function registrationRead(box,p){box.append(e('p','구분: '+(p.category||'상담')));for(const[key,label]of regFields)if(p[key])box.append(e('p',label+'\n'+p[key],'notice-body'));}
+ const regFields=[
+  ['name','학생 이름','text'],
+  ['seat','좌석번호 (선택)','text',30],
+  ['birth','생년월일','date'],
+  ['gender','성별 (선택)','text'],
+  ['address','주소','text'],
+  ['phone','학생 휴대전화','tel'],
+  ['email','이메일 (선택)','email'],
+  ['school','학교 · 졸업/재학 · 학년','text'],
+  ['guardian','보호자 성함 · 관계','text'],
+  ['guardian_phone','보호자 휴대전화','tel'],
+  ['registration_on','등록일','date'],
+  ['class_time','학원 수업 시간','text'],
+  ['school_grades','내신등급 · 국어/영어/수학/사회탐구/과학탐구','text'],
+  ['exam_grades','수능등급 · 국어/영어/수학/사회탐구/과학탐구','text'],
+  ['consultation','상담 일자별 세부 내용','textarea',10000]
+ ];
+ const registrationGradeFields={school_grades:'내신등급',exam_grades:'수능등급'};
+ function registrationValues(p){
+  if(Object.hasOwn(p,'guardian')||Object.hasOwn(p,'guardian_phone'))return p;
+  const primary=p.father||p.father_phone;
+  return {...p,guardian:primary?p.father:p.mother,guardian_phone:primary?p.father_phone:p.mother_phone};
+ }
+ const legacyGrade=(p,key)=>registrationGradeFields[key]&&p[key]&&!p[key+'_format'];
+ function registrationEditor(box,r){
+  const details=e('details',undefined,'lr-card');
+  details.open=!!r;
+  details.append(e('summary',r?'상담·등록카드 수정':'＋ 상담·등록카드 작성'));
+  box.append(details);
+  const form=setupForm(details,r),original=r?.payload||{},values=registrationValues(original);
+  const date=field(form,'상담일','date',r?.record_on||day,true);
+  const linked=select(form,'재원생 계정 연결 (선택)',[['','미가입 · 연결하지 않음'],...students.map(s=>[s.id,s.name])],r?.student_id||'');
+  const state=select(form,'카드 구분',[['상담','상담'],['등록','등록']],original.category||'상담');
+  const fields={};
+  for(const [key,label,type,max] of regFields){
+   fields[key]=field(form,label,type,values[key]||'',key==='name',max);
+   if(legacyGrade(values,key))form.append(e('p','이전에 입력한 등급입니다. 탐구 영역을 확인한 뒤 필요하면 수정해 주세요.','muted'));
+  }
+  const status=notice(form,'');
+  form.append(button('등록카드 저장',()=>{
+   const p={...original,category:state.value};
+   for(const [key,input] of Object.entries(fields))p[key]=input.value.trim();
+   for(const key of Object.keys(registrationGradeFields))if(p[key]&&p[key]!==String(original[key]||'').trim())p[key+'_format']='subject_areas';
+   return save(form,r,p,date.value,true,status,linked.value);
+  },''));
+  if(r)form.append(button('새 카드 작성',async()=>{if(!await dirtyGuard())return;editing=null;dirty=false;render();}));
+ }
+ function registrationRead(box,p){
+  const values=registrationValues(p);
+  box.append(e('p','구분: '+(p.category||'상담')));
+  for(const [key,label] of regFields){
+   if(!values[key])continue;
+   const title=legacyGrade(values,key)?registrationGradeFields[key]+' · 기존 표기':label;
+   box.append(e('p',title+'\n'+values[key],'notice-body'));
+  }
+ }
  async function checkDay(){const now=today();if(now===lastToday||rolloverBusy)return;const previous=lastToday;lastToday=now;if(currentKind!=='study'||actor()?.role!=='student')return;rolloverBusy=true;try{if(dirty&&studySession){const ok=await studySession.flush();if(!ok)unsavedPrevious.push(studySession.snapshot());}studySession?.dispose();studySession=null;dirty=false;day=now;editing=null;await load(null,previous+' 기록은 보관됩니다. '+now+' 새 계획표를 작성해 주세요.');}finally{rolloverBusy=false;}}
  root.setInterval?.(()=>void checkDay(),15000);
  root.addEventListener?.('focus',()=>void checkDay());
