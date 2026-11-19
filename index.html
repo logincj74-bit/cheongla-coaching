@@ -68,7 +68,7 @@ main{margin-top:18px}.home-today{padding:16px 18px;margin:0 0 22px;border:1px so
 <section id="homeTourSection" class="home-tour" aria-label="동영상" hidden></section>
 <style>#homeTourSection article+article,#homeDailyCountdown article+article{margin-top:18px;padding-top:18px;border-top:1px solid #dce5da}#homeTourSection article>small{font-size:11px;letter-spacing:1.6px;color:#32756a;font-weight:700}#homeTourSection h3,#homeDailyCountdown article,#homeClockExam{overflow-wrap:anywhere}</style><template id="homeVideoCard"><article><small>CHEONGLA · VIDEO</small><h3></h3><button type="button" class="secondary" aria-haspopup="dialog" aria-controls="homeTourDialog">동영상 보기 ▶</button><p class="home-video-description"></p></article></template>
 <template id="homeCountdownCard"><article><div class="daily-word-countdown"><strong data-daily-dday></strong><span><span data-countdown-title></span><br><small data-countdown-date></small></span></div><p class="muted" data-countdown-description></p><button type="button" class="secondary" aria-haspopup="dialog" aria-controls="homeTourDialog">동영상 보기 ▶</button></article></template>
-<style>.daily-word-image{display:block;width:100%;aspect-ratio:3/1;object-fit:cover;border-radius:14px;margin:12px 0}.daily-word-image[hidden]{display:none}</style><section id="dailyWordPanel" class="daily-word" aria-labelledby="dailyWordHeading" tabindex="-1"><div class="daily-word-heading"><div><small>CHEONGLA · EVERY DAY, TOGETHER</small><h2 id="dailyWordHeading">청라, 오늘의 한마디</h2></div><button id="dailyWordRefresh" type="button" class="secondary">새로고침</button></div><div id="homeDailyCountdown" aria-label="공개 D-day 일정" hidden></div><p id="dailyWordStatus" class="muted" role="status" aria-live="polite">원장님의 한마디를 불러오는 중…</p><article id="dailyWordFeatured" hidden><p id="dailyWordDate" class="daily-word-date"></p><h3 id="dailyWordTitle" hidden></h3><img id="dailyWordImage" class="daily-word-image" loading="lazy" decoding="async" alt="" hidden><p id="dailyWordBody" class="daily-word-body"></p><p id="dailyWordSignature" class="daily-word-signature">전주 독학재수 청라학원</p></article><div id="dailyWordManage" class="daily-word-manage" hidden><button id="dailyWordWrite" type="button">오늘 글 작성 · 수정</button><details id="dailyWordEditor"><summary>글 작성 · 수정</summary><form id="dailyWordForm" novalidate><label for="dailyWordChoose">저장된 글 선택</label><select id="dailyWordChoose"><option value="today">오늘 글 작성</option></select><label for="dailyWordDay">게시일</label><input id="dailyWordDay" type="date" required><p class="muted">하루에 한 편씩 저장합니다. 같은 날짜의 글은 수정할 수 있습니다.</p><label for="dailyWordInputTitle">제목 (선택)</label><input id="dailyWordInputTitle" maxlength="120" placeholder="제목 없이 본문만 올려도 됩니다"><label for="dailyWordInputBody">격려의 메시지</label><textarea id="dailyWordInputBody" maxlength="6000" rows="9" required placeholder="학생들에게 전하고 싶은 한마디를 남겨 주세요."></textarea><label for="dailyWordVisibility">공개 상태</label><select id="dailyWordVisibility"><option value="published">공개</option><option value="draft">비공개</option></select><div class="row"><button id="dailyWordSave" type="submit">게시하기</button><button id="dailyWordCancel" type="button" class="secondary">수정 취소</button></div><p id="dailyWordSaveStatus" role="status" aria-live="polite"></p></form></details></div><details id="dailyWordArchive" class="daily-word-archive" hidden><summary>지난 한마디</summary><div id="dailyWordHistory"></div></details></section><section id="homeSchedule" class="home-schedule" hidden aria-labelledby="homeScheduleTitle"><div class="home-schedule-heading"><div><small id="homeScheduleDate">한국시간 기준</small><h3 id="homeScheduleTitle">오늘의 학원 일정</h3></div><button id="homeScheduleRefresh" type="button" class="secondary" hidden>새로고침</button></div><p id="homeScheduleStatus" class="muted" role="status" aria-live="polite">로그인 후 오늘의 학원 일정을 확인하세요.</p><div id="homeScheduleList"></div><button id="homeScheduleOpen" type="button" class="text-button">로그인하고 일정 보기 →</button></section><div class="home-intro" id="homeAcademyMessage"><small>독학재수학원 청라</small><h2>담장 너머,<br>더 넓은 세상으로.</h2><p>학생의 하루를 함께 살피고,<br>스스로 공부하는 힘을 기릅니다.</p></div><div class="home-guide" id="homeAcademyServices"><h3>청라에서 함께하는 일</h3><p><strong>자기주도학습</strong><br>자신에게 맞는 공부 방식과 꾸준한 학습 습관</p><p><strong>상담문의</strong><br>학원 이용과 학습에 관한 문의를 남겨 주세요</p><p><strong>생활 · 학습 · 입시 상담</strong><br>목표를 세우고 계획을 점검하는 과정</p></div><section class="home-contact-panel" aria-labelledby="homeContactsTitle"><h3 id="homeContactsTitle">청라 문의 · 공식 채널</h3><div id="homeContacts"></div><button type="button" id="guestInquiryEntry" data-public-page="new_inquiry" class="secondary">로그인 없이 신규 상담 문의하기</button></section>
+<style>.daily-word-image{display:block;width:100%;height:auto;max-height:min(65vh,480px);object-fit:contain;border-radius:14px;margin:12px 0}.daily-word-image[hidden]{display:none}</style><section id="dailyWordPanel" class="daily-word" aria-labelledby="dailyWordHeading" tabindex="-1"><div class="daily-word-heading"><div><small>CHEONGLA · EVERY DAY, TOGETHER</small><h2 id="dailyWordHeading">청라, 오늘의 한마디</h2></div><button id="dailyWordRefresh" type="button" class="secondary">새로고침</button></div><div id="homeDailyCountdown" aria-label="공개 D-day 일정" hidden></div><p id="dailyWordStatus" class="muted" role="status" aria-live="polite">원장님의 한마디를 불러오는 중…</p><article id="dailyWordFeatured" hidden><p id="dailyWordDate" class="daily-word-date"></p><h3 id="dailyWordTitle" hidden></h3><img id="dailyWordImage" class="daily-word-image" loading="lazy" decoding="async" alt="" hidden><p id="dailyWordBody" class="daily-word-body"></p><p id="dailyWordSignature" class="daily-word-signature">전주 독학재수 청라학원</p></article><div id="dailyWordManage" class="daily-word-manage" hidden><button id="dailyWordWrite" type="button">오늘 글 작성 · 수정</button><details id="dailyWordRotationEditor"><summary>자동 문구 · 사진 수정</summary><form id="dailyWordRotationForm"><label>순환 카드 <select id="dailyWordRotationSlot"></select></label><label>제목 <input id="dailyWordRotationTitle" required maxlength="120"></label><label>문구 <textarea id="dailyWordRotationBody" required maxlength="6000" rows="4"></textarea></label><label>사진 <select id="dailyWordRotationPhoto" required></select></label><img id="dailyWordRotationPreview" class="daily-word-image" loading="lazy" alt="선택한 사진 미리보기"><button id="dailyWordRotationSave" type="submit">자동 카드 저장</button><p id="dailyWordRotationStatus" role="status"></p></form></details><details id="dailyWordEditor"><summary>글 작성 · 수정</summary><form id="dailyWordForm" novalidate><label for="dailyWordChoose">저장된 글 선택</label><select id="dailyWordChoose"><option value="today">오늘 글 작성</option></select><label for="dailyWordDay">게시일</label><input id="dailyWordDay" type="date" required><p class="muted">하루에 한 편씩 저장합니다. 같은 날짜의 글은 수정할 수 있습니다.</p><label for="dailyWordInputTitle">제목 (선택)</label><input id="dailyWordInputTitle" maxlength="120" placeholder="제목 없이 본문만 올려도 됩니다"><label for="dailyWordInputBody">격려의 메시지</label><textarea id="dailyWordInputBody" maxlength="6000" rows="9" required placeholder="학생들에게 전하고 싶은 한마디를 남겨 주세요."></textarea><label for="dailyWordVisibility">공개 상태</label><select id="dailyWordVisibility"><option value="published">공개</option><option value="draft">비공개</option></select><div class="row"><button id="dailyWordSave" type="submit">게시하기</button><button id="dailyWordCancel" type="button" class="secondary">수정 취소</button></div><p id="dailyWordSaveStatus" role="status" aria-live="polite"></p></form></details></div><details id="dailyWordArchive" class="daily-word-archive" hidden><summary>지난 한마디</summary><div id="dailyWordHistory"></div></details></section><section id="homeSchedule" class="home-schedule" hidden aria-labelledby="homeScheduleTitle"><div class="home-schedule-heading"><div><small id="homeScheduleDate">한국시간 기준</small><h3 id="homeScheduleTitle">오늘의 학원 일정</h3></div><button id="homeScheduleRefresh" type="button" class="secondary" hidden>새로고침</button></div><p id="homeScheduleStatus" class="muted" role="status" aria-live="polite">로그인 후 오늘의 학원 일정을 확인하세요.</p><div id="homeScheduleList"></div><button id="homeScheduleOpen" type="button" class="text-button">로그인하고 일정 보기 →</button></section><div class="home-intro" id="homeAcademyMessage"><small>독학재수학원 청라</small><h2>담장 너머,<br>더 넓은 세상으로.</h2><p>학생의 하루를 함께 살피고,<br>스스로 공부하는 힘을 기릅니다.</p></div><div class="home-guide" id="homeAcademyServices"><h3>청라에서 함께하는 일</h3><p><strong>자기주도학습</strong><br>자신에게 맞는 공부 방식과 꾸준한 학습 습관</p><p><strong>상담문의</strong><br>학원 이용과 학습에 관한 문의를 남겨 주세요</p><p><strong>생활 · 학습 · 입시 상담</strong><br>목표를 세우고 계획을 점검하는 과정</p></div><section class="home-contact-panel" aria-labelledby="homeContactsTitle"><h3 id="homeContactsTitle">청라 문의 · 공식 채널</h3><div id="homeContacts"></div><button type="button" id="guestInquiryEntry" data-public-page="new_inquiry" class="secondary">로그인 없이 신규 상담 문의하기</button></section>
 <details id="winterPromotionAdmin" class="winter-promotion-admin" hidden>
  <summary>윈터스쿨 모집 카드 관리 · 원장 전용</summary>
  <p role="status" aria-live="polite"></p>
@@ -1081,26 +1081,80 @@ let dailyWordRows=[],dailyWordRequest=0,dailyWordBusy=false,dailyWordVersion=nul
 function canManageDailyWord(){return isContentOwner();}
 function dailyWordToday(){return scheduleKST().slice(0,10);}
 function dailyWordMaxDay(){return dailyWordToday();}
+const dailyWordPhotos=["IMG_0101.webp","IMG_1417.webp","IMG_0944.webp","IMG_0079.webp","IMG_7622.webp","IMG_2630.webp","IMG_2992.webp","IMG_5706.webp","IMG_9297.webp","IMG_3356.webp","IMG_0016.webp","IMG_2308.webp","IMG_5203.webp","IMG_9631.webp","IMG_3392.webp","IMG_6759.webp","IMG_0046.webp","IMG_6288.webp","IMG_3123.webp","IMG_0098.webp","WB9R9666.webp","DSC00810.webp","WB9R0002.webp","IMG_4279.webp","IMG_0939.webp","IMG_9174.webp","IMG_8196.webp","WB9R9650.webp","IMG_3431.webp","IMG_0301.webp","IMG_0084.webp","IMG_9599.webp","IMG_2634.webp","IMG_2427.webp","IMG_2625.webp","IMG_4112.webp","IMG_7998.webp","IMG_2631.webp","DSC01100.webp","IMG_3806.webp","IMG_2248.webp","FullSizeRender.webp","IMG_2627.webp","IMG_8673.webp","IMG_5903.webp","IMG_5204.webp","IMG_0784.webp","WB9R0170.webp","IMG_2635.webp","WB9R7526.webp","10034835621_20181108193514679.webp","IMG_3870.webp","WB9R9870.webp","IMG_3370.webp","IMG_1989.webp","IMG_7582.webp","IMG_1921.webp","IMG_2219.webp","IMG_3765.webp","IMG_4700.webp","IMG_2636.webp","IMG_1826.webp","IMG_3389.webp","IMG_0381.webp","IMG_0049.webp","IMG_7037.webp","IMG_0236.webp","IMG_2875.webp","IMG_1203.webp","IMG_3134.webp","IMG_3417.webp","IMG_5021.webp","WB9R0009.webp","IMG_2904.webp","IMG_0794.webp","WB9R0007.webp","IMG_4104.webp","IMG_0329.webp","IMG_3994.webp","IMG_0889.webp","IMG_2287.webp","IMG_2738.webp","IMG_3434.webp","IMG_6879.webp","IMG_9208.webp","IMG_4126.webp"];
+let dailyRotationRows=[],dailyRotationSlot=null,dailyRotationBusy=false;
 const automaticDailyWords=[
- ['01-morning-desk','햇살이 드는 책상과 노트','시작을 가볍게','책상에 앉았다면 오늘 공부의 첫 단계는 이미 끝났어요. 이제 펼쳐 둔 한 페이지부터 읽어 보세요.'],
- ['02-forest','아침 햇살이 비치는 숲길','나만의 속도로','어제보다 한 가지를 더 이해했다면 충분히 나아간 하루예요. 그 한 가지를 오늘의 기록에 남겨 보세요.'],
- ['03-sea','잔잔한 아침 바다','다시 펼치는 용기','어제 끝내지 못한 페이지에 오늘 다시 손을 얹어 보세요. 다시 시작하는 힘도 공부하며 기르는 실력이에요.'],
- ['04-seedling','화분에서 자라는 작은 새싹','보이지 않는 성장','당장 점수에 드러나지 않아도, 왜 틀렸는지 설명할 수 있게 됐다면 실력은 자라고 있어요.'],
- ['05-mountain','아침 안개가 감도는 산 능선','눈앞의 한 걸음','목표가 멀게 느껴질 때는 오늘 끝낼 한 가지를 정해 보세요. 할 일이 선명해지면 마음도 조금 가벼워져요.'],
- ['06-spring','벚꽃이 핀 길','질문 하나의 힘','헷갈리는 부분을 한 문장으로 적어 보세요. 질문이 선명해지는 순간, 어디부터 다시 공부할지도 보일 거예요.'],
- ['07-summer','이슬이 맺힌 초록 잎','잠깐 숨 고르기','집중이 흐트러졌다면 잠시 눈을 쉬게 하고 물 한 모금을 마셔 보세요. 다시 돌아올 자리를 미리 정해 두면 쉬어 가기도 한결 편해요.'],
- ['08-autumn','노란 은행잎이 내려앉은 길','쌓아 둔 하루','한 주 동안 체크해 둔 것들을 돌아보세요. 그날에는 작아 보였던 일도 모아 보면 제법 많을 거예요.'],
- ['09-winter','창밖으로 눈이 내리는 따뜻한 공간','스스로에게 다정하게','계획이 어긋난 날에도 해낸 일은 남아요. 그중 하나를 인정해 주고 내일의 첫 할 일을 적어 보세요.'],
- ['10-library','햇살이 드는 조용한 서가','말로 풀어 보기','오늘 배운 내용을 친구에게 설명하듯 한 문장으로 말해 보세요. 말이 막히는 곳이 내일 다시 볼 부분이에요.'],
- ['11-river','맑은 물이 흐르는 숲속 개울','짧아도 깊게','시간이 부족한 날에는 문제 하나를 골라 풀이의 근거까지 살펴보세요. 짧은 집중에도 배움은 남아요.'],
- ['12-sky','푸른 하늘과 부드러운 구름','내일의 나에게','공부를 마치기 전, 내일 첫 시간에 할 일을 적어 두세요. 오늘의 내가 내일의 나에게 건넬 수 있는 작은 도움입니다.']
+ ['시작을 가볍게','책상에 앉았다면 오늘 공부의 첫 단계는 이미 끝났어요. 이제 펼쳐 둔 한 페이지부터 읽어 보세요.'],
+ ['나만의 속도로','어제보다 한 가지를 더 이해했다면 충분히 나아간 하루예요. 그 한 가지를 오늘의 기록에 남겨 보세요.'],
+ ['다시 펼치는 용기','어제 끝내지 못한 페이지에 오늘 다시 손을 얹어 보세요. 다시 시작하는 힘도 공부하며 기르는 실력이에요.'],
+ ['보이지 않는 성장','당장 점수에 드러나지 않아도, 왜 틀렸는지 설명할 수 있게 됐다면 실력은 자라고 있어요.'],
+ ['눈앞의 한 걸음','목표가 멀게 느껴질 때는 오늘 끝낼 한 가지를 정해 보세요. 할 일이 선명해지면 마음도 조금 가벼워져요.'],
+ ['질문 하나의 힘','헷갈리는 부분을 한 문장으로 적어 보세요. 질문이 선명해지는 순간, 어디부터 다시 공부할지도 보일 거예요.'],
+ ['잠깐 숨 고르기','집중이 흐트러졌다면 잠시 눈을 쉬게 하고 물 한 모금을 마셔 보세요. 다시 돌아올 자리를 미리 정해 두면 쉬어 가기도 한결 편해요.'],
+ ['쌓아 둔 하루','한 주 동안 체크해 둔 것들을 돌아보세요. 그날에는 작아 보였던 일도 모아 보면 제법 많을 거예요.'],
+ ['스스로에게 다정하게','계획이 어긋난 날에도 해낸 일은 남아요. 그중 하나를 인정해 주고 내일의 첫 할 일을 적어 보세요.'],
+ ['말로 풀어 보기','오늘 배운 내용을 친구에게 설명하듯 한 문장으로 말해 보세요. 말이 막히는 곳이 내일 다시 볼 부분이에요.'],
+ ['짧아도 깊게','시간이 부족한 날에는 문제 하나를 골라 풀이의 근거까지 살펴보세요. 짧은 집중에도 배움은 남아요.'],
+ ['내일의 나에게','공부를 마치기 전, 내일 첫 시간에 할 일을 적어 두세요. 오늘의 내가 내일의 나에게 건넬 수 있는 작은 도움입니다.']
 ];
-function automaticDailyWord(day){
+function automaticDailyWord(day,slot){
  const elapsed=Math.floor(Date.parse(day+'T00:00:00Z')/86400000);
- const [image,alt,title,body]=automaticDailyWords[((elapsed%automaticDailyWords.length)+automaticDailyWords.length)%automaticDailyWords.length];
- return {image:'assets/daily-welcome/'+image+'.webp',alt,title,body};
+ const index=slot??((elapsed%dailyWordPhotos.length)+dailyWordPhotos.length)%dailyWordPhotos.length;
+ const [title,body]=automaticDailyWords[index%automaticDailyWords.length];
+ const saved=dailyRotationRows.find(row=>row.slot===index);
+ const photo=saved&&dailyWordPhotos.includes(saved.photo)?saved.photo:dailyWordPhotos[index];
+ return {slot:index,revision:saved?.revision??null,photo,image:'assets/daily-word/'+photo,alt:'청라 오늘의 사진',title:saved?.title??title,body:saved?.body??body};
 }
-function resetDailyWord(){dailyWordRequest++;dailyWordRows=[];dailyWordChecked=0;dailyWordActor=null;dailyWordLoadedDay='';dailyWordEditingDay='';dailyWordBusy=false;dailyWordDirty=false;dailyWordVersion=null;$('dailyWordManage').hidden=true;$('dailyWordEditor').open=false;$('dailyWordForm').reset();$('dailyWordSaveStatus').textContent='';$('dailyWordFeatured').hidden=true;$('dailyWordBody').textContent='';$('dailyWordTitle').textContent='';$('dailyWordHistory').replaceChildren();$('dailyWordArchive').hidden=true;}
+function selectDailyRotation(slot){
+ const card=automaticDailyWord(dailyWordToday(),slot);
+ dailyRotationSlot=card;
+ $('dailyWordRotationSlot').value=String(card.slot);
+ $('dailyWordRotationTitle').value=card.title;
+ $('dailyWordRotationBody').value=card.body;
+ $('dailyWordRotationPhoto').value=card.photo;
+ $('dailyWordRotationPreview').src=card.image;
+ $('dailyWordRotationStatus').textContent='';
+}
+$('dailyWordRotationEditor').addEventListener('toggle',()=>{
+ if(!$('dailyWordRotationEditor').open||!canManageDailyWord()||dailyRotationSlot)return;
+ const slots=$('dailyWordRotationSlot'),photos=$('dailyWordRotationPhoto'),today=automaticDailyWord(dailyWordToday()).slot;
+ slots.replaceChildren();photos.replaceChildren();
+ for(const [slot,name] of dailyWordPhotos.entries()){
+  const option=document.createElement('option');option.value=String(slot);option.textContent=(slot+1)+'번'+(slot===today?' · 오늘':'');slots.append(option);
+  const photo=document.createElement('option');photo.value=name;photo.textContent=(slot+1)+' · '+name.replace(/[.]webp$/,'');photos.append(photo);
+ }
+ selectDailyRotation(today);
+});
+$('dailyWordRotationSlot').addEventListener('change',()=>selectDailyRotation(Number($('dailyWordRotationSlot').value)));
+$('dailyWordRotationPhoto').addEventListener('change',()=>{
+ const photo=$('dailyWordRotationPhoto').value;
+ if(dailyWordPhotos.includes(photo))$('dailyWordRotationPreview').src='assets/daily-word/'+photo;
+});
+$('dailyWordRotationForm').addEventListener('submit',async event=>{
+ event.preventDefault();
+ if(!canManageDailyWord()||!dailyRotationSlot||dailyRotationBusy)return;
+ const actor=currentProfile,slot=dailyRotationSlot,title=$('dailyWordRotationTitle').value.trim(),body=$('dailyWordRotationBody').value.trim(),photo=$('dailyWordRotationPhoto').value,status=$('dailyWordRotationStatus');
+ if(!title||!body||!dailyWordPhotos.includes(photo)){status.textContent='제목과 문구를 입력하고 사진을 선택해 주세요.';return;}
+ dailyRotationBusy=true;
+ for(const field of $('dailyWordRotationForm').querySelectorAll('input,textarea,select,button'))field.disabled=true;
+ status.textContent='저장 중…';
+ try{
+  const c=await getClient();if(actor!==currentProfile||!canManageDailyWord())return;
+  const r=await c.rpc('cheongla_save_daily_rotation',{target_slot:slot.slot,post_title:title,post_body:body,post_photo:photo,expected_revision:slot.revision});
+  if(r.error)throw r.error;
+  if(actor!==currentProfile||!canManageDailyWord())return;
+  dailyWordRequest++;
+  dailyRotationRows=[...dailyRotationRows.filter(row=>row.slot!==slot.slot),r.data];
+  selectDailyRotation(slot.slot);
+  renderDailyWord();
+  status.textContent='저장했습니다.';
+ }catch(e){if(actor===currentProfile)status.textContent=readable(e);}
+ finally{
+  dailyRotationBusy=false;
+  for(const field of $('dailyWordRotationForm').querySelectorAll('input,textarea,select,button'))field.disabled=false;
+ }
+});
+function resetDailyWord(){dailyWordRequest++;dailyRotationSlot=null;$('dailyWordRotationEditor').open=false;$('dailyWordRotationForm').reset();$('dailyWordRotationStatus').textContent='';dailyWordRows=[];dailyWordChecked=0;dailyWordActor=null;dailyWordLoadedDay='';dailyWordEditingDay='';dailyWordBusy=false;dailyWordDirty=false;dailyWordVersion=null;$('dailyWordManage').hidden=true;$('dailyWordEditor').open=false;$('dailyWordForm').reset();$('dailyWordSaveStatus').textContent='';$('dailyWordFeatured').hidden=true;$('dailyWordBody').textContent='';$('dailyWordTitle').textContent='';$('dailyWordHistory').replaceChildren();$('dailyWordArchive').hidden=true;}
 function lockDailyWord(locked){for(const field of $('dailyWordForm').querySelectorAll('input,textarea,select,button'))field.disabled=locked;$('dailyWordWrite').disabled=locked;$('dailyWordRefresh').disabled=locked;$('dailyWordSave').textContent=locked?'저장 중…':$('dailyWordVisibility').value==='draft'?'비공개로 저장':'게시하기';}
 function selectDailyWord(day){
  dailyWordEditingDay=day;
@@ -1119,7 +1173,7 @@ function renderDailyWord(){
  $('dailyWordBody').textContent=word.body;
  $('dailyWordSignature').textContent=authored?'전주 독학재수 청라학원 원장':'전주 독학재수 청라학원';
  const image=$('dailyWordImage');
- if(image.dataset.day!==today){
+ if(image.dataset.day!==today||image.getAttribute('src')!==automatic.image||image.hidden){
   image.dataset.day=today;
   image.alt=automatic.alt;
   image.hidden=false;
@@ -1141,9 +1195,15 @@ async function loadDailyWord(force=false){
  $('dailyWordManage').hidden=!canManageDailyWord();
  try{
   const c=await getClient();if(request!==dailyWordRequest||actor!==currentProfile)return;
-  const r=await c.from('cheongla_daily_words').select('id,message_on,title,body,status,created_at,updated_at').order('message_on',{ascending:false}).limit(60);if(r.error)throw r.error;
+  const [r,rotation]=await Promise.all([
+   c.from('cheongla_daily_words').select('id,message_on,title,body,status,created_at,updated_at').order('message_on',{ascending:false}).limit(60),
+   c.from('cheongla_daily_rotation').select('slot,title,body,photo,revision').limit(dailyWordPhotos.length)
+  ]);
   if(request!==dailyWordRequest||actor!==currentProfile)return;
-  dailyWordRows=r.data||[];dailyWordActor=actor;dailyWordLoadedDay=today;dailyWordChecked=Date.now();renderDailyWord();
+  if(!rotation.error)dailyRotationRows=rotation.data||[];
+  if(!r.error)dailyWordRows=r.data||[];
+  dailyWordActor=actor;dailyWordLoadedDay=today;dailyWordChecked=Date.now();renderDailyWord();
+  if(r.error||rotation.error)throw r.error||rotation.error;
  }catch(e){if(request===dailyWordRequest&&actor===currentProfile){$('dailyWordStatus').textContent='한마디를 불러오지 못했습니다. 새로고침해 주세요.';dailyWordChecked=0;}}
 }
 async function openDailyWordEditor(day=dailyWordMaxDay()){
