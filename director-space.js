@@ -101,7 +101,7 @@ function mount(api){
   const category=routes[key];if(!category)return originalShow(key);currentKey=key;trashView=!!(inTrash&&api.principal()&&protectedCategories.has(category));const request=++sequence;originalShow('greeting');const target=$('publicContentBody');target.replaceChildren();$('publicContentTitle').textContent=names[category]+(trashView?' · 휴지통':'');
   const controls=el('div'),list=el('div'),feedback=el('p','글을 불러오는 중…');feedback.setAttribute('role','status');target.append(controls,feedback);if(protectedCategories.has(category)){const note=el('p',copyright);note.className='director-copyright-note';const printNote=el('p','저작권 보호 콘텐츠는 인쇄·PDF 저장을 제공하지 않습니다.');printNote.className='director-protected-print-note';target.append(note,printNote);}target.append(list);
   try{const c=await api.client(),query=c.from('cheongla_director_posts').select('*').eq('category',category);const r=await(trashView?query.not('archived_at','is',null):query.is('archived_at',null)).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(100);if(r.error)throw r.error;if(request!==sequence||$('publicContentPanel').hidden)return;
-   const posts=r.data||[];
+   const posts=(r.data||[]).slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)||String(b.id).localeCompare(String(a.id)));
    if(api.principal()&&!trashView)controls.append(button(category==='greeting'?'원장 인사말 수정':'새 글 작성',()=>edit(category,category==='greeting'?posts[0]:null)));
    if(api.principal()&&protectedCategories.has(category))controls.append(button(trashView?'← 글 목록':'휴지통',()=>show(key,!trashView)));
    feedback.textContent=posts.length?'':category==='greeting'?'':trashView?'휴지통이 비어 있습니다.':'아직 등록된 글이 없습니다.';
