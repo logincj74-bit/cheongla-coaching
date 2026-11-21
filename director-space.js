@@ -187,9 +187,35 @@ function mount(api){
   parent.append(button('첨부파일 내려받기 · '+file.filename,async()=>{try{await root.CheonglaDocumentBrand.downloadAttachment(c.storage.from('cheongla-director'),file);}catch(e){$('siteStatus').textContent=api.readable(e);}}));
  }
  const originalShow=root.showPublicPage,originalHome=root.showSiteHome;
- async function show(key,inTrash=false){
-  const category=routes[key];if(!category)return originalShow(key);currentKey=key;trashView=!!(inTrash&&api.principal()&&protectedCategories.has(category));const request=++sequence;originalShow('greeting');const target=$('publicContentBody');target.replaceChildren();$('publicContentTitle').textContent=names[category]+(trashView?' · 휴지통':'');
-  const controls=el('div'),list=el('div'),feedback=el('p','글을 불러오는 중…');feedback.setAttribute('role','status');target.append(controls,feedback);if(protectedCategories.has(category)){const note=el('p',copyright);note.className='director-copyright-note';const printNote=el('p','저작권 보호 콘텐츠는 인쇄·PDF 저장을 제공하지 않습니다.');printNote.className='director-protected-print-note';target.append(note,printNote);}target.append(list);
+ const articleCards=new Map();
+ let openArticle='',displayedList=null;
+ const tracksArticles=key=>protectedCategories.has(routes[key]);
+
+ function displayArticle(id=''){
+  const previous=articleCards.get(openArticle);
+  if(previous)previous.open=false;
+  openArticle=id;
+  const next=articleCards.get(id);
+  if(next)next.open=true;
+ }
+
+ function closeArticle(key,id){
+  const entry=root.history?.state?.cheonglaView;
+  if(entry?.view==='public'&&entry.key===key&&entry.detail===id){root.history.back();return;}
+  displayArticle();
+ }
+
+ async function restoreView(key,detail=''){
+  if(currentKey===key&&!trashView&&!$('publicContentPanel').hidden&&displayedList?.parentNode===$('publicContentBody')){
+   displayArticle(detail);
+   return;
+  }
+  await show(key,false,detail);
+ }
+
+ async function show(key,inTrash=false,detail=''){
+  const category=routes[key];if(!category)return originalShow(key);currentKey=key;trashView=!!(inTrash&&api.principal()&&protectedCategories.has(category));const request=++sequence;articleCards.clear();openArticle=detail;originalShow('greeting',tracksArticles(key)?key:'greeting');const target=$('publicContentBody');target.replaceChildren();$('publicContentTitle').textContent=names[category]+(trashView?' · 휴지통':'');
+  const controls=el('div'),list=el('div'),feedback=el('p','글을 불러오는 중…');feedback.setAttribute('role','status');target.append(controls,feedback);if(protectedCategories.has(category)){const note=el('p',copyright);note.className='director-copyright-note';const printNote=el('p','저작권 보호 콘텐츠는 인쇄·PDF 저장을 제공하지 않습니다.');printNote.className='director-protected-print-note';target.append(note,printNote);}target.append(list);displayedList=list;
   try{const c=await api.client(),query=c.from('cheongla_director_posts').select('*').eq('category',category);const r=await(trashView?query.not('archived_at','is',null):query.is('archived_at',null)).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(100);if(r.error)throw r.error;if(request!==sequence||$('publicContentPanel').hidden)return;
    const posts=(r.data||[]).slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)||String(b.id).localeCompare(String(a.id)));
    if(api.principal()&&!trashView)controls.append(button(category==='greeting'?'원장 인사말 수정':'새 글 작성',()=>edit(category,category==='greeting'?posts[0]:null)));
@@ -200,9 +226,22 @@ function mount(api){
    if(category==='greeting'&&!visible.some(p=>p.body)){for(const paragraph of api.greeting().paragraphs)list.append(el('p',paragraph));}
    for(const post of visible){if(category==='greeting'&&!post.body)continue;const card=el('details');card.className='notice-form director-post-accordion';const heading=el('summary');heading.className='director-post-heading';const content=el('div');content.className='director-post-content';const formatPostTime=value=>value?new Date(value).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}):'기록 없음';const created=post.created_at,updated=post.updated_at;const changed=created&&updated&&Math.abs(new Date(updated)-new Date(created))>=60000;const timestamp=el('small','작성 '+formatPostTime(created)+(changed?' · 수정 '+formatPostTime(updated):'')+(post.state==='draft'?' · 임시저장':''));heading.append(el('strong',post.title),timestamp);card.append(heading);
     const protectedContent=protectedCategories.has(category);
+    const trackArticle=protectedContent&&!trashView;
+    if(trackArticle){
+     card.className+=' director-post-history';
+     articleCards.set(post.id,card);
+     card.open=openArticle===post.id;
+     heading.addEventListener('click',event=>{
+      event.preventDefault();
+      if(card.open){closeArticle(key,post.id);return;}
+      root.recordSiteView('public',key,post.id);
+      displayArticle(post.id);
+      root.CheonglaDetailNavigation?.align(heading);
+     });
+    }
     const photos=protectedContent?el('div'):null;
     if(photos){photos.className='director-post-photos';content.append(photos);shield(content);}
-    const text=el('p',post.body);text.className='notice-body';content.append(text);card.append(content);content.addEventListener('click',event=>{if(event.target.closest('a,button,input,textarea,select,video,audio,iframe,[contenteditable]'))return;card.open=false;});if(api.principal()){if(!trashView)card.append(button('글 수정 · 첨부파일 추가',()=>edit(category,post)));if(protectedCategories.has(category)){if(!post.purge_requested_at)card.append(button(trashView?'글 복구':'글 삭제',()=>trash(post,trashView)));if(trashView){const purge=button(post.purge_requested_at?'영구삭제 계속':'글 영구삭제',()=>removePermanently(post));purge.className='danger';card.append(purge);}}}list.append(card);
+    const text=el('p',post.body);text.className='notice-body';content.append(text);card.append(content);content.addEventListener('click',event=>{if(event.target.closest('a,button,input,textarea,select,video,audio,iframe,[contenteditable]'))return;if(trackArticle)closeArticle(key,post.id);else card.open=false;});if(api.principal()){if(!trashView)card.append(button('글 수정 · 첨부파일 추가',()=>edit(category,post)));if(protectedCategories.has(category)){if(!post.purge_requested_at)card.append(button(trashView?'글 복구':'글 삭제',()=>trash(post,trashView)));if(trashView){const purge=button(post.purge_requested_at?'영구삭제 계속':'글 영구삭제',()=>removePermanently(post));purge.className='danger';card.append(purge);}}}list.append(card);
     const f=await c.from('cheongla_director_files').select('id,filename,object_path,removal_requested_at,caption').eq('post_id',post.id).eq('state','ready').order('created_at');if(request!==sequence)return;if(f.error){card.append(el('p','첨부파일을 불러오지 못했습니다. 다시 확인해 주세요.'));continue;}
     const fileTools=el('div');fileTools.className='director-file-tools';
     if(post.purge_requested_at){content.append(el('p','영구삭제 진행 중입니다. 영구삭제 계속 버튼으로 마쳐 주세요.'));continue;}
@@ -226,7 +265,7 @@ function mount(api){
    const p=await c.from('cheongla_director_posts').select('category').eq('id',r.data.source_id).maybeSingle();if(p.error)throw p.error;if(!p.data)throw Error('공개된 글을 찾을 수 없습니다.');await show(p.data.category==='greeting'?'greeting':'director_'+p.data.category);const read=await c.rpc('cheongla_read_notification',{target_notification:id});if(read.error)throw read.error;void api.notifyReload();
   }catch(e){$('siteStatus').textContent=api.readable(e);}
  };
- return{show,reset,edit};
+ return{show,reset,edit,tracksArticles,restoreView};
 }
 root.CheonglaDirectorSpaceFactory={mount};
 })(globalThis);

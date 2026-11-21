@@ -19,7 +19,7 @@
  document.addEventListener('click',event=>{
   if(event.defaultPrevented||event.button>0)return;
   const summary=event.target?.closest?.('summary'),details=summary?.parentElement;
-  if(!summary||details?.tagName!=='DETAILS'||details.classList.contains('site-menu')||summary.closest('#homeSpotlightRail'))return;
+  if(!summary||details?.tagName!=='DETAILS'||details.classList.contains('site-menu')||details.classList.contains('director-post-history')||summary.closest('#homeSpotlightRail'))return;
   const control=event.target.closest('a,button,input,select,textarea');
   if(control&&summary.contains(control))return;
   event.preventDefault();

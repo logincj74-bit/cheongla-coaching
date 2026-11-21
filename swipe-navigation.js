@@ -15,20 +15,36 @@ const positions=new Map();
 let pendingOrigin=null;
 let activeEntry=root.history.state?.cheonglaView||{view:'home',key:'',index:0},furthest=activeEntry.index||0;
 root.history.scrollRestoration='manual';
-const entryKey=s=>[s.index||0,s.view,s.key||''].join(':');
+const entryKey=s=>[s.index||0,s.view,s.key||'',s.detail||'',s.disclosure||''].join(':');
+const disclosures=()=>[...doc.querySelectorAll('#homePanel details,#mobileAllMenus,#siteNavigation details,#accountPanel details,#publicContentPanel details,#informationPanel details,#newInquiryPanel details,#homeDictionary details')]
+ .filter(node=>!node.closest('dialog')&&!node.classList.contains('director-post-history'));
+const disclosureLabel=node=>node.querySelector(':scope > summary')?.textContent.trim()||'';
+let disclosureCounter=0;
+const disclosureEntries=new Map(),nodeIdentities=new WeakMap();
+let nodeCounter=0;
+function nodeIdentity(node){
+ if(!nodeIdentities.has(node))nodeIdentities.set(node,++nodeCounter);
+ return nodeIdentities.get(node);
+}
 function snapshot(){return {left:root.scrollX||0,top:root.scrollY||0,
  railLeft:doc.getElementById('homeSpotlightRail')?.scrollLeft||0,
- homeDetails:[...home.querySelectorAll('details')].map(n=>n.open),
- menuDetails:[...doc.querySelectorAll('#mobileAllMenus,#siteNavigation details')].map(n=>n.open)};}
+ disclosures:disclosures().map(node=>({identity:nodeIdentity(node),id:node.id,label:disclosureLabel(node),open:node.open}))};}
 function remember(){if(!restoring)positions.set(entryKey(activeEntry),pendingOrigin?.key===entryKey(activeEntry)?pendingOrigin.position:snapshot());}
-function restoreHome(position){
+function restoreDisclosures(position){
+ const nodes=disclosures(),current=new Map(nodes.map(node=>[nodeIdentity(node),node]));
+ position.disclosures.forEach(({identity,id,label,open},index)=>{
+  const target=current.get(identity)||(id?doc.getElementById(id):nodes[index]);
+  if(target&&(id||nodeIdentity(target)===identity||disclosureLabel(target)===label))target.open=open;
+ });
  if(state().view!=='home')return;
- home.querySelectorAll('details').forEach((n,i)=>{n.open=!!position.homeDetails?.[i];});
- doc.querySelectorAll('#mobileAllMenus,#siteNavigation details').forEach((n,i)=>{n.open=!!position.menuDetails?.[i];});
- const rail=doc.getElementById('homeSpotlightRail');if(rail){rail.style.transition='none';rail.scrollLeft=position.railLeft||0;rails.get(rail)?.update();void rail.offsetHeight;rail.style.removeProperty('transition');}
+ const rail=doc.getElementById('homeSpotlightRail');if(rail){rail.style.transition='none';rail.scrollLeft=position.railLeft||0;rails.get(rail)?.update();void rail.offsetWidth;rail.style.removeProperty('transition');}
+}
+function canRestoreDisclosure(next){
+ return !!next&&(!!next.disclosure||!!activeEntry.disclosure)&&next.view===activeEntry.view&&
+  next.key===activeEntry.key&&next.detail===activeEntry.detail&&positions.has(entryKey(next));
 }
 function restorePosition(){const token=++restoreToken;activeEntry=state();const position=positions.get(entryKey(activeEntry));restoring=false;navigating=transitioning;resetDrag();root.CheonglaDetailNavigation?.cancel?.();
- const finish=()=>{if(token!==restoreToken)return;root.CheonglaDetailNavigation?.cancel?.();if(position){restoreHome(position);root.scrollTo({left:position.left,top:position.top,behavior:'instant'});}root.dispatchEvent(new root.Event('cheongla:position-restored'));schedule();};
+ const finish=()=>{if(token!==restoreToken)return;root.CheonglaDetailNavigation?.cancel?.();if(position){restoreDisclosures(position);root.scrollTo({left:position.left,top:position.top,behavior:'instant'});}root.dispatchEvent(new root.Event('cheongla:position-restored'));schedule();};
  // View Transition updates must finish without waiting for a rendered frame.
  Promise.resolve().then(finish);
 }
@@ -175,15 +191,44 @@ doc.addEventListener('touchstart',start,{capture:true,passive:true});doc.addEven
 root.addEventListener('click',event=>{if(Date.now()<clickUntil&&event.isTrusted&&clickNode&&event.target.closest('button,a,summary')===clickNode){event.preventDefault();event.stopImmediatePropagation();}},true);
 // Save menu expansion and card offset before the destination closes the original menu.
 doc.addEventListener('click',event=>{if(restoring||!event.target.closest('#siteNavigation button,[data-home-route],#homeSpotlightRail button'))return;pendingOrigin={key:entryKey(activeEntry),position:snapshot()};},true);
+// Record a user-opened detail after the menu's existing click handler has run.
+root.addEventListener('click',event=>{
+ if(restoring||navigating||event.button>0)return;
+ const summary=event.target.closest?.('summary'),node=summary?.parentElement;
+ if(node?.tagName!=='DETAILS'||node.hidden||!visible(node.parentElement)||node.closest('dialog')||node.classList.contains('director-post-history'))return;
+ if(event.target.closest('button,a,input,select,textarea'))return;
+ const before=state(),origin=entryKey(before),wasOpen=node.open,position=snapshot(),identity=nodeIdentity(node);
+ const slot=position.disclosures.findIndex(item=>item.identity===identity);
+ if(slot<0)return;
+ const label=disclosureLabel(node);
+ Promise.resolve().then(()=>{
+  if(restoring||navigating||entryKey(state())!==origin||!node.isConnected||node.open===wasOpen)return;
+  if(node.open){
+   const id=String(++disclosureCounter);
+   pendingOrigin={key:origin,position};
+   root.recordSiteView(before.view,before.key,before.detail||'',id);
+   if(state().disclosure===id)disclosureEntries.set(id,{identity,label,slot});
+  }else{
+   const opened=disclosureEntries.get(before.disclosure);
+   if(opened&&(opened.identity===identity||(opened.slot===slot&&opened.label===label))){
+    const closing={key:origin,position};
+    pendingOrigin=closing;
+    void navigate(-1).then(moved=>{
+     if(!moved&&pendingOrigin===closing){pendingOrigin=null;if(node.isConnected)node.open=true;}
+    });
+   }
+  }
+ });
+},true);
 for(const name of ['input','change'])doc.addEventListener(name,e=>{const f=e.target.form;if(f&&f.id!=='mbtiStudyForm'&&!e.target.matches('[type=search]'))dirtyForms.add(f);schedule();},true);
 doc.addEventListener('reset',e=>{dirtyForms.delete(e.target);schedule();},true);
 const record=recordSiteView;root.recordSiteView=function(...args){remember();const previous=entryKey(state()),r=record(...args);if(previous!==entryKey(state())){restoreToken++;activeEntry=state();furthest=activeEntry.index||0;pendingOrigin=null;}schedule();return r;};
 const menu=configureDeskMenu;root.configureDeskMenu=function(...args){const r=menu(...args);schedule();return r;};
-const clear=clearAccount;root.clearAccount=function(...args){dirtyForms=new WeakSet();gesture=null;positions.clear();pendingOrigin=null;restoreToken++;return clear(...args);};
+const clear=clearAccount;root.clearAccount=function(...args){dirtyForms=new WeakSet();gesture=null;positions.clear();disclosureEntries.clear();pendingOrigin=null;restoreToken++;return clear(...args);};
 new MutationObserver(scan).observe(doc.getElementById('publicContentBody'),{childList:true,subtree:true});
 root.addEventListener('cheongla:view-restoring',()=>{remember();pendingOrigin=null;restoring=true;restoreToken++;});
 root.addEventListener('cheongla:view-restored',restorePosition);
 root.addEventListener('popstate',schedule);root.addEventListener('resize',schedule,{passive:true});
 const tabs=doc.getElementById('mbtiStudyTabs');if(tabs){tabs.classList.add('cheongla-swipe-tabs');const hint=el('p','과목은 위의 탭으로 선택 · 오른쪽으로 쓸면 이전 화면');hint.className='cheongla-swipe-hint';tabs.after(hint);}
-root.CheonglaSwipe={enabled:true,groups,navigate,scan,mbtiStep};scan();
+root.CheonglaSwipe={enabled:true,groups,navigate,scan,mbtiStep,canRestoreDisclosure};scan();
 })(globalThis);

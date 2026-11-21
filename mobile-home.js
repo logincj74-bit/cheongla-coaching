@@ -30,8 +30,8 @@ function sync(){
 }
 const update=updateHomeAccount;root.updateHomeAccount=function(...args){const r=update(...args);sync();return r;};
 const menu=configureDeskMenu;root.configureDeskMenu=function(...args){const r=menu(...args);sync();return r;};
-const record=recordSiteView;root.recordSiteView=function(...args){const before=root.history.state?.cheonglaView;const r=record(...args),after=root.history.state?.cheonglaView;if(before!==after)allMenus.open=false;sync();return r;};
+const record=recordSiteView;root.recordSiteView=function(...args){const before=root.history.state?.cheonglaView;const r=record(...args),after=root.history.state?.cheonglaView;if(before!==after&&!after?.disclosure)allMenus.open=false;sync();return r;};
 const clear=clearAccount;root.clearAccount=function(...args){const r=clear(...args);fingerprint='';allMenus.open=false;sync();return r;};
 new MutationObserver(sync).observe(home,{attributes:true,attributeFilter:['hidden']});
-root.addEventListener('popstate',()=>{allMenus.open=false;sync();});root.CheonglaMobileHome={sync,role};sync();
+root.addEventListener('popstate',()=>{if(root.history.state?.cheonglaView?.view!=='home')allMenus.open=false;sync();});root.CheonglaMobileHome={sync,role};sync();
 })(globalThis);
