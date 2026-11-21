@@ -295,6 +295,7 @@ const roles={student:'학생',parent:'학부모',owner:'원장',english_director
 const staffRoles=['english_director','math_director','korean_teacher','manager'];
 const statuses={pending:'승인 대기',approved:'승인 완료',rejected:'가입 거절',suspended:'이용 중지'};
 let mode='login',clientPromise=null,currentProfile=null;
+let manualAuthStarted=false,initialProfileLoad=null;
 let pendingActionConfirmation=null;
 function appConfirm(message,title='확인해 주세요'){
  if(pendingActionConfirmation)return Promise.resolve(false);
@@ -359,7 +360,9 @@ async function loadProfile(verifiedUser=null){
  if(!user){message('계정 확인 중…');const {data,error}=await client.auth.getUser();if(error)throw error;user=data.user;}
  if(!user)return;
  message('회원 정보 확인 중…');
- const result=await client.from('cheongla_profiles').select('*').eq('id',user.id).maybeSingle();
+ const fetchProfile=()=>client.from('cheongla_profiles').select('*').eq('id',user.id).maybeSingle();
+ let result=await fetchProfile();
+ if([0,502,503,504].includes(result.status)&&result.error)result=await fetchProfile();
  if(result.error)throw result.error;if(!result.data)throw new Error('계정 프로필이 없습니다. 원장님께 문의해 주세요.');
  if(result.data.membership_state==='withdrawn'){try{await client.auth.signOut({scope:'local'});}catch{}clearAccount();clearLoginInputs();showSiteHome();message('탈퇴한 계정은 로그인할 수 없습니다.');throw Object.assign(new Error('탈퇴한 계정은 로그인할 수 없습니다.'),{code:'member_withdrawn'});}const recovery=await client.rpc('cheongla_account_recovery_state');if(recovery.error)throw recovery.error;if(recovery.data===true){clearLoginInputs();$('authPanel').hidden=true;$('accountPanel').hidden=true;$('forcedPasswordPanel').hidden=false;$('homePanel').hidden=true;message('새 비밀번호를 설정해 주세요.');return;}currentProfile=result.data;const contentActor=currentProfile;try{const permission=await client.rpc('cheongla_can_manage_app_content');if(currentProfile!==contentActor)return;contentOwnerProfile=!permission.error&&permission.data===true?contentActor.id:null;}catch{contentOwnerProfile=null;}if(currentProfile!==contentActor)return;configureMembership();startMembershipMonitor();configureContacts();await loadContact();if(canManageContacts())void loadMemberContacts();clearLoginInputs();$('authPanel').hidden=true;$('accountPanel').hidden=false;
  $('welcome').textContent=(currentProfile.full_name||'회원')+'님';
@@ -840,9 +843,10 @@ $('switchMode').addEventListener('click',()=>{
 function syncSignupFields(){const parent=$('signupRole').value==='parent',staff=$('signupRole').value==='staff';$('nameLabel').textContent=staff?'교직원 이름':parent?'학부모 이름':'학생 이름';$('childNameField').hidden=!parent;$('childName').required=parent&&mode==='signup';$('staffRoleField').hidden=!staff;$('staffRole').required=staff&&mode==='signup';}
 $('signupRole').addEventListener('change',syncSignupFields);
 $('authForm').addEventListener('submit',async e=>{
- e.preventDefault();$('submit').disabled=true;$('switchMode').disabled=true;message(mode==='signup'?'가입 신청 중…':'로그인 확인 중…');
+ e.preventDefault();if($('submit').disabled)return;manualAuthStarted=true;$('submit').disabled=true;$('switchMode').disabled=true;message(mode==='signup'?'가입 신청 중…':'로그인 확인 중…');
  let stage='로그인 연결 준비';
  try{if(mode==='signup'&&passwordPairError($('password').value,$('passwordConfirm').value))throw new Error(passwordPairError($('password').value,$('passwordConfirm').value));const client=await getClient();let verifiedUser=null;const method=$('authMethod').value,identity=method==='phone'?$('authPhone').value:$('email').value;const credentials={email:await globalThis.CheonglaAuth.identifier(method,identity),password:$('password').value};
+  if(initialProfileLoad)await initialProfileLoad.catch(()=>{});
   if(mode==='signup'){
    const phone=normalizeContactPhone(method==='phone'?$('authPhone').value:$('signupPhone').value);if(!phone)throw new Error('올바른 휴대전화번호를 입력해 주세요.');const name=$('fullName').value.trim();if(!name)throw new Error('이름을 입력해 주세요.');
    const parent=$('signupRole').value==='parent',staff=$('signupRole').value==='staff';const requestedStaffRole=$('staffRole').value;if(staff&&!staffRoles.includes(requestedStaffRole))throw new Error('신청 직책을 선택해 주세요.');const child=$('childName').value.trim();if(parent&&!child)throw new Error('재원 중인 자녀 이름을 입력해 주세요.');
@@ -1972,6 +1976,6 @@ globalThis.CheonglaHomeFeaturesUI=globalThis.CheonglaHomeFeatures.mount({documen
 void globalThis.CheonglaHomeFeaturesUI.refresh();
 
 configureBillingRefresh();
-(async()=>{try{const client=await getClient();const {data,error}=await client.auth.getSession();if(error)throw error;const pushArrival=consumePushArrival();if(data.session){restoringInitialSession=true;try{await loadProfile();if(contactNeedsPhone)showContactRegistration();else if($('forcedPasswordPanel').hidden)showSiteHome();}finally{restoringInitialSession=false;}if(pushArrival)await navigateNotification(pushArrival);}else if(pushArrival)await navigateNotification(pushArrival);const entryParams=new URL(window.location.href).searchParams,publicStart=entryParams.get('page');if(publicStart==='billing_dashboard')pendingBillingContext={month:entryParams.get('month')||'',kind:entryParams.get('kind')||'all'};if(!pushArrival&&['meal_forms','billing_dashboard','admissions_news','resources'].includes(publicStart))openSiteDestination(publicStart);if(!pushArrival&&(publicStart==='new_inquiry'||Object.hasOwn(publicPages,publicStart||'')))showPublicPage(publicStart);}catch(e){message(readable(e));}})();
+(async()=>{try{const client=await getClient();if(manualAuthStarted)return;const {data,error}=await client.auth.getSession();if(manualAuthStarted)return;if(error)throw error;const pushArrival=consumePushArrival();if(data.session){restoringInitialSession=true;try{initialProfileLoad=loadProfile();await initialProfileLoad;if(manualAuthStarted)return;if(contactNeedsPhone)showContactRegistration();else if($('forcedPasswordPanel').hidden)showSiteHome();}finally{initialProfileLoad=null;restoringInitialSession=false;}if(pushArrival)await navigateNotification(pushArrival);}else if(pushArrival)await navigateNotification(pushArrival);const entryParams=new URL(window.location.href).searchParams,publicStart=entryParams.get('page');if(publicStart==='billing_dashboard')pendingBillingContext={month:entryParams.get('month')||'',kind:entryParams.get('kind')||'all'};if(!pushArrival&&['meal_forms','billing_dashboard','admissions_news','resources'].includes(publicStart))openSiteDestination(publicStart);if(!pushArrival&&(publicStart==='new_inquiry'||Object.hasOwn(publicPages,publicStart||'')))showPublicPage(publicStart);}catch(e){if(!manualAuthStarted)message('자동 로그인 단계: '+readable(e));}})();
 </script><script type="module" src="home-clock.js?v=1.9.36"></script><script type="module" src="home-tour.js?v=1.8.9"></script><script type="module" src="seasonal.js?v=1.9.33"></script></body></html>
 
