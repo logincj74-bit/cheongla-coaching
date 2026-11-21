@@ -1,5 +1,5 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),crypto=require('node:crypto').webcrypto;
-class N{constructor(tag='div'){this.tag=tag;this.children=[];this.events={};this.value='';this.open=false;this.hidden=false;this.style={};this.files=[];}append(...n){this.children.push(...n);}replaceChildren(...n){this.children=n;}setAttribute(k,v){this[k]=v;}addEventListener(k,f){this.events[k]=f;}reportValidity(){return true;}reset(){}showModal(){this.open=true;}close(){this.open=false;}get textContent(){return(this.text||'')+this.children.map(n=>n.textContent||'').join('');}set textContent(t){this.text=t;this.children=[];}}
+class N{constructor(tag='div'){this.tag=tag;this.children=[];this.events={};this.value='';this.open=false;this.hidden=false;this.style={};this.files=[];}append(...n){this.children.push(...n);}insertBefore(node,before){this.children.splice(this.children.indexOf(before),0,node);}querySelector(selector){return flat(this).slice(1).find(n=>n.className?.split(' ').includes(selector.slice(1)))||null;}replaceChildren(...n){this.children=n;}setAttribute(k,v){this[k]=v;}addEventListener(k,f){this.events[k]=f;}reportValidity(){return true;}reset(){}showModal(){this.open=true;}close(){this.open=false;}get textContent(){return(this.text||'')+this.children.map(n=>n.textContent||'').join('');}set textContent(t){this.text=t;this.children=[];}}
 const nodes={},$=id=>nodes[id]??=new N(),doc={getElementById:$,createElement:t=>new N(t),body:new N('body'),head:new N('head'),events:{},addEventListener(k,f){this.events[k]=f;},getSelection(){return null;}},flat=n=>[n,...n.children.flatMap(flat)];
 let profile={id:'principal',role:'owner'},posts=[],attachments=[],calls=[],uploads=0,notifications=0,fail=false,signedCalls=[],removeCalls=[],removeFail=false,finishFail=false,allowConfirm=true;
 function query(table){let filters=[];const q={select(){return this;},eq(k,v){filters.push(r=>r[k]===v);return this;},is(k,v){filters.push(r=>r[k]===v);return this;},not(k,op,v){filters.push(r=>r[k]!==v);return this;},order(){return this;},limit(){return this;},maybeSingle(){return Promise.resolve({data:null});},then(resolve,reject){return Promise.resolve({data:(table==='cheongla_director_posts'?posts:attachments).filter(r=>filters.every(f=>f(r)))}).then(resolve,reject);}};return q;}
@@ -9,7 +9,7 @@ const client={from:query,storage:{from:()=>({upload:async()=>{uploads++;return{}
  if(name==='cheongla_finish_director_removal'){if(finishFail)return{error:Error('finish offline')};const p=posts.find(p=>p.id===a.target_post);assert.equal(p.updated_at,a.expected_updated_at);assert(removeCalls.length);attachments=attachments.filter(f=>a.target_file?f.id!==a.target_file:f.post_id!==a.target_post);if(!a.target_file)posts=posts.filter(p=>p.id!==a.target_post);return{data:true};}
  if(name==='cheongla_trash_director_post'){if(fail)return{error:Error('글이 변경되었습니다')};const row=posts.find(p=>p.id===a.target_post);Object.assign(row,{archived_at:a.restore_post?null:'2026-10-30',state:a.restore_post?'draft':row.state,updated_at:'v'+calls.length});return{data:{...row}};}
  if(name==='cheongla_stage_director_file'){const f={id:crypto.randomUUID(),post_id:a.target_post,object_path:a.object_name,filename:a.original_name,state:'pending'};attachments.push(f);return{data:f.id};}
- if(name==='cheongla_save_director_post'){if(fail)return{error:Error('다른 원장이 변경했습니다')};const row=posts.find(p=>p.id===a.target_post);Object.assign(row,{title:a.post_title,body:a.post_body,state:a.post_state,updated_at:'2026-10-29T00:00:00Z'});for(const f of attachments)if(a.file_ids.includes(f.id))f.state='ready';return{data:{...row}};}return{data:true};}};
+ if(['cheongla_save_director_post','cheongla_save_director_photo_post'].includes(name)){if(fail)return{error:Error('다른 원장이 변경했습니다')};const row=posts.find(p=>p.id===a.target_post);Object.assign(row,{title:a.post_title,body:a.post_body,state:a.post_state,updated_at:'2026-10-29T00:00:00Z'});for(const f of attachments)if(a.file_ids.includes(f.id))f.state='ready';for(const f of attachments)if(Object.hasOwn(a.photo_captions||{},f.id))f.caption=a.photo_captions[f.id];return{data:{...row}};}return{data:true};}};
 const ctx=vm.createContext({document:doc,crypto,Date,URL,location:{assign(){}},showPublicPage:()=>{$('publicContentPanel').hidden=false;},showSiteHome:()=>{$('publicContentPanel').hidden=true;},navigateNotification:async()=>{}});
 vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'../director-space.js'),'utf8'),ctx);
 const ui=ctx.CheonglaDirectorSpaceFactory.mount({document:doc,profile:()=>profile,principal:()=>profile?.role==='owner',client:async()=>client,confirm:async()=>allowConfirm,readable:e=>e.message,greeting:()=>({title:'원장 인사말',paragraphs:['기존 인사말 보존']}),notifyReload:()=>{notifications++;}});
@@ -21,16 +21,39 @@ const ui=ctx.CheonglaDirectorSpaceFactory.mount({document:doc,profile:()=>profil
  for(const role of ['manager','student']){profile={id:role,role};const before=calls.length;await ui.edit('thoughts');assert.equal(calls.length,before);}
  profile=null;await ui.show('director_objects');assert(!$('publicContentBody').textContent.includes('새 글 작성'));assert(!$('publicContentBody').textContent.includes('글 수정 · 첨부파일 추가'));assert($('publicContentBody').textContent.includes('사물과 사람'));assert(!$('publicContentBody').textContent.includes('첨부파일 내려받기'));assert($('publicContentBody').textContent.includes('저작권 보호 콘텐츠'));
  const root=$('publicContentBody'),protectedNode=flat(root).find(n=>n.className?.includes('director-protected')&&n.tag==='div');
- assert(protectedNode);assert(flat(protectedNode).some(n=>n.tag==='h3'));assert(doc.head.textContent.includes('@media print'));
+ assert(protectedNode);assert(flat(root).some(n=>n.tag==='summary'&&n.textContent.includes('사물과 사람')));assert(doc.head.textContent.includes('@media print'));
  const event=extra=>({blocked:false,preventDefault(){this.blocked=true;},stopPropagation(){},...extra});
  for(const name of ['copy','cut','contextmenu','dragstart','selectstart']){const e=event();protectedNode.events[name](e);assert(e.blocked,name);}
  const image=flat(root).find(n=>n.tag==='img');assert.equal(String(image.draggable),'false');
  for(const key of ['s','p']){const e=event({ctrlKey:true,key});doc.events.keydown(e);assert(e.blocked);}
  const copy=event({target:{closest:()=>protectedNode}});doc.events.copy(copy);assert(copy.blocked);
  attachments.push({id:'pdf',post_id:posts[0].id,object_path:posts[0].id+'/protected.pdf',filename:'원본.pdf',state:'ready'});
- for(const [key,category]of [['director_thoughts','thoughts'],['director_photos','photos'],['director_objects','objects']]){
-  posts[0].category=category;signedCalls=[];await ui.show(key);assert(root.textContent.includes('원본 파일 제공 제한'));assert(!root.textContent.includes('첨부파일 내려받기'));assert(!signedCalls.some(a=>a[0]===posts[0].id+'/protected.pdf'));
+ const secondPhoto={id:'second-photo',post_id:posts[0].id,object_path:posts[0].id+'/second.jpeg',filename:'두번째.jpeg',state:'ready'};
+ attachments.push(secondPhoto);
+ for(const category of ['thoughts','photos','objects','column']){
+  posts[0].category=category;signedCalls=[];await ui.show('director_'+category);
+  const card=flat(root).find(n=>n.tag==='details'&&n.className.includes('director-post-accordion'));
+  assert.equal(card.open,false);
+  assert.equal(card.children[0].tag,'summary');
+  const thumbnails=flat(card.children[0]).filter(n=>n.tag==='img');
+  assert.equal(thumbnails.length,1);assert.equal(thumbnails[0].width,64);
+  assert.equal(signedCalls.length,2);
+  const [photoGroup,text,fileNotice]=card.children[1].children;
+  assert.equal(photoGroup.className,'director-post-photos');
+  assert.deepEqual(flat(photoGroup).filter(n=>n.tag==='img').map(n=>n.alt),['사진.png','두번째.jpeg']);
+  assert.equal(text.className,'notice-body');
+  assert(fileNotice.textContent.includes('원본 파일 제공 제한'));
+  assert(!root.textContent.includes('첨부파일 내려받기'));
+  assert(!signedCalls.some(a=>a[0]===posts[0].id+'/protected.pdf'));
  }
+ attachments=attachments.filter(file=>file!==secondPhoto);
+ const attachedPhoto=attachments.shift();
+ await ui.show('director_column');
+ const textOnly=flat(root).find(n=>n.className?.includes('director-post-content'));
+ assert.equal(textOnly.children[0].children.length,0);
+ assert(!flat(root).some(n=>n.className?.includes('director-post-thumbnail')));
+ assert.equal(textOnly.children[1].textContent,'<script>문자 그대로</script>');
+ attachments.unshift(attachedPhoto);posts[0].category='objects';
  profile={id:'principal',role:'owner'};await ui.show('director_objects');assert(root.textContent.includes('글 수정 · 첨부파일 추가'));await ui.edit('objects',posts[0]);
  const editingSave=event({ctrlKey:true,key:'s'});doc.events.keydown(editingSave);assert(!editingSave.blocked);ui.reset();
  for(const category of ['thoughts','photos','objects']){
@@ -48,14 +71,34 @@ const ui=ctx.CheonglaDirectorSpaceFactory.mount({document:doc,profile:()=>profil
   const before=calls.length;allowConfirm=false;await fileButton().events.click();assert.equal(calls.length,before);allowConfirm=true;
   removeFail=true;await fileButton().events.click();assert(first.removal_requested_at);assert(attachments.includes(first));assert($('siteStatus').textContent.includes('완료하지 못했습니다'));assert(findButton('삭제 계속'));removeFail=false;
   await findButton('삭제 계속').events.click();assert(!attachments.includes(first));assert(attachments.includes(second));assert(posts.includes(p));assert.equal(p.body,'<script>문자 그대로</script>');assert(!removeCalls.flat().includes(second.object_path));
-  const card=flat(root).find(n=>n.tag==='article'&&flat(n).some(x=>x['aria-label']==='남길문서.pdf 첨부 삭제'));await flat(card).find(n=>n.textContent==='글 삭제').events.click();await findButton('휴지통').events.click();
-  const purgeCard=flat(root).find(n=>n.tag==='article'&&n.textContent.includes('남길문서.pdf'));const purge=flat(purgeCard).find(n=>n.tag==='button'&&n.textContent==='글 영구삭제');assert(purge);
+  const card=flat(root).find(n=>n.tag==='details'&&flat(n).some(x=>x['aria-label']==='남길문서.pdf 첨부 삭제'));await flat(card).find(n=>n.textContent==='글 삭제').events.click();await findButton('휴지통').events.click();
+  const purgeCard=flat(root).find(n=>n.tag==='details'&&n.textContent.includes('남길문서.pdf'));const purge=flat(purgeCard).find(n=>n.tag==='button'&&n.textContent==='글 영구삭제');assert(purge);
   allowConfirm=false;const beforePurge=calls.length;await purge.events.click();assert.equal(calls.length,beforePurge);allowConfirm=true;
-  finishFail=true;await purge.events.click();assert(posts.includes(p));assert(p.purge_requested_at);assert(findButton('영구삭제 계속'));const pendingCard=flat(root).find(n=>n.tag==='article'&&n.textContent.includes('영구삭제 계속'));assert(!flat(pendingCard).some(n=>n.textContent==='글 복구'));finishFail=false;
+  finishFail=true;await purge.events.click();assert(posts.includes(p));assert(p.purge_requested_at);assert(findButton('영구삭제 계속'));const pendingCard=flat(root).find(n=>n.tag==='details'&&n.textContent.includes('영구삭제 계속'));assert(!flat(pendingCard).some(n=>n.textContent==='글 복구'));finishFail=false;
   await findButton('영구삭제 계속').events.click();assert(!posts.includes(p));assert(!attachments.includes(second));assert.equal(calls.filter(c=>c.name==='cheongla_begin_director_removal'&&c.a.target_post===p.id&&c.a.target_file===first.id).length,2);
  }
  for(const role of ['manager','student']){profile={id:role,role};await ui.show('director_objects');assert(!flat(root).some(n=>n.tag==='button'&&['글 삭제','휴지통','글 복구','첨부 삭제','삭제 계속','글 영구삭제','영구삭제 계속'].includes(n.textContent)));}
  profile={id:'principal',role:'owner'};posts[0].category='greeting';await ui.show('greeting');assert(root.textContent.includes('첨부파일 내려받기'));assert(!flat(root).some(n=>n.className?.includes('director-protected')));
+ await ui.show('director_photos');await ui.edit('photos');
+ title.value='사진 설명 테스트';body.value='본문';
+ files.files=[{name:'새사진.jpg',size:6,lastModified:2,type:'image/jpeg'},{name:'다른사진.webp',size:7,lastModified:3,type:'image/webp'}];
+ files.events.change();
+ const captionInputs=()=>flat(all().find(n=>n.className==='director-caption-fields')).filter(n=>n.tag==='input');
+ assert.equal(captionInputs().length,2);
+ captionInputs()[0].value='창가에 내려앉은 빛';captionInputs()[1].value='<b>있는 그대로</b>';
+ await form.events.submit({preventDefault(){}});
+ const photoPost=posts.find(p=>p.title==='사진 설명 테스트');
+ assert(photoPost);
+ assert.deepEqual(attachments.filter(f=>f.post_id===photoPost.id).map(f=>f.caption),['창가에 내려앉은 빛','<b>있는 그대로</b>']);
+ assert(flat(root).some(n=>n.className==='director-photo-caption'&&n.textContent==='<b>있는 그대로</b>'));
+ assert(!flat(root).some(n=>n.tag==='b'));
+ await ui.edit('photos',photoPost);
+ assert.equal(captionInputs()[0].value,'창가에 내려앉은 빛');captionInputs()[0].value='';
+ files.files=[];
+ await form.events.submit({preventDefault(){}});
+ assert.equal(attachments.find(f=>f.filename==='새사진.jpg').caption,'');
+ assert.equal(attachments.find(f=>f.filename==='다른사진.webp').caption,'<b>있는 그대로</b>');
+ await ui.show('greeting');
  const ordinarySave=event({ctrlKey:true,key:'s'});doc.events.keydown(ordinarySave);assert(!ordinarySave.blocked);
- console.log('PASS director UI: all three protected categories, copy/cut/contextmenu/drag/selection, print/save shortcuts, image drag, document signing denied; owner editing and greeting downloads preserved; file-only removal preserves post/other files; cancelled deletes make no calls; storage/finish failures resume; post purge removes all files and cannot restore during purge');
+ console.log('PASS director UI: photos before text in all four categories, text-only posts, copy/cut/contextmenu/drag/selection, print/save shortcuts, image drag, document signing denied; owner editing and greeting downloads preserved; file-only removal preserves post/other files; cancelled deletes make no calls; storage/finish failures resume; post purge removes all files and cannot restore during purge');
 })().catch(e=>{console.error(e);process.exit(1);});
