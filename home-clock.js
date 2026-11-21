@@ -10,13 +10,20 @@ const timeFormat = new Intl.DateTimeFormat('en-GB', {
 const examDay = Date.UTC(2027, 10, 18);
 const countdownText = days => days === 0 ? 'D-DAY' : days > 0 ? `D-${days}` : `D+${Math.abs(days)}`;
 
+let calendarDay='',calendarLabels;
+
 export function koreaClockState(now = new Date(), target = examDay) {
   const parts = Object.fromEntries(timeFormat.formatToParts(now).map(p => [p.type, p.value]));
   const today = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
   const days = Math.round((target - today) / 86400000);
+  const localDate=`${parts.year}-${parts.month}-${parts.day}`;
+  if(calendarDay!==localDate){
+    calendarLabels={date:dateFormat.format(now),lunar:koreanLunarDate(now)};
+    calendarDay=localDate;
+  }
   return {
     hours: String(Number(parts.hour)%12||12).padStart(2,'0'), period:Number(parts.hour)<12?'오전':'오후', minutes: parts.minute, seconds: parts.second,
-    date: dateFormat.format(now),lunar: koreanLunarDate(now),localDate:`${parts.year}-${parts.month}-${parts.day}`, iso: now.toISOString(), days,
+    ...calendarLabels,localDate, iso: now.toISOString(), days,
     countdown: countdownText(days),
     cheer: days === 0 ? '차분하게, 자신 있게. 청라가 응원합니다.' : days < 0
       ? '수고했어요. 여러분의 새로운 시작을 응원합니다.' : '오늘의 한 걸음, 더 나은 내일로.',
@@ -75,7 +82,7 @@ if (typeof document !== 'undefined') {
       const now = new Date();
       const state = koreaClockState(now, target);
       if(eventDay!==state.localDate){eventDay=state.localDate;renderCalendarEvents(eventContainer,eventDay);}
-      if(lunarDate){lunarDate.textContent=state.lunar;lunarDate.hidden=!state.lunar;}
+      if(lunarDate&&lunarDate.textContent!==state.lunar){lunarDate.textContent=state.lunar;lunarDate.hidden=!state.lunar;}
       for (const key of ['period', 'hours', 'minutes', 'seconds', 'date', 'cheer']) {
         const element = clock.querySelector(`[data-clock-${key}]`);
         const text = key === 'cheer' && countdownConfig?.description ? countdownConfig.description : state[key];

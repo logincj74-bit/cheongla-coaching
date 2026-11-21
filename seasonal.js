@@ -93,13 +93,15 @@ export function mountSeasonalUI(doc,win){
    surface.dataset.motion=enabled?'on':'off';
    const layer=surface.querySelector('[data-season-particles]');if(surface===dialog){layer?.replaceChildren();continue;}if(!layer)continue;layer.replaceChildren();if(!enabled)continue;
    const options=win.CheonglaSeasonOptions?.[season]||{};const compact=win.matchMedia('(max-width: 720px) and (pointer: coarse)').matches;
+   const lightSnow=compact&&season==='winter';
    const count=compact?Math.ceil(particleCount(options)*.6):particleCount(options);
    const nodes=[];
    for(let i=0;i<count;i++){
     const leaf=doc.createElement('span'),settings=particleSettings(i,season,options);leaf.className='season-particle';
     for(const [key,value] of Object.entries(settings))leaf.style.setProperty('--'+key,value);
     const autumn=season==='autumn'?autumnParticle(i):null;if(autumn){leaf.dataset.leaf=autumn.kind;leaf.style.setProperty('--particle-color',autumn.color);}
-    leaf.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'+naturalParticle(i,season,surface===dialog?'welcome':'home')+'</svg>';
+    if(lightSnow)leaf.className+=' season-snow-dot';
+    else leaf.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'+naturalParticle(i,season,surface===dialog?'welcome':'home')+'</svg>';
     nodes.push(leaf);
    }
    layer.replaceChildren(...nodes);
@@ -134,7 +136,8 @@ export function mountSeasonalUI(doc,win){
  win.CheonglaSeasonal={setSettings(value){
   if(!validMode(value?.mode))return;
   win.CheonglaSeasonOptions=value.effect_options||{};
-  write('localStorage',settingKey,JSON.stringify({mode:value.mode,effect_options:win.CheonglaSeasonOptions}));
+  const serialized=JSON.stringify({mode:value.mode,effect_options:win.CheonglaSeasonOptions});
+  if(read('localStorage',settingKey)!==serialized)write('localStorage',settingKey,serialized);
   this.setMode(value.mode);
  },setMode(mode){win.CheonglaSeasonMode=validMode(mode)?mode:'auto';updateSeason();},getMode(){return win.CheonglaSeasonMode||'auto';}};
  if(validMode(win.CheonglaSeasonMode))win.CheonglaSeasonal.setSettings({mode:win.CheonglaSeasonMode,effect_options:win.CheonglaSeasonOptions});

@@ -37,4 +37,10 @@
 /* On touch phones, keep snowfall on the transform layer without per-flake filter passes. */
 @media(max-width:720px) and (pointer:coarse){
  .home-season-effects[data-season='winter'] .season-particle{filter:none}
+ .home-season-effects .season-snow-dot{border-radius:50%;background:#f8fcff;border:1px solid #9abbd380;animation-name:season-snow-drift}
+}
+@keyframes season-snow-drift{
+ from{transform:translate3d(0,-20px,0)}
+ 50%{transform:translate3d(calc(var(--sway)*.38),calc(var(--fall-distance)/2),0)}
+ to{transform:translate3d(calc(var(--sway)*-.18),var(--fall-distance),0)}
 }
