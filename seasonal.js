@@ -75,27 +75,40 @@ export function mountSeasonalUI(doc,win){
  const reduced=win.matchMedia('(prefers-reduced-motion: reduce)');
  const read=(store,key)=>{try{return win[store].getItem(key);}catch{return null;}};
  const write=(store,key,value)=>{try{win[store].setItem(key,value);}catch{}};
+ const settingKey='cheongla-season-settings:v1';
+ const validMode=mode=>mode==='auto'||Object.hasOwn(SEASONS,mode);
+ let cached;
+ try{cached=JSON.parse(read('localStorage',settingKey));}catch{}
+ if(!validMode(win.CheonglaSeasonMode)&&validMode(cached?.mode)){
+  win.CheonglaSeasonMode=cached.mode;
+  win.CheonglaSeasonOptions=cached.effect_options||{};
+ }
  let season='',renderKey='',lastTrigger=null,off=read('localStorage','cheongla-season-motion')==='off';
  const homeVisible=()=>!doc.getElementById('homePanel')?.hidden;
  const pause=()=>{for(const surface of surfaces){const away=surface.id==='homeSeasonEffects'&&!homeVisible();surface.hidden=away;surface.dataset.paused=String(doc.hidden||away||(surface!==dialog&&dialog.open));}};
  const particles=()=>{
+  if(!season)return;
   const enabled=!off&&!reduced.matches;
   for(const surface of surfaces){
    surface.dataset.motion=enabled?'on':'off';
    const layer=surface.querySelector('[data-season-particles]');if(surface===dialog){layer?.replaceChildren();continue;}if(!layer)continue;layer.replaceChildren();if(!enabled)continue;
-   const options=win.CheonglaSeasonOptions?.[season]||{};const count=particleCount(options,surface===dialog);
+   const options=win.CheonglaSeasonOptions?.[season]||{};const compact=win.matchMedia('(max-width: 720px) and (pointer: coarse)').matches;
+   const count=compact?Math.ceil(particleCount(options)*.6):particleCount(options);
+   const nodes=[];
    for(let i=0;i<count;i++){
     const leaf=doc.createElement('span'),settings=particleSettings(i,season,options);leaf.className='season-particle';
     for(const [key,value] of Object.entries(settings))leaf.style.setProperty('--'+key,value);
     const autumn=season==='autumn'?autumnParticle(i):null;if(autumn){leaf.dataset.leaf=autumn.kind;leaf.style.setProperty('--particle-color',autumn.color);}
     leaf.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'+naturalParticle(i,season,surface===dialog?'welcome':'home')+'</svg>';
-    layer.append(leaf);
+    nodes.push(leaf);
    }
+   layer.replaceChildren(...nodes);
   }
-  for(const button of buttons){button.disabled=reduced.matches;button.setAttribute('aria-pressed',String(enabled));button.textContent=reduced.matches?'기기 설정에 따라 효과 꺼짐':SEASONS[season].effect+' 효과 '+(enabled?'끄기':'켜기');}
+  for(const button of buttons){button.disabled=reduced.matches;button.removeAttribute('aria-busy');button.setAttribute('aria-pressed',String(enabled));button.textContent=reduced.matches?'기기 설정에 따라 효과 꺼짐':SEASONS[season].effect+' 효과 '+(enabled?'끄기':'켜기');}
   pause();
  };
  const updateSeason=()=>{
+  if(!validMode(win.CheonglaSeasonMode))return;
   const next=Object.hasOwn(SEASONS,win.CheonglaSeasonMode)?win.CheonglaSeasonMode:seasonForDate();const key=next+'|'+JSON.stringify(win.CheonglaSeasonOptions?.[next]||{});if(key===renderKey)return;renderKey=key;
   season=next;const copy=SEASONS[season];
   for(const surface of surfaces){surface.dataset.season=season;for(const [key,selector] of [['label','[data-season-label]'],['headline','[data-season-headline]'],['description','[data-season-description]']])for(const node of surface.querySelectorAll(selector))node.textContent=copy[key];}
@@ -118,8 +131,14 @@ export function mountSeasonalUI(doc,win){
  win.addEventListener('pagehide',()=>{for(const surface of surfaces)surface.dataset.paused='true';});
  win.addEventListener('pageshow',()=>{updateSeason();pause();});
  win.setInterval(()=>{if(!doc.hidden)updateSeason();},60000);win.setInterval(()=>{if(dialog.open)drawWelcome();},750);
- win.CheonglaSeasonal={setSettings(value){win.CheonglaSeasonOptions=value.effect_options||{};this.setMode(value.mode);},setMode(mode){win.CheonglaSeasonMode=Object.hasOwn(SEASONS,mode)?mode:'auto';updateSeason();},getMode(){return win.CheonglaSeasonMode||'auto';}};
- updateSeason();
+ win.CheonglaSeasonal={setSettings(value){
+  if(!validMode(value?.mode))return;
+  win.CheonglaSeasonOptions=value.effect_options||{};
+  write('localStorage',settingKey,JSON.stringify({mode:value.mode,effect_options:win.CheonglaSeasonOptions}));
+  this.setMode(value.mode);
+ },setMode(mode){win.CheonglaSeasonMode=validMode(mode)?mode:'auto';updateSeason();},getMode(){return win.CheonglaSeasonMode||'auto';}};
+ if(validMode(win.CheonglaSeasonMode))win.CheonglaSeasonal.setSettings({mode:win.CheonglaSeasonMode,effect_options:win.CheonglaSeasonOptions});
+ else pause();
  const home=doc.getElementById('homePanel');if(home&&win.MutationObserver)new win.MutationObserver(pause).observe(home,{attributes:true,attributeFilter:['hidden']});
  const originalURL=win.performance?.getEntriesByType('navigation')?.[0]?.name||win.location.href;
  if(!skipSeasonWelcome(originalURL)&&!wasSeen(welcomeDay()))show(doc.getElementById('academyHome')||doc.getElementById('siteHomeLogo'));

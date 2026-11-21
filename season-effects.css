@@ -33,3 +33,8 @@
 @keyframes season-petal-fall{0%{transform:translate3d(0,-30px,0) rotate(var(--tilt))}30%{transform:translate3d(var(--sway),calc(var(--fall-distance)*.3),0) rotate(calc(var(--tilt) + 38deg))}65%{transform:translate3d(calc(var(--sway)*-.25),calc(var(--fall-distance)*.65),0) rotate(calc(var(--tilt) - 24deg))}100%{transform:translate3d(calc(var(--sway)*.8),var(--fall-distance),0) rotate(calc(var(--tilt) + 85deg))}}
 @keyframes season-petal-turn{0%,100%{transform:perspective(180px) rotateY(-15deg) rotateX(10deg)}45%{transform:perspective(180px) rotateY(65deg) rotateX(-20deg)}75%{transform:perspective(180px) rotateY(-35deg) rotateX(15deg)}}
 @media(prefers-reduced-motion:reduce){.season-particle,.season-particle svg{animation:none!important}}
+
+/* On touch phones, keep snowfall on the transform layer without per-flake filter passes. */
+@media(max-width:720px) and (pointer:coarse){
+ .home-season-effects[data-season='winter'] .season-particle{filter:none}
+}
