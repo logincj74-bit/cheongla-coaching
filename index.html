@@ -47,12 +47,32 @@ main{margin-top:18px}.home-today{padding:16px 18px;margin:0 0 22px;border:1px so
 .daily-word-countdown{flex-wrap:wrap}
 .daily-word-countdown>strong{flex:0 1 auto;overflow-wrap:anywhere}
 .daily-word-countdown>span{flex:1 1 9rem;overflow-wrap:anywhere}
+</style>
+<style>
+#homeStartupStatus{display:none}
+html[data-home-starting] #homeStartupStatus{display:block;margin:16px 0}
+html[data-home-starting] main>*:not(.academy-topbar):not(#homeStartupStatus),
+html[data-home-starting] #siteBackControls,
+html[data-home-starting] #journalQuickReturn{display:none!important;visibility:hidden}
+html[data-home-starting] .academy-topbar{pointer-events:none}
 </style></head>
 <body>
+<script>
+document.documentElement.setAttribute('data-home-starting','');
+document.addEventListener('DOMContentLoaded',()=>{
+ if(!window.CheonglaStartupStarted)finishHomeStartup();
+},{once:true});
+function finishHomeStartup(openInitialDestination){
+ document.documentElement.removeAttribute('data-home-starting');
+ try{openInitialDestination?.();}
+ finally{window.dispatchEvent(new Event('cheongla:home-ready'));}
+}
+</script>
 <datalist id="cheonglaExamNames"><option value="대성 더 프리미엄 모의고사"></option><option value="시대인재 서프 모의고사"></option><option value="6월 한국교육과정평가원 모의고사"></option><option value="9월 한국교육과정평가원 모의고사"></option></datalist><main>
 <header class="academy-topbar"><button type="button" id="academyHome" aria-label="독학재수학원 청라 첫 화면"><img src="assets/cheongla-header-cl.png" alt="청라 CL 로고" width="40" height="40"><span>독학재수학원 청라</span></button><div class="home-motion-controls"><button type="button" class="season-motion-toggle" data-season-motion aria-pressed="false" aria-busy="true" disabled>계절 효과 확인 중</button></div></header>
 <section id="winterPromotion" class="winter-promotion" aria-labelledby="winterPromotionTitle" hidden></section>
 <div class="home-today"><aside class="home-clock" aria-label="한국시간과 전주 날씨, 수능 디데이"><div class="home-clock-top"><div class="home-clock-now"><span class="home-clock-date" data-clock-date>한국시간</span><div class="home-clock-digits" role="timer" aria-live="off" aria-label="한국시간" data-clock-time><span class="home-clock-period" data-clock-period>--</span><span data-clock-hours>--</span><span class="home-clock-colon">:</span><span data-clock-minutes>--</span><small data-clock-seconds>--</small></div></div><div class="home-weather-current" data-weather-current><span class="home-clock-label">전주 날씨</span><span class="home-weather-loading">불러오는 중…</span></div><div id="homeClockExam" class="home-clock-exam" hidden title="2028학년도 수능 · 2027년 11월 18일"><span class="home-clock-label">수능</span><span class="home-clock-dday" data-clock-dday>D-—</span><span id="homeClockExamDetail" class="home-clock-detail">2028학년도 대학수학능력시험 · 2027년 11월 18일 목요일</span><span class="home-clock-detail" data-clock-cheer>오늘의 한 걸음, 더 나은 내일로.</span></div></div><p class="home-weather-advice" data-weather-advice hidden role="status"></p><div class="home-weather-more"><button id="weatherForecastToggle" type="button" aria-haspopup="dialog" aria-controls="weatherForecastDialog" aria-expanded="false"><span>▸ 주간 날씨</span><span data-weather-updated>전주 기준</span></button></div><dialog id="weatherForecastDialog" class="weather-forecast-dialog" aria-labelledby="weatherForecastTitle"><div class="weather-dialog-heading"><h2 id="weatherForecastTitle">전주 주간 날씨</h2><button id="weatherForecastClose" type="button" class="secondary">닫기</button></div><p class="weather-dialog-help">날씨 창을 다시 누르면 닫힙니다.</p><div class="home-weather-week" data-weather-week></div><p class="home-weather-credit">전주 지역 예보 · 기온 반올림·한국어 표시<br>자료: <a href="https://www.met.no/en" target="_blank" rel="noopener noreferrer">MET Norway</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a></p></dialog></aside></div>
+<p id="homeStartupStatus" class="muted" role="status">청라 홈을 준비하고 있습니다…</p>
 <div id="homeSeasonEffects" class="home-season-effects" data-season-surface aria-hidden="true"><div class="season-particles" data-season-particles></div></div>
 
 <div id="notificationControls" class="row" hidden><button id="openNotificationInbox" type="button" class="secondary">알림함 <span id="notificationCount">0</span></button></div>
@@ -284,8 +304,8 @@ main{margin-top:18px}.home-today{padding:16px 18px;margin:0 0 22px;border:1px so
 <details><summary>휴지통</summary><p id="homeFeaturesTrashHelp" class="muted"></p><ul id="homeFeaturesTrash"></ul></details><details><summary>영상 휴지통</summary><p class="muted">복원할 콘텐츠를 위에서 선택하세요. 이미 연결된 영상은 복원 시 영상 휴지통으로 이동합니다.</p><ul id="homeFeaturesVideoTrash"></ul></details>
 </fieldset></form><p id="homeFeaturesStatus" role="status" aria-live="polite"></p></dialog><dialog id="homeTourDialog" class="home-tour-dialog" aria-labelledby="homeTourDialogTitle"><div class="home-tour-top"><h2 id="homeTourDialogTitle">청라 내부 영상 둘러보기</h2><button id="homeTourClose" type="button" class="secondary" aria-label="소개 영상 닫기">닫기 ✕</button></div><video id="homeTourVideo" controls muted playsinline preload="none" poster="https://cheongla-winter-2027.logincj.chatgpt.site/assets/space-welcome.webp" aria-label="청라학원 내부 소개 영상"></video><p id="homeTourStatus" role="status">재생 버튼을 누르면 시작합니다. 소리는 영상의 음량 버튼으로 켜주세요.</p><a id="homeTourExternal" href="https://cheongla-winter-2027.logincj.chatgpt.site/videos/cheongla-tour.mp4" target="_blank" rel="noopener noreferrer">영상이 열리지 않으면 별도 화면에서 보기 ↗</a></dialog><dialog id="seasonWelcome" class="season-welcome season-surface" data-season="autumn" data-season-surface aria-labelledby="seasonWelcomeTitle" aria-describedby="seasonWelcomeDescription"><div class="season-particles" aria-hidden="true" data-season-particles></div><div class="season-welcome-card"><img class="season-welcome-logo" src="assets/cheongla-ci-cl.webp" alt="청라 CL 심벌 · 독학재수학원 청라" width="1147" height="1371"><p class="season-welcome-kicker" data-season-label>CHEONGLA · AUTUMN</p><h2 id="seasonWelcomeTitle" data-season-headline>차곡차곡 쌓은 하루,
 단단해지는 나의 내일.</h2><p id="seasonWelcomeDescription" class="season-welcome-description" data-season-description>깊어지는 가을,
-청라에서 나의 공부를 이어갑니다.</p><button id="seasonWelcomeStart" class="season-welcome-start" type="button" autofocus>바로 시작하기 →</button><p class="season-welcome-footer">전주 독학재수 청라학원</p><button type="button" class="season-motion-toggle" data-season-motion aria-pressed="true">계절 효과 끄기</button></div></dialog></main><div id="siteBackControls" class="row" role="navigation" aria-label="화면 이동" hidden><button id="siteBack" type="button" class="text-button">← 뒤로 가기</button><button id="siteGoHome" type="button" class="text-button">청라 첫 화면</button></div><aside id="boardAlert" class="board-alert" role="status" aria-live="polite" hidden><p id="boardAlertText"></p><div class="row"><button id="openBoardAlert" type="button">새 상담문의 보기</button><button id="dismissBoardAlert" type="button" class="secondary">닫기</button></div></aside><aside id="notificationToast" class="board-alert" role="status" aria-live="polite" hidden><p id="notificationToastText"></p><div class="row"><button id="openNotificationToast" type="button">알림 확인</button><button id="dismissNotificationToast" type="button" class="secondary">닫기</button></div></aside><script src="feature-flags.js?v=2.0.2"></script><script src="config.js"></script><script src="content-trash.js?v=1.9.72"></script><script src="learning-records.js?v=2.0.29"></script><script src="exam-refunds.js?v=1.9.32"></script><script src="account-help.js?v=1.9.53"></script><script src="auth-methods.js?v=1.9.72"></script><script src="detail-navigation.js?v=1.9.13"></script><script src="bottom-navigation.js?v=2"></script><script src="dictionary.js?v=2.0.16"></script><script src="mbti-operations.js?v=3"></script><script src="mbti-editor.js?v=1.9.52"></script><script src="mbti-library.js?v=3"></script>
-<script src="mbti-articles.js?v=1"></script><script src="document-brand.js?v=1"></script><script src="mbti-introduction-pdf.js?v=2"></script><script src="mbti-introduction.js?v=mbti-manager-5"></script><script src="intro-editor.js?v=2.0.16"></script><script src="director-space.js?v=1.9.80"></script><script src="english-cards.js?v=1.9.68"></script><script src="english-patrol.js?v=1.9.80-book"></script><script src="journal-alerts.js?v=1"></script><script src="winter-promotion.js?v=2.0.0"></script><script src="video-poster.js?v=2"></script><script src="home-video-swipe.js?v=1"></script><script src="home-features-editor.js?v=5"></script><script src="home-copy.js?v=1"></script><script>
+청라에서 나의 공부를 이어갑니다.</p><button id="seasonWelcomeStart" class="season-welcome-start" type="button" autofocus>바로 시작하기 →</button><p class="season-welcome-footer">전주 독학재수 청라학원</p><button type="button" class="season-motion-toggle" data-season-motion aria-pressed="true">계절 효과 끄기</button></div></dialog></main><div id="siteBackControls" class="row" role="navigation" aria-label="화면 이동" hidden><button id="siteBack" type="button" class="text-button">← 뒤로 가기</button><button id="siteGoHome" type="button" class="text-button">청라 첫 화면</button></div><aside id="boardAlert" class="board-alert" role="status" aria-live="polite" hidden><p id="boardAlertText"></p><div class="row"><button id="openBoardAlert" type="button">새 상담문의 보기</button><button id="dismissBoardAlert" type="button" class="secondary">닫기</button></div></aside><aside id="notificationToast" class="board-alert" role="status" aria-live="polite" hidden><p id="notificationToastText"></p><div class="row"><button id="openNotificationToast" type="button">알림 확인</button><button id="dismissNotificationToast" type="button" class="secondary">닫기</button></div></aside><script src="feature-flags.js?v=2.0.2"></script><script src="config.js"></script><script src="content-trash.js?v=1.9.72"></script><script src="learning-records.js?v=2.0.30"></script><script src="exam-refunds.js?v=1.9.32"></script><script src="account-help.js?v=1.9.53"></script><script src="auth-methods.js?v=1.9.72"></script><script src="detail-navigation.js?v=1.9.13"></script><script src="bottom-navigation.js?v=2"></script><script src="dictionary.js?v=2.0.16"></script><script src="mbti-operations.js?v=3"></script><script src="mbti-editor.js?v=1.9.52"></script><script src="mbti-library.js?v=3"></script>
+<script src="mbti-articles.js?v=1"></script><script src="document-brand.js?v=1"></script><script src="mbti-introduction-pdf.js?v=2"></script><script src="mbti-introduction.js?v=mbti-manager-5"></script><script src="intro-editor.js?v=2.0.16"></script><script src="director-space.js?v=1.9.80"></script><script src="english-cards.js?v=1.9.68"></script><script src="english-patrol.js?v=1.9.80-book"></script><script src="journal-alerts.js?v=1"></script><script src="winter-promotion.js?v=2.0.1"></script><script src="video-poster.js?v=2"></script><script src="home-video-swipe.js?v=1"></script><script src="home-features-editor.js?v=5"></script><script src="home-copy.js?v=1"></script><script>
 'use strict';
 const $=id=>document.getElementById(id);
 function clearLoginInputs(){globalThis.CheonglaAuth.mask(document);$('authPhone').value='';$('email').value='';$('password').value='';$('passwordConfirm').value='';$('passwordMatch').textContent='';}
@@ -355,7 +375,7 @@ async function getClient(){
  return clientPromise;
 }
 function clearAccount(){contentOwnerProfile=null;globalThis.CheonglaHomeCopyUI?.reset();globalThis.CheonglaHomeFeaturesUI?.reset();globalThis.CheonglaIntroUI?.reset();globalThis.CheonglaEnglishUI?.reset();globalThis.CheonglaDirectorSpace?.reset();globalThis.CheonglaPasswordChange?.reset();globalThis.CheonglaAuth.mask(document);$('forcedPasswordPanel').hidden=true;$('forcedPassword').value='';$('forcedPasswordConfirm').value='';$('forcedPasswordStatus').textContent='';resetAccountRecovery();pendingActionConfirmation?.cancel();resetInformation();resetBilling();clearInterval(membershipTimer);membershipTimer=null;$('membershipPanel').hidden=true;$('withdrawConsent').checked=false;$('membershipStatus').textContent='';currentProfile=null;globalThis.CheonglaWinterPromotionUI?.refresh();globalThis.CheonglaLearningUI?.accountChanged();globalThis.CheonglaDictionary?.accountChanged();resetDailyWord();resetHomeSchedule();applicationStudents=[];configureDeskMenu();resetMealForms();resetNewInquiries();activeAccountSection=null;configureAccountSections();resetContacts();resetPushUI();resetInbox();resetBoard();resetMBTIStudy();resetSchedule();configureStaffWorkspace();resetExamFees();resetExams();resetTuition();noticeRequest++;noticeLimit=20;activeNoticeAudience='all';activeNoticeChannel='director';configureNoticeTabs();resetNoticeForm();$('noticesPanel').hidden=true;$('noticeForm').hidden=true;$('notices').replaceChildren();$('noticeStatus').textContent='';$('moreNotices').hidden=true;$('accountPanel').hidden=true;$('approvalPanel').hidden=true;$('childrenPanel').hidden=true;$('children').replaceChildren();$('members').replaceChildren();$('coachingPanel').hidden=true;$('coachingStudents').replaceChildren();$('authPanel').hidden=!$('homePanel').hidden;}
-async function loadProfile(verifiedUser=null){
+async function loadProfile(verifiedUser=null,{startup=false}={}){
  clearAccount();const client=await getClient();let user=verifiedUser;
  if(!user){message('계정 확인 중…');const {data,error}=await client.auth.getUser();if(error)throw error;user=data.user;}
  if(!user)return;
@@ -364,7 +384,7 @@ async function loadProfile(verifiedUser=null){
  let result=await fetchProfile();
  if([0,502,503,504].includes(result.status)&&result.error)result=await fetchProfile();
  if(result.error)throw result.error;if(!result.data)throw new Error('계정 프로필이 없습니다. 원장님께 문의해 주세요.');
- if(result.data.membership_state==='withdrawn'){try{await client.auth.signOut({scope:'local'});}catch{}clearAccount();clearLoginInputs();showSiteHome();message('탈퇴한 계정은 로그인할 수 없습니다.');throw Object.assign(new Error('탈퇴한 계정은 로그인할 수 없습니다.'),{code:'member_withdrawn'});}const recovery=await client.rpc('cheongla_account_recovery_state');if(recovery.error)throw recovery.error;if(recovery.data===true){clearLoginInputs();$('authPanel').hidden=true;$('accountPanel').hidden=true;$('forcedPasswordPanel').hidden=false;$('homePanel').hidden=true;message('새 비밀번호를 설정해 주세요.');return;}currentProfile=result.data;const contentActor=currentProfile;try{const permission=await client.rpc('cheongla_can_manage_app_content');if(currentProfile!==contentActor)return;contentOwnerProfile=!permission.error&&permission.data===true?contentActor.id:null;}catch{contentOwnerProfile=null;}if(currentProfile!==contentActor)return;configureMembership();startMembershipMonitor();configureContacts();await loadContact();if(canManageContacts())void loadMemberContacts();clearLoginInputs();$('authPanel').hidden=true;$('accountPanel').hidden=false;
+ if(result.data.membership_state==='withdrawn'){try{await client.auth.signOut({scope:'local'});}catch{}clearAccount();clearLoginInputs();showSiteHome();message('탈퇴한 계정은 로그인할 수 없습니다.');throw Object.assign(new Error('탈퇴한 계정은 로그인할 수 없습니다.'),{code:'member_withdrawn'});}const recovery=await client.rpc('cheongla_account_recovery_state');if(recovery.error)throw recovery.error;if(recovery.data===true){clearLoginInputs();$('authPanel').hidden=true;$('accountPanel').hidden=true;$('forcedPasswordPanel').hidden=false;$('homePanel').hidden=true;message('새 비밀번호를 설정해 주세요.');return;}currentProfile=result.data;const contentActor=currentProfile;try{const permission=await client.rpc('cheongla_can_manage_app_content');if(currentProfile!==contentActor)return;contentOwnerProfile=!permission.error&&permission.data===true?contentActor.id:null;}catch{contentOwnerProfile=null;}if(currentProfile!==contentActor)return;configureMembership();startMembershipMonitor();configureContacts();await loadContact();if(canManageContacts())void loadMemberContacts();clearLoginInputs();$('authPanel').hidden=true;$('accountPanel').hidden=startup;
  $('welcome').textContent=(currentProfile.full_name||'회원')+'님';
  const staffPending=currentProfile.approval_status==='pending'&&staffRoles.includes(currentProfile.requested_staff_role);
  $('accountBadge').textContent=(staffPending?'교직원 신청 · '+roles[currentProfile.requested_staff_role]:(roles[currentProfile.role]||'회원'))+(isAppAdmin()?' · 앱 관리자':'')+' · '+(statuses[currentProfile.approval_status]||'상태 확인 필요');
@@ -375,12 +395,25 @@ async function loadProfile(verifiedUser=null){
  configureBilling();configureTuition();if(canManageTuition())void loadTuition();
  await loadApplicationStudents();configureDeskMenu();configureMealForms();if(canUseMealForms())void loadMealForm();configureInbox();void loadPushSettings();configureBoard();configureMBTIStudy();configureSchedule();if(canUseSchedule())void loadSchedule();configureExamFees();configureExams();if(canUseExams())void loadExams();
  configureStaffWorkspace();$('approvalPanel').hidden=!canAdministerMembers();$('coachingPanel').hidden=!(canCoachAll()&&!isAppAdmin());configureAccountSections();
- try{
-  if(approved&&currentProfile.role==='parent'){message('로그인 완료 · 자녀 정보 확인 중…');await loadChildren();}
-  if(!$('approvalPanel').hidden){message('로그인 완료 · 회원 목록 확인 중…');await loadMembers();}
-  if(!$('coachingPanel').hidden){message('로그인 완료 · 학생 목록 확인 중…');await loadCoachingStudents();}
- }catch(e){throw new Error('로그인은 완료됐지만 추가 정보를 불러오지 못했습니다. 목록 새로고침 또는 승인 상태 새로 확인을 눌러 주세요. '+readable(e));}
+ if(startup){
+  void loadProfileLists(false).catch(e=>{if(contentActor===currentProfile)message(readable(e));});
+  message('');
+  return;
+ }
+ await loadProfileLists();
  message('');completeSiteSignIn();
+}
+async function loadProfileLists(report=true){
+ const actor=currentProfile;
+ const approved=actor?.approval_status==='approved';
+ try{
+  if(approved&&actor.role==='parent'){if(report)message('로그인 완료 · 자녀 정보 확인 중…');await loadChildren();}
+  if(actor!==currentProfile)return;
+  if(!$('approvalPanel').hidden){if(report)message('로그인 완료 · 회원 목록 확인 중…');await loadMembers();}
+  if(actor!==currentProfile)return;
+  if(!$('coachingPanel').hidden){if(report)message('로그인 완료 · 학생 목록 확인 중…');await loadCoachingStudents();}
+ }catch(e){throw new Error('로그인은 완료됐지만 추가 정보를 불러오지 못했습니다. 목록 새로고침 또는 승인 상태 새로 확인을 눌러 주세요. '+readable(e));}
+ if(report&&actor===currentProfile)message('');
 }
 async function loadChildren(){
  const actor=currentProfile;if(actor?.role!=='parent')return;$('childrenPanel').hidden=false;$('children').replaceChildren();const client=await getClient();if(actor!==currentProfile)return;
@@ -1968,7 +2001,7 @@ document.addEventListener('click',event=>{const target=event.target.closest?.('#
 globalThis.CheonglaJournalAlertsUI=globalThis.CheonglaJournalAlerts.mount({document,profile:()=>currentProfile,principal:isPrincipal,client:getClient,readable,date:boardDate,navigate:id=>navigateNotification(id),archive:(id,button)=>changeNotification(id,'archive',button),openDate:day=>openSiteDestination('account_staffJournalPanel',{work_date:day}),refreshAll:()=>loadInbox()});
 
 globalThis.CheonglaWinterPromotionUI=globalThis.CheonglaWinterPromotion.mount({document,profile:()=>currentProfile,principal:isContentOwner,client:getClient,confirm:appConfirm,readable});
-globalThis.CheonglaWinterPromotionUI.refresh();
+const initialWinterCard=globalThis.CheonglaWinterPromotionUI.refresh();
 
 globalThis.CheonglaHomeCopyUI=globalThis.CheonglaHomeCopy.mount({document,profile:()=>currentProfile,allowed:isContentOwner,client:getClient,confirm:appConfirm,readable,sms:examFeeSMSURL});
 void globalThis.CheonglaHomeCopyUI.refresh();
@@ -1976,6 +2009,53 @@ globalThis.CheonglaHomeFeaturesUI=globalThis.CheonglaHomeFeatures.mount({documen
 void globalThis.CheonglaHomeFeaturesUI.refresh();
 
 configureBillingRefresh();
-(async()=>{try{const client=await getClient();if(manualAuthStarted)return;const {data,error}=await client.auth.getSession();if(manualAuthStarted)return;if(error)throw error;const pushArrival=consumePushArrival();if(data.session){restoringInitialSession=true;try{initialProfileLoad=loadProfile();await initialProfileLoad;if(manualAuthStarted)return;if(contactNeedsPhone)showContactRegistration();else if($('forcedPasswordPanel').hidden)showSiteHome();}finally{initialProfileLoad=null;restoringInitialSession=false;}if(pushArrival)await navigateNotification(pushArrival);}else if(pushArrival)await navigateNotification(pushArrival);const entryParams=new URL(window.location.href).searchParams,publicStart=entryParams.get('page');if(publicStart==='billing_dashboard')pendingBillingContext={month:entryParams.get('month')||'',kind:entryParams.get('kind')||'all'};if(!pushArrival&&['meal_forms','billing_dashboard','admissions_news','resources'].includes(publicStart))openSiteDestination(publicStart);if(!pushArrival&&(publicStart==='new_inquiry'||Object.hasOwn(publicPages,publicStart||'')))showPublicPage(publicStart);}catch(e){if(!manualAuthStarted)message('자동 로그인 단계: '+readable(e));}})();
-</script><script type="module" src="home-clock.js?v=1.9.37"></script><script type="module" src="home-tour.js?v=1.8.9"></script><script type="module" src="seasonal.js?v=1.9.35"></script></body></html>
+async function restoreInitialView(){
+ window.CheonglaStartupStarted=true;
+ let pushArrival,publicStart,openContact=false;
+ try{
+  const client=await getClient();
+  if(manualAuthStarted)return;
+  const {data,error}=await client.auth.getSession();
+  if(manualAuthStarted)return;
+  if(error)throw error;
+  pushArrival=consumePushArrival();
+  if(data.session){
+   restoringInitialSession=true;
+   try{
+    initialProfileLoad=loadProfile(null,{startup:true});
+    await initialProfileLoad;
+    if(manualAuthStarted)return;
+    if(!$('forcedPasswordPanel').hidden){
+     pendingNotificationId=pushArrival||'';pushArrival=null;return;
+    }
+    openContact=contactNeedsPhone;
+    if(!openContact)updateHomeAccount();
+   }finally{
+    initialProfileLoad=null;
+    restoringInitialSession=false;
+   }
+  }
+  const entryParams=new URL(window.location.href).searchParams;
+  publicStart=entryParams.get('page');
+  if(publicStart==='billing_dashboard')pendingBillingContext={month:entryParams.get('month')||'',kind:entryParams.get('kind')||'all'};
+ }catch(e){
+  pushArrival=null;
+  if(!manualAuthStarted)$('siteStatus').textContent='자동 로그인 단계: '+readable(e);
+ }finally{
+  let layoutTimer;
+  await Promise.race([
+   Promise.allSettled([initialWinterCard,window.CheonglaHomeModulesReady]),
+   new Promise(resolve=>{layoutTimer=setTimeout(resolve,1200);})
+  ]);
+  clearTimeout(layoutTimer);
+  finishHomeStartup(()=>{
+   if(openContact)showContactRegistration();
+   if(pushArrival)void navigateNotification(pushArrival);
+   else if(['meal_forms','billing_dashboard','admissions_news','resources'].includes(publicStart))void openSiteDestination(publicStart);
+   else if(publicStart==='new_inquiry'||Object.hasOwn(publicPages,publicStart||''))showPublicPage(publicStart);
+  });
+ }
+}
+void restoreInitialView();
+</script><script type="module" src="home-clock.js?v=1.9.37"></script><script type="module" src="home-tour.js?v=1.8.9"></script><script type="module" src="seasonal.js?v=1.9.36"></script></body></html>
 

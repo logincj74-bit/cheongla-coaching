@@ -144,7 +144,12 @@ export function mountSeasonalUI(doc,win){
  else pause();
  const home=doc.getElementById('homePanel');if(home&&win.MutationObserver)new win.MutationObserver(pause).observe(home,{attributes:true,attributeFilter:['hidden']});
  const originalURL=win.performance?.getEntriesByType('navigation')?.[0]?.name||win.location.href;
- if(!skipSeasonWelcome(originalURL)&&!wasSeen(welcomeDay()))show(doc.getElementById('academyHome')||doc.getElementById('siteHomeLogo'));
+ const showWelcome=()=>{
+  const forced=doc.getElementById('forcedPasswordPanel');
+  if((!forced||forced.hidden)&&!home?.hidden&&!skipSeasonWelcome(originalURL)&&!wasSeen(welcomeDay()))show(doc.getElementById('academyHome')||doc.getElementById('siteHomeLogo'));
+ };
+ if(doc.documentElement?.hasAttribute('data-home-starting'))win.addEventListener('cheongla:home-ready',showWelcome,{once:true});
+ else showWelcome();
 }
 if(typeof document!=='undefined'){mountSeasonalUI(document,window);mountWelcomeEditor(document,window);}
 

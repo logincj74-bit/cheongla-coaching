@@ -128,5 +128,27 @@ function mount(api){const doc=api.document||document;let sequence=0,currentKind=
 root.CheonglaLearning={mount,week,total,hours,range,subjects,marks};
 })(globalThis);
 
-/* Load private operational UI and the public winter section after the existing shell. */
-(function(root){function load(){if(!root.document?.head)return;const scripts=['season-admin.js?v=1.9.44','print-tools.js?v=2.0.1','journal-ink.js?v=1.9.79','journal-handover.js?v=1.9.79','journal-home.js?v=1.9.79','staff-journal.js?v=1.9.81','trash-history.js?v=1.9.36','winter-school.js?v=1.9.79','score-coaching.js?v=2.0.13','journal-mute.js?v=2.0.1','role-coaching.js?v=2.0.11','manual-fees.js?v=2.0.8','office-sms.js?v=4','swipe-navigation.js?v=11','mobile-home.js?v=1'];function next(){const path=scripts.shift();if(!path)return;const script=root.document.createElement('script');script.src=path;script.async=true;script.onload=next;script.onerror=()=>{root.console?.error('청라 화면 모듈을 불러오지 못했습니다: '+path);next();};root.document.head.append(script);}next();}if(root.document?.readyState==='loading')root.document.addEventListener('DOMContentLoaded',load,{once:true});else load();})(globalThis);
+/* Load operational scripts in order while allowing their downloads to overlap. */
+(function(root){
+ const doc=root.document;
+ if(!doc?.head)return;
+ const scripts=['season-admin.js?v=1.9.44','print-tools.js?v=2.0.1','journal-ink.js?v=1.9.79','journal-handover.js?v=1.9.79','journal-home.js?v=1.9.79','staff-journal.js?v=1.9.81','trash-history.js?v=1.9.36','winter-school.js?v=1.9.79','score-coaching.js?v=2.0.13','journal-mute.js?v=2.0.1','role-coaching.js?v=2.0.11','manual-fees.js?v=2.0.8','office-sms.js?v=4','swipe-navigation.js?v=11','mobile-home.js?v=1'];
+ root.CheonglaHomeModulesReady=new Promise(resolve=>{
+  function load(){
+   const pending=scripts.map(path=>new Promise(loaded=>{
+    const script=doc.createElement('script');
+    script.src=path;
+    script.async=false;
+    script.onload=loaded;
+    script.onerror=()=>{
+     root.console?.error('청라 화면 모듈을 불러오지 못했습니다: '+path);
+     loaded();
+    };
+    doc.head.append(script);
+   }));
+   void Promise.all(pending).then(resolve);
+  }
+  if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',load,{once:true});
+  else load();
+ });
+})(globalThis);

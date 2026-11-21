@@ -17,7 +17,7 @@
     const trash = admin.querySelector('[data-trash]');
     const fields = editor.elements;
     let actor, editing, rows = [], busy = false, ready = false;
-    let publicRequest = 0, adminRequest = 0, expiryTimer;
+    let publicRequest = 0, adminRequest = 0, expiryTimer, publicLoad, publicRow;
 
     function element(tag, value) {
       const node = document.createElement(tag);
@@ -77,6 +77,7 @@
     }
 
     function showCard(row) {
+      publicRow = row;
       root.clearTimeout(expiryTimer);
       card.replaceChildren();
       card.hidden = true;
@@ -112,8 +113,16 @@
       if (Number.isFinite(remaining)) expiryTimer = root.setTimeout(() => showCard(row), Math.min(remaining, 2147483647));
     }
 
-    async function refreshCard() {
+    function refreshCard(force = false) {
+      if (publicLoad && !force) return publicLoad;
       const request = ++publicRequest;
+      publicLoad = loadPublicCard(request).finally(() => {
+        if (request === publicRequest) publicLoad = null;
+      });
+      return publicLoad;
+    }
+
+    async function loadPublicCard(request) {
       try {
         const c = await client();
         if (request !== publicRequest) return;
@@ -254,7 +263,7 @@
           editor.hidden = true;
           editing = null;
         }
-        void refreshCard();
+        void refreshCard(true);
         await loadAdmin(messages[action]);
       } catch (error) {
         if (owner !== profile() || !principal()) return;
@@ -296,6 +305,7 @@
       const canManage = principal();
       if (actor !== current || admin.hidden !== !canManage) {
         actor = current;
+        if (publicRow) showCard(publicRow);
         ++adminRequest;
         ready = false;
         busy = false;
@@ -308,7 +318,7 @@
         status.textContent = '';
         renderAdmin();
       }
-      if (!home.hidden && !document.hidden) void refreshCard();
+      if (!home.hidden && !document.hidden) return refreshCard();
     }
 
     new root.MutationObserver(() => {
