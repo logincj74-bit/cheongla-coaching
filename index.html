@@ -1051,7 +1051,7 @@ async function openSiteDestination(key){if(globalThis.CheonglaMBTIPages?.dirty&&
  let target='noticesPanel';
  if(key==='patrol'||key==='account_patrolPanel'){showSiteHome();$('siteStatus').textContent='순시일지는 운영 메뉴에서 종료되었습니다.';return;}
  if(['english_practice','english_test'].includes(key))key='english_study';
- if(['english_study','english_book'].includes(key)){const id='englishPanel';if(!allowedAccountSection(id)){showSiteHome();$('siteStatus').textContent='이 메뉴를 이용할 권한이 없습니다.';return;}openSiteAccount(false);applyAccountSection(id);await globalThis.CheonglaEnglishUI.open(key==='english_book'?'book':'study');$(id).scrollIntoView({behavior:'instant',block:'start'});return;}
+ if(['english_study','english_book'].includes(key)){const id='englishPanel';if(!allowedAccountSection(id)){showSiteHome();$('siteStatus').textContent='이 메뉴를 이용할 권한이 없습니다.';return;}recordSiteView('member',key);openSiteAccount(false);applyAccountSection(id);await globalThis.CheonglaEnglishUI.open(key==='english_book'?'book':'study');$(id).scrollIntoView({behavior:'instant',block:'start'});return;}
 
  if(key==='account_qaPanel'){openSiteDestination('question_board');return;}if(key.startsWith('account_')){const id=key.slice(8);if(!useAccountSections()||!allowedAccountSection(id)){showSiteHome();$('siteStatus').textContent='이 업무를 이용할 권한이 없습니다.';return;}target=id;if(id==='englishPanel')void globalThis.CheonglaEnglishUI.open('study');}
  else if(['admissions_news','resources'].includes(key)){if(informationDirty&&!await appConfirm('작성 중인 글을 버리고 이동할까요?'))return;configureInformationKind(key==='resources'?'resource':'news');target='informationPanel';configureInformation();void loadInformation();}
