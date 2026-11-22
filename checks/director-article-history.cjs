@@ -26,6 +26,19 @@ function swipe(node,start,end){for(const [type,x]of[['touchstart',start],['touch
 const cards=()=>[...d.querySelectorAll('.director-post-accordion')];
 const state=()=>w.history.state.cheonglaView;
 (async()=>{
+ const bar=$('siteBackControls'), back=$('siteBack'), goHome=$('siteGoHome');
+ assert.equal(bar.hidden,false,'first home must show the bottom bar');
+ assert(back.disabled&&!goHome.disabled,'only Back is disabled at the first home');
+ await w.showPublicPage('rules');
+ assert(!bar.hidden&&!back.disabled);
+ back.click();await tick();
+ assert.equal(state().view,'home');
+ assert(!bar.hidden&&back.disabled,'returning to the first home keeps the bar');
+ await w.showPublicPage('rules');
+ goHome.click();
+ assert.equal(state().view,'home');
+ assert(!bar.hidden&&!back.disabled,'Home keeps the earlier page available through Back');
+
  for(const category of ['objects','photos','thoughts','column']){
   const key='director_'+category;
   w.showSiteHome();w.scrollY=640;
