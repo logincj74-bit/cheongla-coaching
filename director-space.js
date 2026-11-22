@@ -6,6 +6,14 @@ function mount(api){
  const protectedCategories=new Set(['thoughts','photos','objects','column']);
  const hasImageExtension=name=>/\.(jpg|jpeg|png|webp|gif)$/i.test(name);
  const fileKey=file=>[file.name,file.size,file.lastModified].join(':');
+ function normalizePostBody(value){
+  // Pasted text can use both a Unicode line separator and an LF for one break.
+  return value.replace(/\r\n?/g,'\n').replace(/[\n\u2028]+/g,breaks=>{
+   const lineFeeds=breaks.replace(/\u2028/g,'').length;
+   return '\n'.repeat(Math.max(lineFeeds,breaks.length-lineFeeds));
+  }).replace(/\u2029/g,'\n\n');
+ }
+
  const copyright='저작권 보호 콘텐츠 · 무단 복제·저장·배포 금지';
  const deny=e=>{e.preventDefault();e.stopPropagation();};
  function shield(node){node.className+=' director-protected';for(const event of ['copy','cut','contextmenu','dragstart','selectstart'])node.addEventListener(event,deny);}
@@ -18,6 +26,11 @@ function mount(api){
  .director-post-heading:has(.director-post-thumbnail)>strong,.director-post-heading:has(.director-post-thumbnail)>small{grid-column:1}
  .director-post-thumbnail{grid-column:2;grid-row:1/3;align-self:center;width:64px;height:52px;margin:0;overflow:hidden;border-radius:6px}
  .director-post-thumbnail>img{display:block;width:100%;height:100%;object-fit:cover}
+ .public-content .director-post-content>.notice-body,.director-reader-preview .notice-body{font-size:1rem;font-weight:400;line-height:1.7;color:inherit;white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere}
+ .director-reader-preview{width:min(100%,40rem);margin:14px auto;padding:14px 16px;border:1px solid #dce4d9;border-radius:12px}
+ .director-reader-preview>strong{display:block;overflow-wrap:anywhere}
+ .director-reader-preview [role=status]:empty{display:none}
+ .director-post-editor-body{font-size:1rem;line-height:1.7}
  .director-photo-caption{display:block;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.95rem;margin:0 0 6px}
  .director-caption-fields{min-width:0;margin:10px 0;padding:12px;border:1px solid #dce4d9}
  .director-caption-fields label{display:block;overflow-wrap:anywhere}
@@ -25,14 +38,93 @@ function mount(api){
  let sequence=0,currentKey=null,editing=null,busy=false,dirty=false,trashView=false;
  const dialog=el('dialog');dialog.setAttribute('aria-label','원장 글 작성·수정');dialog.style.cssText='width:min(900px,96vw);max-height:92dvh;border:1px solid #cad9ce;border-radius:16px;padding:22px';
  const heading=el('h2'),form=el('form'),title=el('input'),body=el('textarea'),visibility=el('select'),files=el('input'),status=el('p'),save=el('button','저장하기'),cancel=button('취소 · 닫기',()=>void close());
- title.type='text';title.required=true;title.maxLength=200;body.rows=16;body.maxLength=50000;files.type='file';files.multiple=true;files.accept='.jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.hwp,.hwpx,.txt';
+ title.type='text';title.required=true;title.maxLength=200;body.className='director-post-editor-body';body.rows=16;body.maxLength=50000;files.type='file';files.multiple=true;files.accept='.jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.hwp,.hwpx,.txt';
  for(const[value,label]of[['published','공개 · 저장하면 새 글 알림'],['draft','임시저장 · 원장만 보기']]){const op=el('option',label);op.value=value;visibility.append(op);}
  function label(text,input){const n=el('label',text);n.append(input);form.append(n);}
  label('제목',title);label('본문',body);label('공개 상태',visibility);label('사진·파일 첨부 (한 번에 최대 10개 · 파일당 20MB)',files);save.type='submit';status.setAttribute('role','status');form.append(status,save,cancel);dialog.append(heading,form);doc.body.append(dialog);
+ const preview=el('section'),previewTitle=el('strong'),previewPhotos=el('div'),previewBody=postText(''),previewStatus=el('p');
+ const previewButton=button('독자 화면 미리보기',togglePreview);
+ const previewUrls=[];
+ let previewRequest=0;
+ preview.id='directorReaderPreview';preview.className='director-reader-preview';preview.hidden=true;
+ preview.setAttribute('aria-label','독자 화면 미리보기');
+ previewStatus.setAttribute('role','status');
+ preview.append(previewTitle,previewPhotos,previewBody,previewStatus);
+ previewButton.setAttribute('aria-controls',preview.id);previewButton.setAttribute('aria-expanded','false');
+ form.insertBefore(previewButton,status);form.insertBefore(preview,status);
  const captionFields=el('fieldset'),existingCaptions=el('div'),newCaptions=el('div');
  captionFields.className='director-caption-fields';captionFields.hidden=true;
  captionFields.append(el('legend','사진 설명 · 선택 (160자까지)'),existingCaptions,newCaptions);
- form.insertBefore(captionFields,status);
+ form.insertBefore(captionFields,previewButton);
+
+ function postText(value){
+  const text=el('p',normalizePostBody(value||''));
+  text.className='notice-body';
+  return text;
+ }
+
+ function clearPreview(){
+  previewRequest++;
+  for(const url of previewUrls.splice(0))root.URL.revokeObjectURL(url);
+  previewPhotos.replaceChildren();previewTitle.textContent=previewBody.textContent=previewStatus.textContent='';
+  preview.hidden=true;previewButton.textContent='독자 화면 미리보기';previewButton.setAttribute('aria-expanded','false');
+ }
+
+ async function togglePreview(){
+  if(!preview.hidden){clearPreview();return;}
+  const item=editing;
+  if(busy||!item||item.actor!==api.profile()||!api.principal())return;
+  const request=++previewRequest;
+  const active=()=>request===previewRequest&&item===editing&&item.actor===api.profile()&&api.principal();
+  preview.hidden=false;previewButton.textContent='미리보기 닫기';previewButton.setAttribute('aria-expanded','true');
+  previewTitle.textContent=title.value.trim()||'제목 없음';
+  previewBody.textContent=normalizePostBody(body.value);
+  if(!protectedCategories.has(item.category))return;
+  previewStatus.textContent='사진 미리보기를 준비하는 중…';
+  let unavailable=false;
+  try{
+   const c=await api.client();
+   if(!active())return;
+   const saved=await c.from('cheongla_director_files').select('id,filename,object_path,caption,removal_requested_at')
+    .eq('post_id',item.id).eq('state','ready').order('created_at');
+   if(!active())return;
+   if(saved.error)throw saved.error;
+   const existing=(saved.data||[]).filter(file=>!file.removal_requested_at&&hasImageExtension(file.filename));
+   const storage=c.storage.from('cheongla-director');
+   const links=await Promise.allSettled(existing.map(file=>storage.createSignedUrl(file.object_path,300)));
+   if(!active())return;
+   for(const [index,file] of existing.entries()){
+    const link=links[index];
+    if(link.status!=='fulfilled'||link.value.error){unavailable=true;continue;}
+    const caption=(item.oldCaptions.get(file.id)?.input.value??file.caption??'').trim();
+    previewPhotos.append(photoFigure(postImage(link.value.data.signedUrl,file.filename,caption),caption));
+   }
+  }catch{
+   unavailable=true;
+  }
+  if(!active())return;
+  const chosen=new Map([...item.pendingPhotos].map(([key,entry])=>[key,entry.file]));
+  for(const file of Array.from(files.files||[]).slice(0,10)){
+   if(hasImageExtension(file.name)&&file.size>0&&file.size<=20971520)chosen.set(fileKey(file),file);
+  }
+  for(const [key,file] of chosen){
+   try{
+    const url=root.URL.createObjectURL(file),caption=item.newCaptions.get(key)?.value.trim()||'';
+    previewUrls.push(url);
+    previewPhotos.append(photoFigure(postImage(url,file.name,caption),caption));
+   }catch{unavailable=true;}
+  }
+  previewStatus.textContent=unavailable?'일부 사진을 미리 불러오지 못했습니다.':'';
+ }
+
+ // Text updates in place. Close previews when attachments change so they are rebuilt.
+ form.addEventListener('input',event=>{
+  dirty=true;
+  if(preview.hidden)return;
+  if(event.target===title)previewTitle.textContent=title.value.trim()||'제목 없음';
+  else if(event.target===body)previewBody.textContent=normalizePostBody(body.value);
+  else if(captionFields.contains(event.target))clearPreview();
+ });
 
  function appendCaptionField(parent,filename,value=''){
   const label=el('label',filename),input=el('input');
@@ -42,6 +134,7 @@ function mount(api){
  }
 
  files.addEventListener('change',()=>{
+  clearPreview();
   if(editing?.category!=='photos')return;
   newCaptions.replaceChildren();
   for(const [key,file] of editing.pendingPhotos){
@@ -58,10 +151,10 @@ function mount(api){
  });
 
  async function rpc(name,args){const c=await api.client(),r=await c.rpc(name,args);if(r.error)throw r.error;return r.data;}
- function reset(){sequence++;editing=null;dirty=false;form.reset();existingCaptions.replaceChildren();newCaptions.replaceChildren();captionFields.hidden=true;if(dialog.open)dialog.close();status.textContent='';}
+ function reset(){sequence++;clearPreview();editing=null;dirty=false;form.reset();existingCaptions.replaceChildren();newCaptions.replaceChildren();captionFields.hidden=true;if(dialog.open)dialog.close();status.textContent='';}
  async function close(){if(busy)return;if(dirty&&!await api.confirm('저장하지 않은 글이 있습니다. 닫으시겠습니까?'))return;reset();}
  root.addEventListener?.('beforeunload',e=>{if(dirty||busy){e.preventDefault();e.returnValue='';}});
- dialog.addEventListener('cancel',e=>{e.preventDefault();void close();});form.addEventListener('input',()=>{dirty=true;});
+ dialog.addEventListener('cancel',e=>{e.preventDefault();void close();});
  async function edit(category,post=null){
   if(busy||!api.principal())return;const actor=api.profile();busy=true;
   try{const row=await rpc('cheongla_prepare_director_post',{target_post:post?.id||null,post_category:category});if(actor!==api.profile()||!api.principal())return;
@@ -79,7 +172,7 @@ function mount(api){
     }
     captionFields.hidden=!existingCaptions.children.length;
    }
-   editing=item;heading.textContent=names[category]+' · 글 작성·수정';title.value=row.title==='새 글'?'':row.title;body.value=row.body||'';
+   editing=item;heading.textContent=names[category]+' · 글 작성·수정';title.value=row.title==='새 글'?'':row.title;body.value=normalizePostBody(row.body||'');
    if(category==='greeting'&&!row.body){title.value=api.greeting().title;body.value=api.greeting().paragraphs.join('\n\n');}
    visibility.value=post?row.state:'published';files.value='';status.textContent='공개로 저장하면 회원에게 새 글 알림이 등록됩니다.';dirty=false;dialog.showModal();
   }catch(e){$('siteStatus').textContent=api.readable(e);}finally{busy=false;save.disabled=false;cancel.disabled=false;}
@@ -95,9 +188,9 @@ function mount(api){
     const up=await c.storage.from('cheongla-director').upload(path,f,{contentType:type,upsert:false});if(up.error)throw up.error;
     if(item!==editing||item.actor!==api.profile()||!api.principal())return;
     const id=await rpc('cheongla_stage_director_file',{target_post:item.id,object_name:path,original_name:f.name,file_size:f.size});item.fileIds.push(id);item.uploaded.add(key);
-    if(item.category==='photos'&&hasImageExtension(f.name))item.pendingPhotos.set(key,{id,name:f.name});
+    if(hasImageExtension(f.name))item.pendingPhotos.set(key,{id,name:f.name,file:f});
    }
-   const args={target_post:item.id,post_title:title.value.trim(),post_body:body.value,post_state:visibility.value,expected_updated_at:item.updated_at,file_ids:item.fileIds};
+   const args={target_post:item.id,post_title:title.value.trim(),post_body:normalizePostBody(body.value),post_state:visibility.value,expected_updated_at:item.updated_at,file_ids:item.fileIds};
    let saveFunction='cheongla_save_director_post';
    if(item.category==='photos'){
     const captions={};
@@ -153,6 +246,23 @@ function mount(api){
   return complete;
  }
  const isImageAttachment=file=>hasImageExtension(file.filename);
+ function postImage(url,filename,caption){
+  const img=el('img');
+  img.src=url;img.alt=caption?'':filename;img.loading='lazy';img.decoding='async';
+  img.style.cssText='display:block;max-width:100%;max-height:70vh;object-fit:contain;margin:16px auto';
+  return img;
+ }
+ function photoFigure(img,description){
+  img.draggable=false;img.setAttribute('draggable','false');
+  const figure=el('figure'),caption=el('figcaption');
+  figure.className='director-protected-photo';
+  if(description){
+   const text=el('span',description);
+   text.className='director-photo-caption';caption.append(text);
+  }
+  caption.append(el('span',copyright));figure.append(img,caption);
+  return figure;
+ }
  async function attachment(parent,file,request,protectedContent,previewHeading){
   const imageFile=isImageAttachment(file);
   if(protectedContent&&!imageFile){parent.append(el('p','원본 파일 제공 제한 · '+file.filename));return;}
@@ -160,18 +270,9 @@ function mount(api){
   if(imageFile){
    const r=await c.storage.from('cheongla-director').createSignedUrl(file.object_path,300);
    if(!r.error&&request===sequence){
-    const url=r.data.signedUrl,img=el('img');
-    img.src=url;img.alt=file.caption?'':file.filename;img.loading='lazy';img.decoding='async';
-    img.style.cssText='display:block;max-width:100%;max-height:70vh;object-fit:contain;margin:16px auto';
+    const url=r.data.signedUrl,img=postImage(url,file.filename,file.caption);
     if(protectedContent){
-     img.draggable=false;img.setAttribute('draggable','false');
-     const figure=el('figure'),caption=el('figcaption');
-     figure.className='director-protected-photo';
-     if(file.caption){
-      const description=el('span',file.caption);
-      description.className='director-photo-caption';caption.append(description);
-     }
-     caption.append(el('span',copyright));figure.append(img,caption);parent.append(figure);
+     parent.append(photoFigure(img,file.caption));
      if(previewHeading&&!previewHeading.querySelector('.director-post-thumbnail')){
       const thumbnail=el('span'),preview=el('img');
       thumbnail.className='director-post-thumbnail';shield(thumbnail);
@@ -241,7 +342,7 @@ function mount(api){
     }
     const photos=protectedContent?el('div'):null;
     if(photos){photos.className='director-post-photos';content.append(photos);shield(content);}
-    const text=el('p',post.body);text.className='notice-body';content.append(text);card.append(content);content.addEventListener('click',event=>{if(event.target.closest('a,button,input,textarea,select,video,audio,iframe,[contenteditable]'))return;if(trackArticle)closeArticle(key,post.id);else card.open=false;});if(api.principal()){if(!trashView)card.append(button('글 수정 · 첨부파일 추가',()=>edit(category,post)));if(protectedCategories.has(category)){if(!post.purge_requested_at)card.append(button(trashView?'글 복구':'글 삭제',()=>trash(post,trashView)));if(trashView){const purge=button(post.purge_requested_at?'영구삭제 계속':'글 영구삭제',()=>removePermanently(post));purge.className='danger';card.append(purge);}}}list.append(card);
+    content.append(postText(post.body));card.append(content);content.addEventListener('click',event=>{if(event.target.closest('a,button,input,textarea,select,video,audio,iframe,[contenteditable]'))return;if(trackArticle)closeArticle(key,post.id);else card.open=false;});if(api.principal()){if(!trashView)card.append(button('글 수정 · 첨부파일 추가',()=>edit(category,post)));if(protectedCategories.has(category)){if(!post.purge_requested_at)card.append(button(trashView?'글 복구':'글 삭제',()=>trash(post,trashView)));if(trashView){const purge=button(post.purge_requested_at?'영구삭제 계속':'글 영구삭제',()=>removePermanently(post));purge.className='danger';card.append(purge);}}}list.append(card);
     const f=await c.from('cheongla_director_files').select('id,filename,object_path,removal_requested_at,caption').eq('post_id',post.id).eq('state','ready').order('created_at');if(request!==sequence)return;if(f.error){card.append(el('p','첨부파일을 불러오지 못했습니다. 다시 확인해 주세요.'));continue;}
     const fileTools=el('div');fileTools.className='director-file-tools';
     if(post.purge_requested_at){content.append(el('p','영구삭제 진행 중입니다. 영구삭제 계속 버튼으로 마쳐 주세요.'));continue;}
