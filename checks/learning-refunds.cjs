@@ -1,14 +1,44 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),crypto=require('node:crypto');
-class N{constructor(tag='div',text=''){this.tagName=tag.toUpperCase();this.children=[];this.parentNode=null;this.events={};this.dataset={};this._text=text;this.value='';this.hidden=false;this.classList={add(){},remove(){},toggle(){}};}set textContent(t){this._text=String(t);this.children=[];}get textContent(){return this._text+this.children.map(n=>n.textContent).join('');}append(...ns){for(let n of ns){if(typeof n==='string')n=new N('#text',n);n.parentNode=this;this.children.push(n);}}replaceChildren(...ns){this.children=[];this._text='';this.append(...ns);}addEventListener(k,f){(this.events[k]??=[]).push(f);}setAttribute(k,v){this[k]=v;}remove(){this.parentNode.children=this.parentNode.children.filter(n=>n!==this);}querySelectorAll(q){return flat(this).filter(n=>q==='button'?n.tagName==='BUTTON':false);}reportValidity(){return true;}scrollIntoView(){}get isConnected(){return true;}}
+class N{constructor(tag='div',text=''){this.tagName=tag.toUpperCase();this.children=[];this.parentNode=null;this.events={};this.dataset={};this._text=text;this.value='';this.hidden=false;this.classList={add(){},remove(){},toggle(){}};}set textContent(t){this._text=String(t);this.children=[];}get textContent(){return this._text+this.children.map(n=>n.textContent).join('');}append(...ns){for(let n of ns){if(typeof n==='string')n=new N('#text',n);n.parentNode=this;this.children.push(n);}}replaceChildren(...ns){this.children=[];this._text='';this.append(...ns);}addEventListener(k,f){(this.events[k]??=[]).push(f);}setAttribute(k,v){this[k]=v;}remove(){this.parentNode.children=this.parentNode.children.filter(n=>n!==this);}querySelectorAll(q){return flat(this).filter(n=>q==='button'?n.tagName==='BUTTON':false);}checkValidity() {
+ if (this.type !== 'number') return true;
+ const value = Number(this.value);
+ return (!this.required || String(this.value) !== '') && Number.isInteger(value) && value >= this.min && value <= this.max;
+}
+reportValidity(){return flat(this).every(n=>n.checkValidity());}scrollIntoView(){}get isConnected(){return true;}}
 function flat(n){return[n,...n.children.flatMap(flat)];}const nodes={},doc={getElementById:id=>nodes[id]??=new N(),createElement:t=>new N(t),createTextNode:t=>new N('#text',t)};const c=vm.createContext({document:doc,Intl,Date,crypto,console,addEventListener(){}});for(const f of['learning-records.js','exam-refunds.js'])vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'..',f),'utf8'),c);
 const texts=n=>flat(n).filter(x=>x.tagName==='BUTTON'),button=(n,t)=>texts(n).find(x=>x.textContent===t),field=(n,t)=>flat(n).find(x=>x.tagName==='LABEL'&&x._text===t)?.children[0];async function event(n,k){for(const f of n.events[k]||[])await f({preventDefault(){}});}async function click(n,t){const b=button(n,t);assert(b,'button '+t);await event(b,'click');}
 let profile={id:'st',role:'student',approval_status:'approved',membership_state:'active',full_name:'검증 학생'},store=[],calls=[],version=0,confirm=true,error=false;
 const client=async()=>({rpc:async(name,args)=>{calls.push({name,args});if(error)return{error:Error('오류 테스트')};if(name==='cheongla_learning_list')return{data:{students:[{id:'st',name:'검증 학생'}],items:store.filter(r=>r.kind===args.record_kind)}};if(name==='cheongla_save_learning'){const row={id:args.target_record||'r'+(++version),kind:args.record_kind,student_id:args.target_student,student_name:'검증 학생',record_on:args.day_on,payload:args.content,state:args.submit_record?'submitted':'draft',updated_at:'v'+(++version),created_by:profile.id,parent_checks:[]};store=store.filter(x=>x.id!==row.id);store.push(row);return{data:row};}if(name==='cheongla_review_learning')return{data:null};if(name==='cheongla_exam_refund_message')return{data:{refund:{amount:25000,refunded_on:'2026-10-26',reason:'신청 취소'},student_name:'검증 학생',label:'대성 모의고사',billing_month:'2026-10-01',recipients:[{parent_name:'검증 보호자',phone:'010'+''.padStart(8,'0')}]}};return{data:null};}});
 const api={document:doc,profile:()=>profile,client,manager:()=>['owner','manager'].includes(profile.role),principal:()=>profile.role==='owner',confirm:async()=>confirm,readable:e=>e.message};
-(async()=>{const ui=c.CheonglaLearning.mount(api);ui.accountChanged();await ui.open('study');let p=nodes.learningPanel;assert(p.textContent.includes('주간 실제 학습'));assert(p.textContent.includes('검증 학생'));field(p,'학습계획 · 교재·범위').value='국어 기출 1회';field(p,'실제 학습시간 (분)').value='90';await click(p,'하원 전 제출');let call=calls.find(x=>x.name==='cheongla_save_learning');assert.equal(call.args.target_student,'st');assert.equal(call.args.content.subjects[0].minutes,90);assert.equal(call.args.content.subjects[0].tasks[0].text,'국어 기출 1회');assert(call.args.submit_record);assert(p.textContent.includes('주간 실제 학습 1시간 30분'));await click(p,'계획 · 변경 내용 저장');call=calls.filter(x=>x.name==='cheongla_save_learning').at(-1);assert.equal(call.args.expected_updated_at,'v2');assert(!call.args.submit_record);
+(async()=>{const ui=c.CheonglaLearning.mount(api);ui.accountChanged();await ui.open('study');let p=nodes.learningPanel;assert(p.textContent.includes('주간 실제 학습'));assert(p.textContent.includes('검증 학생'));field(p,'학습계획 · 교재·범위').value='국어 기출 1회';const hours=field(p,'시간'),minutes=field(p,'분');
+hours.value='24';
+minutes.value='1';
+await event(hours,'input');
+await click(p,'계획 · 변경 내용 저장');
+assert(!calls.some(x=>x.name==='cheongla_save_learning'));
+assert(p.textContent.includes('입력값 확인'));
+hours.value='1';
+minutes.value='30';
+await event(hours,'input');
+await event(minutes,'input');
+assert(p.textContent.includes('하루 실제 학습시간: 1시간 30분'));
+await click(p,'하원 전 제출');let call=calls.find(x=>x.name==='cheongla_save_learning');assert.equal(call.args.target_student,'st');assert.equal(call.args.content.subjects[0].minutes,90);assert.equal(call.args.content.subjects[0].tasks[0].text,'국어 기출 1회');assert(call.args.submit_record);assert(p.textContent.includes('주간 실제 학습 1시간 30분'));await click(p,'계획 · 변경 내용 저장');call=calls.filter(x=>x.name==='cheongla_save_learning').at(-1);assert.equal(call.args.expected_updated_at,'v2');assert(!call.args.submit_record);
  await ui.open('external');p=nodes.externalPanel;for(const l of['외출 시작 · 이동시간 포함','복귀 · 이동시간 포함','학원·과외명 / 예외 사유'])field(p,l).value=l.startsWith('외출')?'18:45':l.startsWith('복귀')?'21:15':'영어 학원';flat(p).find(n=>n.type==='checkbox').checked=true;await click(p,'일정 제출 · 변경 저장');call=calls.filter(x=>x.name==='cheongla_save_learning').at(-1);assert.equal(call.args.record_kind,'external');assert.equal(call.args.content.rows[0].start,'18:45');assert.deepEqual(Array.from(call.args.content.rows[0].days),[1]);assert(p.textContent.includes('18:45~21:15'));
- profile={...profile,id:'pa',role:'parent'};ui.accountChanged();await ui.open('study');p=nodes.learningPanel;assert(!button(p,'하원 전 제출'));assert(!field(p,'학습계획 · 교재·범위'));assert(p.textContent.includes('国語')===false);assert(p.textContent.includes('국어 기출 1회'));assert(!ui.permitted('registration'));
- profile={...profile,id:'mg',role:'manager'};ui.accountChanged();await ui.open('study');p=nodes.learningPanel;assert(!button(p,'하원 전 제출'));assert(ui.permitted('registration'));profile={...profile,id:'ad',role:'owner'};ui.accountChanged();assert(ui.permitted('registration'));await ui.open('registration');p=nodes.registrationPanel;for(const text of ['국어 선택과목','수학 선택과목','탐구 선택과목 2개','양력·음력 (선택)','집 전화 (선택)','계열 · 인문/자연/기타'])assert(!field(p,text),'removed '+text);field(p,'학생 이름').value='신규 학생';await click(p,'등록카드 저장');call=calls.filter(x=>x.name==='cheongla_save_learning').at(-1);assert.equal(call.args.record_kind,'registration');assert.equal(call.args.content.name,'신규 학생');assert.equal(call.args.target_student,null);assert(p.textContent.includes('원장·실장 전용 기록'),p.textContent);
+ profile={...profile,id:'pa',role:'parent'};ui.accountChanged();await ui.open('study');p=nodes.learningPanel;assert(!button(p,'하원 전 제출'));assert(!field(p,'학습계획 · 교재·범위'));assert(!field(p,'시간'));
+ assert(p.textContent.includes('국어 · 1시간 30분'));
+ assert(p.textContent.includes('하루 실제 학습시간: 1시간 30분'));
+assert(p.textContent.includes('국어 기출 1회'));assert(!ui.permitted('registration'));
+ profile={...profile,id:'mg',role:'manager'};ui.accountChanged();await ui.open('study');p=nodes.learningPanel;assert(!button(p,'하원 전 제출'));assert(ui.permitted('registration'));profile={...profile,id:'ad',role:'owner'};ui.accountChanged();assert(ui.permitted('registration'));
+ await ui.open('study');
+ p=nodes.learningPanel;
+ assert.equal(Number(field(p,'시간').value),1);
+ assert.equal(Number(field(p,'분').value),30);
+ field(p,'분').value='5';
+ await event(field(p,'분'),'input');
+ await click(p,'계획 · 변경 내용 저장');
+ assert.equal(store.find(row=>row.kind==='study').payload.subjects[0].minutes,65);
+ assert(p.textContent.includes('주간 실제 학습 1시간 5분'));
+ await ui.open('registration');p=nodes.registrationPanel;for(const text of ['국어 선택과목','수학 선택과목','탐구 선택과목 2개','양력·음력 (선택)','집 전화 (선택)','계열 · 인문/자연/기타'])assert(!field(p,text),'removed '+text);field(p,'학생 이름').value='신규 학생';await click(p,'등록카드 저장');call=calls.filter(x=>x.name==='cheongla_save_learning').at(-1);assert.equal(call.args.record_kind,'registration');assert.equal(call.args.content.name,'신규 학생');assert.equal(call.args.target_student,null);assert(p.textContent.includes('원장·실장 전용 기록'),p.textContent);
  const schoolGrades='내신등급 · 국어/영어/수학/사회탐구/과학탐구';
  const examGrades='수능등급 · 국어/영어/수학/사회탐구/과학탐구';
  assert(!field(p,'보호자 1 성함 · 관계'));
