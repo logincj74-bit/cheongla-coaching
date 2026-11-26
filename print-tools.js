@@ -61,7 +61,56 @@ function open(title,build,filename){
  close.addEventListener('click',clear);dialog.addEventListener('cancel',clear);return dialog;
 }
 function node(title,target){return open(title,(body,doc)=>{const snapshot=visibleSnapshot(target,doc);if(snapshot)body.append(snapshot);});}
-function journals(title,records){const date=title.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?(?=\s|$)/);const filename=date?'청라근무일지'+date[1].slice(2)+date[2]+(date[3]||''):undefined;return open(title,(body,doc)=>{const table=doc.createElement('table');table.className='journal-print-table';const head=doc.createElement('thead'),tr=doc.createElement('tr');for(const label of ['일자 / 요일','근무 내용','특이 사항 · 구체적인 시간 기재','신규 상담 내용 / 전달사항']){const th=doc.createElement('th');th.textContent=label;tr.append(th);}head.append(tr);table.append(head);const tbody=doc.createElement('tbody');for(const r of records){const row=doc.createElement('tr'),day=doc.createElement('td');day.style.width='10%';day.textContent=r.work_on+'\n'+new Date(r.work_on+'T00:00:00+09:00').toLocaleDateString('ko-KR',{weekday:'short',timeZone:'Asia/Seoul'});row.append(day);for(const key of ['duty','special','handover']){const cell=doc.createElement('td');cell.style.width='30%';cell.style.verticalAlign='top';const text=doc.createElement('div');text.style.whiteSpace='pre-wrap';root.CheonglaJournalInk?.render(text,r[key]||'',r.field_inks?.[key],r.ink_color);if(!root.CheonglaJournalInk)text.textContent=r[key]||'';cell.append(text);for(const c of(r.comments||[]).filter(c=>(c.field_key||'handover')===key)){const p=doc.createElement('p');root.CheonglaJournalInk?.render(p,c.body,c.ink_runs,c.ink_color);if(!root.CheonglaJournalInk)p.textContent=c.body;cell.append(p);}row.append(cell);}tbody.append(row);}table.append(tbody);body.append(table);const style=doc.createElement('style');style.textContent='.journal-print-table{table-layout:fixed;border:2px solid #222}.journal-print-table th{font-weight:600;text-align:center}.journal-print-table td{white-space:pre-wrap;vertical-align:top;line-height:1.8;min-height:200px}.journal-print-table tr{break-inside:auto}';doc.head.append(style);},filename);}
+function journals(title,records){
+ const date=title.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?(?=\s|$)/);
+ const filename=date?'청라근무일지'+date[1].slice(2)+date[2]+(date[3]||''):undefined;
+ return open(title,(body,doc)=>{
+  const table=doc.createElement('table');
+  table.className='journal-print-table';
+  const header=table.createTHead().insertRow();
+  for(const label of ['일자 / 요일','근무 내용','특이 사항 · 구체적인 시간 기재','신규 상담 내용 / 전달사항']){
+   const th=doc.createElement('th');
+   th.textContent=label;
+   header.append(th);
+  }
+  const tbody=table.createTBody();
+  function writeInk(node,text,runs,color){
+   if(root.CheonglaJournalInk)root.CheonglaJournalInk.render(node,text,runs,color);
+   else node.textContent=text;
+  }
+  for(const record of records){
+   const row=tbody.insertRow();
+   const day=row.insertCell();
+   day.style.width='10%';
+   day.textContent=record.work_on+'\n'+new Date(record.work_on+'T00:00:00+09:00').toLocaleDateString('ko-KR',{weekday:'short',timeZone:'Asia/Seoul'});
+   for(const key of ['duty','special','handover']){
+    const cell=row.insertCell();
+    cell.style.width='30%';
+    const text=doc.createElement('div');
+    writeInk(text,record[key]||'',record.field_inks?.[key],record.ink_color);
+    cell.append(text);
+    for(const comment of (record.comments||[]).filter(c=>(c.field_key||'handover')===key)){
+     const note=doc.createElement('p');
+     writeInk(note,comment.body,comment.ink_runs,comment.ink_color);
+     cell.append(note);
+    }
+   }
+   if(Object.hasOwn(record,'patrol')){
+    const cell=tbody.insertRow().insertCell();
+    cell.colSpan=4;
+    const heading=doc.createElement('div'),label=doc.createElement('strong'),text=doc.createElement('div');
+    label.textContent='순시상황';
+    heading.append(label);
+    writeInk(text,record.patrol||'',record.field_inks?.patrol,record.ink_color);
+    cell.append(heading,text);
+   }
+  }
+  body.append(table);
+  const style=doc.createElement('style');
+  style.textContent='.journal-print-table{table-layout:fixed;border:2px solid #222}.journal-print-table th{font-weight:600;text-align:center}.journal-print-table td{white-space:pre-wrap;vertical-align:top;line-height:1.8;min-height:200px}.journal-print-table tr{break-inside:auto}';
+  doc.head.append(style);
+ },filename);
+}
 
 function mbti(code,guide,groups){
  if(!/^[IE][NS][TF][JP]$/.test(code)||!guide||!groups)throw Error('출력할 MBTI 유형을 선택해 주세요.');

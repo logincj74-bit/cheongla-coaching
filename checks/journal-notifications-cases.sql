@@ -92,4 +92,46 @@ do $$begin
  if has_function_privilege('anon','public.cheongla_journal_notification_context(uuid)','execute')then raise exception 'anonymous context callable';end if;
 end;$$;
 select 'PASS journal write/edit/colour/delete/close/archive/restore/purge; no-op and seed silent; exact staff recipients; 60s coalescing/new window; no content leakage; persistent outbox; read/trash retained; RLS and context authorization; revoked role denied. Everything rolled back.'as result;
+select set_config('request.jwt.claim.sub','07920000-0000-4000-8000-000000000010',true);
+set local role authenticated;
+do $$
+declare
+ day date := '2097-11-08';
+ journal jsonb := public.cheongla_daily_journal_get(day);
+ fields jsonb := journal->'fields';
+ inks jsonb := journal->'field_inks';
+ patrol text := E'09:20 · 1열람실 · 졸음 확인\n10:30 · 2열람실 · 이상 없음';
+ patrol_inks jsonb := jsonb_build_array(jsonb_build_object('text',patrol,'ink','green'));
+begin
+ journal := public.cheongla_daily_journal_save(
+   day, jsonb_set(fields,'{patrol}',to_jsonb(patrol)),
+   jsonb_set(inks,'{patrol}',patrol_inks), (journal->>'revision')::bigint
+ );
+ assert journal->'fields'->>'patrol' = patrol, 'patrol text lost';
+ assert journal->'field_inks'->'patrol' = patrol_inks, 'patrol colours lost';
+
+ -- An older, still-open browser saves its original three fields.
+ journal := public.cheongla_daily_journal_save(day,fields,inks,(journal->>'revision')::bigint);
+ assert journal->'fields'->>'patrol' = patrol, 'legacy save erased patrol';
+ assert journal->'field_inks'->'patrol' = patrol_inks, 'legacy save erased patrol colours';
+
+ begin
+  perform public.cheongla_daily_journal_save(
+   day, jsonb_set(fields,'{patrol}',to_jsonb(patrol)),
+   jsonb_set(inks,'{patrol}','[]'::jsonb), (journal->>'revision')::bigint
+  );
+  raise exception 'invalid patrol colour runs accepted';
+ exception when invalid_parameter_value then null;
+ end;
+
+ journal := public.cheongla_daily_journal_action(day,'archive',(journal->>'revision')::bigint);
+ journal := public.cheongla_daily_journal_action(day,'restore',(journal->>'revision')::bigint);
+ assert journal->'fields'->>'patrol' = patrol, 'restore lost patrol';
+ journal := public.cheongla_daily_journal_action(day,'archive',(journal->>'revision')::bigint);
+ journal := public.cheongla_daily_journal_action(day,'purge',(journal->>'revision')::bigint);
+ assert not (journal->'fields' ? 'patrol' or journal->'field_inks' ? 'patrol'), 'purge retained patrol';
+end;
+$$;
+reset role;
+select 'PASS patrol saves, preserves colour runs in old-client saves, validates input, and follows restore/purge.' as result;
 rollback;

@@ -6,7 +6,7 @@ const today=w.CheonglaStaffJournal.today();let profile={id:'owner',role:'english
 const ui=w.CheonglaStaffJournal.mount({document:d,profile:()=>profile,principal:()=>profile.role==='english_director',confirm:async()=>true,readable:e=>e.message,client:async()=>({rpc:async(name,a)=>{calls.push({name,a});if(name==='cheongla_daily_journal_get')return{data:JSON.parse(JSON.stringify(server))};if(name==='cheongla_daily_journal_list')return{data:[]};if(name==='cheongla_staff_journal_list')return{data:{items:[]}};if(name==='cheongla_daily_journal_save'){saves++;if(conflict)return{error:{code:'40001',message:'다른 근무자가 먼저 저장했습니다.'}};if(pendingSave)await pendingSave;server={...server,fields:a.document_fields,field_inks:a.document_inks,revision:server.revision+1,editor_name:'원장'};return{data:JSON.parse(JSON.stringify(server))}}if(name==='cheongla_daily_journal_action'){server.closed_by.push(profile.id);return{data:JSON.parse(JSON.stringify(server))}}throw Error(name)}})});
 const field=()=>d.querySelector('[data-field="duty"]'),btn=t=>[...d.querySelectorAll('button')].find(n=>n.textContent===t),tick=()=>new Promise(r=>setImmediate(r));
 function cursor(node,start,end=start){const r=d.createRange();r.setStart(node,start);r.setEnd(node,end);w.getSelection().removeAllRanges();w.getSelection().addRange(r);field().inkEditor.capture()}
-(async()=>{await ui.open();assert.equal(d.querySelectorAll('.lr-writing-line').length,0);assert.equal(d.querySelectorAll('[role=textbox]').length,3);let f=field();cursor(f.firstChild.firstChild,12);const original=f.value;btn('녹색').click();assert.equal(f.value,original);assert.equal(f.inkEditor.runs()[0].ink,'red','caret colour choice recoloured old content');f.inkEditor.insert('\n-전달 완료');await ui.leave();assert(server.fields.duty.includes('-전달 완료'));assert(server.field_inks.duty.some(r=>r.ink==='green'&&r.text.includes('-전달 완료')));assert(server.field_inks.duty.some(r=>r.ink==='red'&&r.text.includes('시험지')));
+(async()=>{await ui.open();assert.equal(d.querySelectorAll('.lr-writing-line').length,0);assert.equal(d.querySelectorAll('[role=textbox]').length,4);let f=field();cursor(f.firstChild.firstChild,12);const original=f.value;btn('녹색').click();assert.equal(f.value,original);assert.equal(f.inkEditor.runs()[0].ink,'red','caret colour choice recoloured old content');f.inkEditor.insert('\n-전달 완료');await ui.leave();assert(server.fields.duty.includes('-전달 완료'));assert(server.field_inks.duty.some(r=>r.ink==='green'&&r.text.includes('-전달 완료')));assert(server.field_inks.duty.some(r=>r.ink==='red'&&r.text.includes('시험지')));
  await ui.open();f=field();let red=f.querySelector('span[data-ink=red]').firstChild;cursor(red,0,3);btn('파랑').click();await ui.leave();assert.equal(server.field_inks.duty[0].ink,'blue');assert.equal(server.field_inks.duty[0].text,'시험지');
  // Touch selection uses selectionchange, then the same palette.
  f=field();cursor(f.firstChild.firstChild,0,2);d.dispatchEvent(new w.Event('selectionchange'));f.dispatchEvent(new w.Event('touchend'));btn('보라').click();await ui.leave();assert.equal(server.field_inks.duty[0].ink,'purple');assert.equal(server.field_inks.duty[0].text,'시험');
@@ -14,5 +14,21 @@ function cursor(node,start,end=start){const r=d.createRange();r.setStart(node,st
  f=field();cursor(f.lastChild.firstChild,f.lastChild.firstChild.length);f.inkEditor.insert('\n내 메모');conflict=true;assert.equal(await ui.leave(),false);assert(f.value.includes('내 메모'));assert(!server.fields.duty.includes('내 메모'));assert(!d.querySelector('.lr-conflict').hidden);assert(btn('내 작성 내용 보관 후 최신본 열기'));conflict=false;btn('내 작성 내용 보관 후 최신본 열기').click();await tick();await tick();assert(d.querySelector('[data-local-drafts]').textContent.includes('내 메모'));assert(!field().value.includes('내 메모'));
  // Composition is deferred until completed; text/colours are preserved after save/reopen.
  f=field();cursor(f.lastChild.firstChild,f.lastChild.firstChild.length);btn('갈색').click();f.dispatchEvent(new w.Event('compositionstart'));f.lastChild.firstChild.textContent+='한글';f.dispatchEvent(new w.Event('input',{bubbles:true}));assert.equal(await ui.leave(),false);f.dispatchEvent(new w.Event('compositionend'));assert.equal(await ui.leave(),true);assert(server.field_inks.duty.some(r=>r.ink==='brown'&&r.text.includes('한글')));
- await ui.open();assert(field().value.endsWith('한글'));profile={id:'staff',role:'manager',approval_status:'approved',membership_state:'active'};await ui.open();assert.equal(field().contentEditable,'true');btn('업무마감 · 최종 저장').click();await tick();await tick();assert.equal(field().contentEditable,'false');assert(btn('저장하기').disabled);
+ await ui.open();assert(field().value.endsWith('한글'));profile={id:'staff',role:'manager',approval_status:'approved',membership_state:'active'};await ui.open();assert.equal(field().contentEditable,'true');
+ const patrol=()=>d.querySelector('[data-field="patrol"]');
+ const inspections='09:20 · 1열람실 · 졸음 확인 · 자리에서 환기 안내\n10:30 · 2열람실 · 이상 없음';
+ assert.equal(patrol().value,'');
+ assert.equal(patrol().closest('.lr-document-grid').lastElementChild.querySelector('h3').textContent,'순시상황');
+ patrol().inkEditor.insert(inspections);
+ assert.equal(await ui.leave(),true);
+ assert.equal(server.fields.patrol,inspections);
+ assert.deepEqual(JSON.parse(JSON.stringify(server.field_inks.patrol)),[{text:inspections,ink:'green'}]);
+ await ui.open();
+ assert.equal(patrol().value,inspections);
+ let printed;
+ w.CheonglaPrint={clear(){},journals:(_title,records)=>{printed=records;}};
+ btn('현재 일지 인쇄 / PDF').click();
+ await tick();
+ assert.equal(printed[0].patrol,inspections);
+ btn('업무마감 · 최종 저장').click();await tick();await tick();assert.equal(field().contentEditable,'false');assert.equal(patrol().contentEditable,'false');assert(btn('저장하기').disabled);
  assert(!calls.some(x=>x.name.includes('save_journal_comment')));ui.reset();assert.equal(d.querySelectorAll('[role=textbox]').length,0);dom.window.close();console.log('PASS: one shared document, inline green reply, range/touch colour, reload preservation, conflict draft kept, Korean composition, staff shift close, no separate comment RPC');})().catch(e=>{console.error(e);dom.window.close();process.exit(1)});

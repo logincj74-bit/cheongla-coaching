@@ -165,7 +165,7 @@ root.CheonglaLearning={mount,week,total,hours,range,subjects,marks};
 (function(root){
  const doc=root.document;
  if(!doc?.head)return;
- const scripts=['season-admin.js?v=1.9.44','print-tools.js?v=2.0.1','journal-ink.js?v=1.9.79','journal-handover.js?v=1.9.79','journal-home.js?v=1.9.79','staff-journal.js?v=1.9.81','trash-history.js?v=1.9.36','winter-school.js?v=1.9.79','score-coaching.js?v=2.0.13','journal-mute.js?v=2.0.1','role-coaching.js?v=2.0.11','manual-fees.js?v=2.0.8','office-sms.js?v=4','swipe-navigation.js?v=12','mobile-home.js?v=2'];
+ const scripts=['season-admin.js?v=1.9.44','print-tools.js?v=2.0.2','journal-ink.js?v=1.9.79','journal-handover.js?v=1.9.79','journal-home.js?v=1.9.79','staff-journal.js?v=1.9.82','trash-history.js?v=1.9.36','winter-school.js?v=1.9.79','score-coaching.js?v=2.0.13','journal-mute.js?v=2.0.1','role-coaching.js?v=2.0.11','manual-fees.js?v=2.0.8','office-sms.js?v=4','swipe-navigation.js?v=12','mobile-home.js?v=2'];
  root.CheonglaHomeModulesReady=new Promise(resolve=>{
   function load(){
    const pending=scripts.map(path=>new Promise(loaded=>{

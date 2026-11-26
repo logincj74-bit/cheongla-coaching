@@ -14,6 +14,7 @@ export async function createJournalTestDb(){
   await db.exec('revoke all on function cheongla_private.can_use_staff_journal()from public,anon,authenticated');
   await db.exec('create trigger notification_outbox after insert on public.cheongla_notifications for each row execute function cheongla_private.enqueue_push_notification()');
   await db.exec(fs.readFileSync(path.join(repo,'supabase/migrations/20261106232149_daily_journal_staff_change_notifications.sql'),'utf8'));
+  await db.exec(fs.readFileSync(path.join(repo,'supabase/migrations/20261126000710_daily_journal_patrol.sql'),'utf8'));
   await db.exec("create policy own_staff_alerts on public.cheongla_notifications for select to authenticated using(recipient_id=auth.uid()and cheongla_private.can_read_notification(source_kind,source_id,student_id))");
   return db;
  }catch(e){await db.close();throw e;}
