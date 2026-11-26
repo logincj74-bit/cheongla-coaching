@@ -9,8 +9,22 @@ const api={document:doc,profile:()=>profile,client,manager:()=>['owner','manager
 (async()=>{
 const ui=c.CheonglaLearning.mount(api);ui.accountChanged();await ui.open('study');const p=nodes.learningPanel;let task=field(p,'학습계획 · 교재·범위'),form=flat(p).find(n=>n.tagName==='FORM');
 assert(!button(p,'삭제 · 휴지통으로'));
-task.value='첫 번째 계획';await event(form,'input');assert(ui.dirty);assert(timer);let release;delay=new Promise(r=>release=r);timer();await new Promise(setImmediate);assert.equal(calls.filter(x=>x.name==='cheongla_save_learning').length,1);
-task.value='수정된 계획';await event(form,'input');const flush=ui.leave();release();await flush;delay=null;const saves=calls.filter(x=>x.name==='cheongla_save_learning');assert.equal(saves.length,2);assert.equal(saves[1].args.expected_updated_at,'v2');assert.equal(saves[1].args.content.subjects[0].tasks[0].text,'수정된 계획');assert.equal(field(p,'학습계획 · 교재·범위'),task,'autosave must preserve editor focus node');assert(!ui.dirty);assert(p.textContent.includes('자동 저장 완료'));
+const reflection=field(p,'셀프 총평');
+assert.equal(task.tagName,'TEXTAREA');
+assert.equal(task.rows,3);
+assert.equal(reflection.tagName,'TEXTAREA');
+assert.equal(reflection.rows,5);
+await event(form,'compositionstart');
+task.value='ㅅ';
+await event(form,'input');
+assert.equal(timer,null);
+assert.equal(await ui.leave(),false);
+assert(!calls.some(x=>x.name==='cheongla_save_learning'));
+task.value='첫 번째 계획';
+await event(form,'compositionend');
+assert(ui.dirty);
+assert(timer);let release;delay=new Promise(r=>release=r);timer();await new Promise(setImmediate);assert.equal(calls.filter(x=>x.name==='cheongla_save_learning').length,1);
+task.value='수능특강 독서 42~45쪽\n틀린 선지 근거 표시';reflection.value='한 지문을 마쳤다.\n4번은 내일 다시 푼다.';await event(form,'input');const flush=ui.leave();release();await flush;delay=null;const saves=calls.filter(x=>x.name==='cheongla_save_learning');assert.equal(saves.length,2);assert.equal(saves[1].args.expected_updated_at,'v2');assert.equal(saves[1].args.content.subjects[0].tasks[0].text,'수능특강 독서 42~45쪽\n틀린 선지 근거 표시');assert.equal(saves[1].args.content.reflection,reflection.value);assert.equal(field(p,'학습계획 · 교재·범위'),task,'autosave must preserve editor focus node');assert(!ui.dirty);assert(p.textContent.includes('자동 저장 완료'));
 await click(p,'하원 전 제출');assert.equal(store[0].state,'submitted');task.value='제출 후 당일 수정';await event(form,'input');await ui.leave();assert.equal(store[0].state,'submitted');
 error=true;task.value='실패해도 지켜야 하는 내용';await event(form,'input');assert.equal(await ui.leave(),false);assert(ui.dirty);assert.equal(task.value,'실패해도 지켜야 하는 내용');error=false;assert.equal(await ui.leave(),true);assert.equal(store[0].payload.subjects[0].tasks[0].text,'실패해도 지켜야 하는 내용');
 const oldDay=store[0].record_on;clock+=86400000;await ui.checkDay();assert.notEqual(field(p,'학습 날짜').value,oldDay);assert.equal(field(p,'학습계획 · 교재·범위').value,'');assert.equal(store.length,1);

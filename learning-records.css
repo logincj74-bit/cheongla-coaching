@@ -13,3 +13,7 @@
 .lr-study-duration legend{padding:0;font-weight:700;color:#24564d}
 .lr-study-duration>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-width:320px}
 .lr-study-duration label{margin-top:6px}
+
+.lr-study-writing-help{margin:0 0 16px;line-height:1.65}
+.lr-editor .lr-study-writing{display:block;width:100%;font-size:1rem;line-height:1.55;resize:vertical}
+.lr-editor .lr-study-writing[rows="5"]{min-height:9rem}
